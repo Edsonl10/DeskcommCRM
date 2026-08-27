@@ -64,12 +64,24 @@ export function decideRouting(input: DecideRoutingInput): RoutingAction {
 
   // 'load' é INALCANÇÁVEL: routingConfigSchema só permite manual|round_robin
   // (G5-01). Tratado defensivamente como no-op (post-MVP), nunca dead code real.
+  if (input.mode === "least_loaded") {
+    const picked = [...input.eligibles].sort((a, b) =>
+      a.currentLoad - b.currentLoad ||
+      (a.lastAssignedAt ?? -1) - (b.lastAssignedAt ?? -1) ||
+      a.userId.localeCompare(b.userId),
+    )[0]?.userId;
+    return picked ? { kind: "assign", userId: picked } : noEligible(input);
+  }
   if (input.mode !== "round_robin") return { kind: "skip", reason: `unsupported_mode:${input.mode}` };
 
   const picked = selectRoundRobin(input.eligibles);
   if (picked) return { kind: "assign", userId: picked };
 
   // Sem elegível (acceptance 4): re-agenda com backoff da config (não hardcoded).
+  return noEligible(input);
+}
+
+function noEligible(input: DecideRoutingInput): RoutingAction {
   const nextAttempts = input.attempts + 1;
   if (nextAttempts > input.config.max_retries) {
     return { kind: "dead", reason: "max_retries_no_eligible" };

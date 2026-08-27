@@ -126,8 +126,11 @@ export type ClaimConversationInput = z.infer<typeof claimConversationSchema>;
 
 /** G3-01: transferência imediata (decisão G1-06d) — reatribui com motivo opcional. */
 export const transferConversationSchema = z.object({
-  to_user_id: z.string().uuid(),
+  to_user_id: z.string().uuid().optional(),
+  department_id: z.string().uuid().optional(),
   reason: z.string().trim().min(1).max(500).optional(),
+}).refine((input) => Boolean(input.to_user_id || input.department_id), {
+  message: "Escolha um atendente ou departamento.",
 });
 
 export type TransferConversationInput = z.infer<typeof transferConversationSchema>;

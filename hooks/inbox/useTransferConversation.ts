@@ -7,7 +7,8 @@ import type { Conversation } from "@/lib/types/messaging";
 
 interface TransferArgs {
   conversation_id: string;
-  to_user_id: string;
+  to_user_id?: string;
+  department_id?: string;
   reason?: string;
 }
 
@@ -19,7 +20,7 @@ export function useTransferConversation() {
     mutationFn: async (args: TransferArgs) =>
       apiClient.post<{ data: Conversation }>(
         `/api/v1/conversations/${args.conversation_id}/transfer`,
-        { to_user_id: args.to_user_id, ...(args.reason ? { reason: args.reason } : {}) },
+        { ...(args.to_user_id ? { to_user_id: args.to_user_id } : {}), ...(args.department_id ? { department_id: args.department_id } : {}), ...(args.reason ? { reason: args.reason } : {}) },
       ),
     onError: (err, args) => {
       qc.invalidateQueries({ queryKey: ["conversations"] });
