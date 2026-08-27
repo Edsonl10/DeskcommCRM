@@ -14,12 +14,13 @@
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
-import { decideRouting } from "@/lib/routing/decide";
+import { decideRouting, type RoutingCandidate } from "@/lib/routing/decide";
 import { loadEligibleAttendants } from "@/lib/routing/eligibles";
 import { routingConfigSchema } from "@/lib/schemas/routing";
 
 export const ROUTING_WORKER_KEY = "worker.routing.v1";
 export const ROUTING_EVENT_TYPE = "conversation.routing_requested";
+export const DEPARTMENT_ROUTING_EVENT_TYPE = "conversation.department_routing_requested";
 
 const DEFAULT_BATCH_SIZE = 100;
 
@@ -78,7 +79,7 @@ export async function runRoutingWorker(opts: RoutingWorkerOptions = {}): Promise
   const { data: rawEvents, error: pullErr } = await admin
     .from("event_log")
     .select("id, organization_id, payload, metadata, consumed_by, attempts, next_attempt_at, status")
-    .eq("event_type", ROUTING_EVENT_TYPE)
+    .in("event_type", [ROUTING_EVENT_TYPE, DEPARTMENT_ROUTING_EVENT_TYPE])
     .eq("status", "pending")
     .or(`next_attempt_at.is.null,next_attempt_at.lte.${now.toISOString()}`)
     .order("created_at", { ascending: true })
@@ -148,15 +149,39 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
   const settings = (org?.settings ?? {}) as { routing?: unknown };
   const config = routingConfigSchema.parse(settings.routing ?? {});
 
-  const alreadyAssigned = Boolean(conv.assigned_to_user_id);
-  const eligibles =
-    !alreadyAssigned && config.mode === "round_robin"
-      ? await loadEligibleAttendants(createAdminClient(), orgId, now)
-      : [];
+  const departmentId = strOrNull(payload.department_id);
+  let mode: string = config.mode;
+  let eligibles: RoutingCandidate[] = [];
+  if (!conv.assigned_to_user_id && departmentId) {
+    const { data: department } = await admin
+      .from("departments")
+      .select("distribution_method")
+      .eq("id", departmentId)
+      .eq("organization_id", orgId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!department) {
+      await markDone(event, "skipped_invalid_payload");
+      return "skipped_invalid_payload";
+    }
+    mode = department.distribution_method;
+    if (mode !== "manual") {
+      const { data: memberRows } = await admin
+        .from("department_members")
+        .select("user_id")
+        .eq("organization_id", orgId)
+        .eq("department_id", departmentId)
+        .eq("receives_auto_distribution", true);
+      const memberIds = new Set((memberRows ?? []).map((member) => member.user_id));
+      eligibles = (await loadEligibleAttendants(admin, orgId, now)).filter((candidate) => memberIds.has(candidate.userId));
+    }
+  } else if (!conv.assigned_to_user_id && config.mode === "round_robin") {
+    eligibles = await loadEligibleAttendants(admin, orgId, now);
+  }
 
   const action = decideRouting({
-    mode: config.mode,
-    alreadyAssigned,
+    mode,
+    alreadyAssigned: Boolean(conv.assigned_to_user_id),
     eligibles,
     config,
     attempts: event.attempts,

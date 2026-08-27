@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TeamMembersClient } from "./_components/TeamMembersClient";
 import { AttendantsClient } from "./_components/AttendantsClient";
+import { DepartmentsClient } from "./_components/DepartmentsClient";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export default async function TeamPage() {
         <TabsList>
           <TabsTrigger value="members">Membros</TabsTrigger>
           <TabsTrigger value="attendants">Atendimento</TabsTrigger>
+          <TabsTrigger value="departments">Departamentos</TabsTrigger>
         </TabsList>
         <TabsContent value="members" className="mt-4">
           <TeamMembersClient currentUserId={user.id} canManage={isAdmin} />
@@ -46,6 +48,11 @@ export default async function TeamPage() {
             <p className="text-sm text-muted-foreground">
               A gestão de atendimento está disponível para gerentes e administradores.
             </p>
+          )}
+        </TabsContent>
+        <TabsContent value="departments" className="mt-4">
+          {isManager ? <DepartmentsClient canManage={isManager} /> : (
+            <p className="text-sm text-muted-foreground">A gestão de departamentos está disponível para gerentes e administradores.</p>
           )}
         </TabsContent>
       </Tabs>

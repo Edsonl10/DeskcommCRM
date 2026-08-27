@@ -16,7 +16,7 @@ import { registrarTrocaDeComando } from "@/lib/inbox/atividade-de-comando";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
-import { transferConversationSchema, validateRequest } from "@/lib/schemas";
+import { transferConversationSchema, validateRequest, type TransferConversationInput } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Conversation } from "@/lib/types/messaging";
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const user = authz.user;
   const orgId = authz.org.orgId; // fonte confiável (cookie validado), nunca o body
 
-  let input;
+  let input: TransferConversationInput;
   try {
     input = await validateRequest(transferConversationSchema, req);
   } catch (err) {
@@ -51,6 +51,31 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     throw err;
   }
 
+  if (input.department_id) {
+    const { data, error } = await supabase.rpc("fn_conversation_assign_department", {
+      p_organization_id: orgId,
+      p_conversation_id: id,
+      p_department_id: input.department_id,
+      ...(input.to_user_id ? { p_to_user_id: input.to_user_id } : {}),
+    });
+    if (error) return fail("unprocessable_entity", error.message, 422, { requestId });
+    const row = data?.[0];
+    if (!row) return fail("not_found", "Conversa não encontrada.", 404, { requestId });
+    const conv = row as unknown as Conversation;
+    if (!input.to_user_id) {
+      await supabase.rpc("emit_event", {
+        p_event_type: "conversation.department_routing_requested",
+        p_entity_kind: "conversation",
+        p_entity_id: conv.id,
+        p_organization_id: orgId,
+        p_payload: { organization_id: orgId, conversation_id: conv.id, department_id: input.department_id },
+        p_metadata: { request_id: requestId },
+      });
+    }
+    await audit({ action: "conversation.transferred", actorUserId: user.id, organizationId: conv.organization_id, resourceType: "conversation", resourceId: conv.id, requestId, metadata: { department_id: input.department_id, ...(input.to_user_id ? { to_user_id: input.to_user_id } : {}) } });
+    return ok(conv, { requestId });
+  }
+
   // Destino tem que ser membro ativo agent+ da MESMA org (a RLS de
   // user_organizations só mostra o próprio membership a um agent — por isso o
   // admin client, filtrado pela org resolvida acima).
@@ -60,7 +85,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
       .from("user_organizations")
       .select("role")
       .eq("organization_id", orgId)
-      .eq("user_id", input.to_user_id)
+      .eq("user_id", input.to_user_id!)
       .is("revoked_at", null)
       .maybeSingle();
     if (memberErr) {
@@ -76,7 +101,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const { data, error } = await supabase.rpc("fn_conversation_assign", {
     p_organization_id: orgId,
     p_conversation_id: id,
-    p_to_user_id: input.to_user_id,
+    p_to_user_id: input.to_user_id!,
     p_reason: "transfer",
     // Imediata (G1-06d): sem optimistic lock — reatribui qualquer que seja o dono atual.
     p_enforce_expected: false,
@@ -100,7 +125,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     resourceId: conv.id,
     requestId,
     metadata: {
-      to_user_id: input.to_user_id,
+      to_user_id: input.to_user_id!,
       ...(input.reason ? { note: input.reason } : {}),
     },
   });
