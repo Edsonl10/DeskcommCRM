@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,8 +18,7 @@ const emptyDraft = (): Draft => ({ name: "", color: "#16a34a", distribution_meth
 
 function DepartmentDialog({ item, open, onOpenChange }: { item: Department | null; open: boolean; onOpenChange: (open: boolean) => void }) {
   const create = useCreateDepartment(); const update = useUpdateDepartment(); const roster = useAttendants();
-  const [draft, setDraft] = useState<Draft>(emptyDraft());
-  useEffect(() => { setDraft(item ? { ...item, members: item.department_members } : emptyDraft()); }, [item, open]);
+  const [draft, setDraft] = useState<Draft>(() => item ? { ...item, members: item.department_members } : emptyDraft());
   const pending = create.isPending || update.isPending;
   const toggleMember = (userId: string) => setDraft((current) => ({ ...current, members: current.members.some((m) => m.user_id === userId) ? current.members.filter((m) => m.user_id !== userId) : [...current.members, { user_id: userId, member_role: "normal", receives_auto_distribution: true }] }));
   const setMember = (userId: string, patch: Partial<Draft["members"][number]>) => setDraft((current) => ({ ...current, members: current.members.map((m) => m.user_id === userId ? { ...m, ...patch } : m) }));
@@ -46,6 +45,6 @@ export function DepartmentsClient({ canManage }: { canManage: boolean }) {
     {departments.isLoading ? <p className="text-sm text-muted-foreground">Carregando departamentos…</p> : null}
     <div className="grid gap-3 lg:grid-cols-2">{list.map((department) => <Card key={department.id}><CardHeader className="pb-3"><div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><span className="rounded-md p-2" style={{ backgroundColor: department.color }}><Buildings size={18} className="text-white" /></span><div><CardTitle className="text-base">{department.name}</CardTitle><CardDescription>{METHODS[department.distribution_method]}</CardDescription></div></div>{department.is_default ? <Badge><Sparkle size={13} className="mr-1" />Padrão</Badge> : null}</div></CardHeader><CardContent className="flex items-center justify-between gap-2 text-sm"><span>{department.department_members.length} atendente(s) vinculado(s)</span><div className="flex items-center gap-2"><Badge variant={department.is_active ? "default" : "outline"}>{department.is_active ? "Ativo" : "Inativo"}</Badge>{canManage ? <Button size="icon" variant="outline" aria-label={"Editar " + department.name} onClick={() => setEditing(department)}><PencilSimple size={16} /></Button> : null}</div></CardContent></Card>)}</div>
     {!departments.isLoading && !list.length ? <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">Crie o primeiro departamento para organizar a distribuição de atendimentos.</CardContent></Card> : null}
-    <DepartmentDialog item={editing} open={!!editing} onOpenChange={(open) => !open && setEditing(null)} /><DepartmentDialog item={null} open={creating} onOpenChange={setCreating} />
+    <DepartmentDialog key={editing?.id ?? "edit-closed"} item={editing} open={!!editing} onOpenChange={(open) => !open && setEditing(null)} /><DepartmentDialog key={creating ? "create-open" : "create-closed"} item={null} open={creating} onOpenChange={setCreating} />
   </div>;
 }
