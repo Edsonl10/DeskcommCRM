@@ -6,6 +6,8 @@
  * (quando o payload entra na pipeline pós-verificação HMAC).
  */
 import { z } from "zod";
+import { COMANDOS_DO_BANCO, type ComandoDoBanco } from "@/lib/inbox/comando-da-conversa";
+import { PISO_DA_BUSCA, buscaValeConsulta } from "@/lib/inbox/termo-de-busca";
 
 /**
  * O que a API aceita ESCREVER. Cinco valores, e a ausência de `pending`/`resolved`
@@ -94,6 +96,17 @@ export const sendMessageSchema = z
      * o vocabulário do canal, que é justamente o que o seam existe para evitar.
      */
     reply_to_message_id: z.string().uuid().optional(),
+    /**
+     * Quem DECIDIU este envio, quando quem aperta é um token (#1613).
+     *
+     * O token é da organização, não de uma pessoa: sem este campo, a conversa
+     * perde que foi Fulano — do ERP, da agenda, do sistema de cobrança — que
+     * mandou a mensagem. O campo só CHEGA até o insert se a rota o validar
+     * (escopo `messages:on_behalf` no token + membro ativo desta org com papel
+     * de atendente ou acima): quem valida é a rota, porque o escopo mora na
+     * linha do token e o membership, no banco.
+     */
+    on_behalf_of_user_id: z.string().uuid().optional(),
   })
   .refine(
     (d) => {
@@ -159,6 +172,7 @@ export type ConversationTags = z.infer<typeof conversationTagsSchema>;
 export const patchConversationSchema = z
   .object({
     status: conversationStatusSchema.optional(),
+    expected_revision: z.number().int().positive().optional(),
     tags: conversationTagsSchema.optional(),
   })
   .refine((d) => d.status !== undefined || d.tags !== undefined, {
@@ -170,7 +184,7 @@ export type PatchConversationInput = z.infer<typeof patchConversationSchema>;
 /** POST /conversations/open-with-contact — abrir inbox a partir de cartão de contato. */
 export const openConversationWithContactSchema = z
   .object({
-    channel_session_id: z.string().uuid(),
+    channel_session_id: z.string().uuid().optional(),
     contact_id: z.string().uuid().optional(),
     phone_number: z.string().min(8).max(32).optional(),
     name: z.string().trim().min(1).max(200).optional(),
@@ -182,7 +196,7 @@ export const openConversationWithContactSchema = z
 export type OpenConversationWithContactInput = z.infer<typeof openConversationWithContactSchema>;
 
 /**
- * Estados TERMINAIS: a conversa acabou e não volta sozinha.
+ * Estados TERMINAIS: atendimento encerrado; nova entrada válida pode reabrir.
  *
  * Vive aqui, e não espalhado em cada `.not(...)`, porque "acabou" é uma decisão
  * de produto — se um dia `resolved` deixar de ser legado e passar a valer, o
@@ -258,6 +272,52 @@ export const listConversationsQuerySchema = z.object({
       return validos.length > 0 ? validos : undefined;
     }),
   /**
+   * QUEM MANDA na conversa — um valor, ou vários separados por vírgula.
+   *
+   * É o filtro que as abas passaram a usar no lugar de `status`. A diferença não
+   * é de forma, é de pergunta: `status` é ciclo de vida ("aberta? fechada?"),
+   * `comando` é quem responde a próxima mensagem — e o motor de IA nunca lê
+   * `status`. Enquanto as abas perguntavam pelo status, a Fila listava como
+   * "aguardando atendente" as conversas que o robô estava atendendo.
+   *
+   * O valor é calculado pelo banco (`comando_da_conversa`, migration 0203), e é
+   * por isso que ele pode ir no `WHERE` sem quebrar o cursor de paginação.
+   */
+  comando: z
+    .union([z.enum(COMANDOS_DO_BANCO), z.string()])
+    .optional()
+    .transform((v, ctx) => {
+      if (v === undefined) return undefined;
+      const itens = v
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (itens.length === 0) {
+        // AQUI ELE DIVERGE DO `status`, DE PROPÓSITO. Lá, lista vazia vira
+        // `undefined` — "sem filtro". Aqui isso seria a pior saída possível: a
+        // aba pediria um conjunto vazio e receberia TUDO, ou seja, a tela
+        // afirmaria que todas as conversas estão no estado que ela nomeia.
+        // Melhor um 422 barulhento que uma lista plausível e errada.
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "comando vazio" });
+        return z.NEVER;
+      }
+      const validos: ComandoDoBanco[] = [];
+      for (const item of itens) {
+        const r = z.enum(COMANDOS_DO_BANCO).safeParse(item);
+        if (!r.success) {
+          // Mesma razão do `status`: recusar, não ignorar. Uma lista menor sem
+          // explicação parece resposta.
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `comando inválido: ${item}`,
+          });
+          return z.NEVER;
+        }
+        validos.push(r.data);
+      }
+      return validos;
+    }),
+  /**
    * Esconde as conversas terminais (fechada/arquivada).
    *
    * Existe porque "Minhas" filtrava SÓ por dono e `Fechar` não solta o dono
@@ -269,7 +329,43 @@ export const listConversationsQuerySchema = z.object({
   assigned_to: z.union([z.string().uuid(), z.literal("me"), z.literal("unassigned")]).optional(),
   channel_session_id: z.string().uuid().optional(),
   tag: conversationTagSchema.optional(),
-  search: z.string().optional(),
+  /**
+   * A aba "Grupos" do inbox (Task 10). `"true"`/`"false"` como STRING — vem de
+   * `searchParams`, que só conhece texto — e não `z.coerce.boolean()`, que
+   * transformaria QUALQUER string não-vazia (inclusive `"false"`) em `true`.
+   * Ausente = sem filtro, a lista mostra tudo, como hoje; presente decide o
+   * `.eq("is_group", …)` no handler.
+   */
+  is_group: z.enum(["true", "false"]).optional(),
+  /**
+   * Só as que têm mensagem não lida para o dono.
+   *
+   * NASCEU FORA DO CONTRATO E POR ISSO FORA DE TODO MECANISMO. Era `onlyUnread`,
+   * um predicado aplicado em memória sobre a página JÁ TRUNCADA (50 linhas): com
+   * as 50 primeiras lidas, a tela dizia "Sem conversas por aqui" — e o botão
+   * "Carregar mais" nem era desenhado, porque o estado vazio retornava antes dele.
+   * Medido na tela: ligar o filtro não gerava requisição nenhuma.
+   *
+   * Estando aqui, `tests/unit/rota-le-todo-filtro-do-schema.test.ts` passa a
+   * cobrá-lo sozinho — a cerca deriva as chaves deste schema.
+   */
+  unread: z.coerce.boolean().optional(),
+  /**
+   * O termo de busca. A régua inteira vive em `lib/inbox/termo-de-busca.ts`, e a
+   * tela lê a MESMA — repetir aqui faria os dois divergirem, e a divergência
+   * apareceria como erro na cara de quem digita (a rota recusa e o hook mostra).
+   *
+   * `buscaValeConsulta` mede o termo DEPOIS de normalizado, e não o cru: um termo
+   * feito só de pontuação passa por qualquer piso de caracteres e vira string
+   * vazia na normalização — e vazio no `ilike` casa TUDO.
+   */
+  search: z
+    .string()
+    .trim()
+    .refine(buscaValeConsulta, {
+      message: `A busca precisa de pelo menos ${PISO_DA_BUSCA} caracteres.`,
+    })
+    .optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });

@@ -30,6 +30,27 @@ const DOCUMENT_MIMES = new Set([
   "application/zip",
 ]);
 
+/**
+ * Classe de mídia a partir do MIME — o MESMO corte que a validação do upload
+ * faz, exposto para o render.
+ *
+ * A nota interna (issue #1863, F3) guarda só o mime GRAVADO, sem coluna `type`
+ * como `messages`: uma coluna que espelha esta função é coluna que pode divergir
+ * da função. Quem renderiza o anexo da nota chama isto — e como é a mesma
+ * função, um mime aceito no upload é necessariamente renderizado depois.
+ *
+ * `null` = mime que o upload NÃO aceita: quem renderiza cai em documento, que é
+ * o fallback que sempre dá para baixar o arquivo.
+ */
+export function kindFromMime(mime: string): MessageKind | null {
+  const base = (mime || "").split(";")[0]!.trim().toLowerCase();
+  if (base.startsWith("image/")) return "image";
+  if (base.startsWith("video/")) return "video";
+  if (base.startsWith("audio/")) return "audio";
+  if (DOCUMENT_MIMES.has(base)) return "document";
+  return null;
+}
+
 type Ok = { ok: true; kind: MessageKind };
 type Fail = { ok: false; code: "unsupported_media_type" | "payload_too_large" | "validation_failed"; message: string };
 
@@ -40,10 +61,7 @@ export function validateOutboundMedia(mime: string, sizeBytes: number): Ok | Fai
   if (sizeBytes > MAX_MEDIA_BYTES) {
     return { ok: false, code: "payload_too_large", message: "Arquivo acima de 50MB." };
   }
-  const base = mime.split(";")[0]!.trim().toLowerCase();
-  if (base.startsWith("image/")) return { ok: true, kind: "image" };
-  if (base.startsWith("video/")) return { ok: true, kind: "video" };
-  if (base.startsWith("audio/")) return { ok: true, kind: "audio" };
-  if (DOCUMENT_MIMES.has(base)) return { ok: true, kind: "document" };
+  const kind = kindFromMime(mime);
+  if (kind) return { ok: true, kind };
   return { ok: false, code: "unsupported_media_type", message: "Tipo de arquivo não suportado." };
 }

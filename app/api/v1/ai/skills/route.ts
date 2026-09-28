@@ -17,8 +17,10 @@ import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 
 import { ok, fail } from "@/lib/api/wrappers";
+import { temPonteiroCanonico } from "@/lib/ai/skills/ponteiro-canonico";
 import { requireRole } from "@/lib/auth/require-role";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { traduzir } from "@/lib/i18n/dicionario";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,7 @@ export async function GET(_req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
   const authz = await requireRole("agent", { requestId, resource: "ai_skills" });
   if (!authz.ok) return authz.response;
+  const t = (texto: string) => traduzir(texto, authz.user.idioma);
   const { org } = authz;
 
   const admin = createAdminClient();
@@ -56,11 +59,20 @@ export async function GET(_req: NextRequest): Promise<Response> {
     .select("name, version_id")
     .is("organization_id", null);
   if (platErr) {
-    return fail("internal_error", "Erro ao carregar catálogo de skills.", 500, { requestId });
+    return fail("internal_error", t("Erro ao carregar catálogo de skills."), 500, { requestId });
   }
 
-  const orgRows = (orgPointers ?? []) as OrgPointerRow[];
-  const platformRows = (platformPointers ?? []) as PointerRow[];
+  const orgRows = (
+    (orgPointers ?? []) as Array<
+      Omit<OrgPointerRow, "name" | "version_id"> & {
+        name: string | null;
+        version_id: string | null;
+      }
+    >
+  ).filter(temPonteiroCanonico);
+  const platformRows = (
+    (platformPointers ?? []) as Array<{ name: string | null; version_id: string | null }>
+  ).filter(temPonteiroCanonico) as PointerRow[];
 
   const versionIds = [...new Set([...orgRows, ...platformRows].map((p) => p.version_id))];
   let versions: VersionRow[] = [];
@@ -70,7 +82,9 @@ export async function GET(_req: NextRequest): Promise<Response> {
       .select("id, description, forked_from_version_id")
       .in("id", versionIds);
     if (verErr) {
-      return fail("internal_error", "Erro ao carregar descrição das skills.", 500, { requestId });
+      return fail("internal_error", t("Erro ao carregar descrição das skills."), 500, {
+        requestId,
+      });
     }
     versions = (versionRows ?? []) as VersionRow[];
   }

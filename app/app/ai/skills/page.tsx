@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { temPonteiroCanonico } from "@/lib/ai/skills/ponteiro-canonico";
 import type { SkillsState } from "@/hooks/ai/useSkills";
+import { traduzir } from "@/lib/i18n/dicionario";
 import { SkillsClient } from "./_client";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +15,7 @@ export default async function SkillsPage() {
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) redirect("/app");
 
-  if (!user.is_platform_admin && ROLE_RANK[activeOrg.role] < ROLE_RANK.manager) {
+  if (!(user.is_platform_admin && !user.support) && ROLE_RANK[activeOrg.role] < ROLE_RANK.manager) {
     redirect("/403");
   }
 
@@ -24,8 +26,8 @@ export default async function SkillsPage() {
     admin.from("skill_pointers").select("name, version_id").is("organization_id", null),
   ]);
 
-  const orgRows = orgPointers ?? [];
-  const platformRows = platformPointers ?? [];
+  const orgRows = (orgPointers ?? []).filter(temPonteiroCanonico);
+  const platformRows = (platformPointers ?? []).filter(temPonteiroCanonico);
   const versionIds = [...new Set([...orgRows, ...platformRows].map((p) => p.version_id))];
 
   const { data: versionsRaw } =
@@ -51,14 +53,17 @@ export default async function SkillsPage() {
     .map((p) => ({ name: p.name, description: versionById.get(p.version_id)?.description ?? "" }));
 
   const initialState: SkillsState = { installed, catalog };
+  const idioma = user.idioma;
 
   return (
     <div className="flex h-full flex-col gap-6 p-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Skills da IA</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{traduzir("Skills da IA", idioma)}</h1>
         <p className="text-sm text-muted-foreground">
-          Habilidades especializadas que seus agentes carregam só quando a conversa pede —
-          instale prontas do catálogo ou envie a sua.
+          {traduzir(
+            "Habilidades especializadas que seus agentes carregam só quando a conversa pede — instale prontas do catálogo ou envie a sua.",
+            idioma,
+          )}
         </p>
       </header>
       <SkillsClient initialState={initialState} />

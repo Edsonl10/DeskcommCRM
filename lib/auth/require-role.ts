@@ -22,6 +22,7 @@ import { fail, type ApiError } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { loadAuthUser, mfaEmDivida, resolveActiveOrg } from "@/lib/auth/server";
 import { ROLE_RANK, type ActiveOrg, type AuthUser, type Role } from "@/lib/auth/types";
+import { traduzir } from "@/lib/i18n/dicionario";
 import { createClient } from "@/lib/supabase/server";
 
 export type RoleCheck =
@@ -55,11 +56,17 @@ export async function requireRole(min: Role, opts: RequireRoleOpts = {}): Promis
   if (!user) {
     return { ok: false, response: fail("unauthenticated", "Auth required.", 401, { requestId }) };
   }
+  const t = (texto: string) => traduzir(texto, user.idioma);
 
+  if (user.support && user.support.status !== "active") {
+    return { ok: false, response: fail("forbidden", "O acompanhamento terminou. Saia para continuar.", 403, { requestId }) };
+  }
   let org: ActiveOrg | null;
   if (organizationId) {
     const membership = user.organizations.find((o) => o.organization_id === organizationId);
-    org = membership
+    org = user.support?.organization_id === organizationId
+      ? { orgId: organizationId, name: user.support.name, role: user.support.access_mode === "full" ? "admin" : "viewer" }
+      : membership
       ? {
           orgId: membership.organization_id,
           name: membership.organization_name,
@@ -74,16 +81,24 @@ export async function requireRole(min: Role, opts: RequireRoleOpts = {}): Promis
   if (!org) {
     return {
       ok: false,
-      response: fail("forbidden_tenant", "Sem organização ativa.", 403, { requestId }),
+      response: fail("forbidden_tenant", t("Sem organização ativa."), 403, { requestId }),
     };
   }
 
-  if (allowPlatformAdmin && user.is_platform_admin) {
+  if (allowPlatformAdmin && user.is_platform_admin && !user.support) {
     return { ok: true, user, org };
   }
 
   // Role efetivo do banco (não do snapshot do cookie/membership em memória).
   const supabase = await createClient();
+  // Duas leituras independentes da mesma requisição: não somar a espera de
+  // permissões com a de MFA em cada botão/consulta. Nenhuma decisão é cacheada.
+  // Capturar a rejeição mantém a precedência: papel insuficiente continua 403,
+  // e uma falha de MFA só é propagada quando essa checagem seria necessária.
+  const mfaPendente = mfaEmDivida().then(
+    (required) => ({ required }),
+    (error: unknown) => ({ error }),
+  );
   const { data: effectiveRole, error } = await supabase.rpc("fn_user_role_in_org", {
     p_org: org.orgId,
   });
@@ -105,7 +120,13 @@ export async function requireRole(min: Role, opts: RequireRoleOpts = {}): Promis
   // Fica DEPOIS do rank e ANTES do retorno de sucesso, de propósito: quem não
   // tem papel suficiente continua levando 403 por falta de papel, sem que a
   // resposta revele o estado de MFA de quem nem chegaria lá.
-  if (rank >= ROLE_RANK[min] && (await mfaEmDivida())) {
+  let mfaRequired = false;
+  if (rank >= ROLE_RANK[min]) {
+    const mfa = await mfaPendente;
+    if ("error" in mfa) throw mfa.error;
+    mfaRequired = mfa.required;
+  }
+  if (mfaRequired) {
     void audit({
       action: "authz.denied",
       actorUserId: user.id,
@@ -118,7 +139,9 @@ export async function requireRole(min: Role, opts: RequireRoleOpts = {}): Promis
       ok: false,
       response: fail(
         "mfa_required",
-        "Esta sessão precisa da verificação em duas etapas. Entre novamente com o código do aplicativo.",
+        t(
+          "Esta sessão precisa da verificação em duas etapas. Entre novamente com o código do aplicativo.",
+        ),
         403,
         { requestId },
       ),
