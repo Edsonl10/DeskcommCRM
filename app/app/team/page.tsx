@@ -104,7 +104,7 @@ export default async function TeamPage({
         </TabsContent>
         <TabsContent value="departments" className="mt-4">
           {isManager ? <DepartmentsClient canManage={isManager} /> : (
-            <p className="text-sm text-muted-foreground">A gestão de departamentos está disponível para gerentes e administradores.</p>
+            <p className="text-sm text-muted-foreground">{t("A gestão de departamentos está disponível para gerentes e administradores.")}</p>
           )}
         </TabsContent>
       </Tabs>

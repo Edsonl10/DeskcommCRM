@@ -26,6 +26,9 @@ vi.mock("@/hooks/inbox/useContinuarPorOutroNumero", () => ({
 vi.mock("@/hooks/inbox/useAssignableMembers", () => ({
   useAssignableMembers: () => ({ data: [], isLoading: false }),
 }));
+vi.mock("@/hooks/team/useDepartments", () => ({
+  useDepartments: () => ({ data: { data: [] }, isLoading: false }),
+}));
 vi.mock("@/hooks/inbox/useTransferConversation", () => ({
   useTransferConversation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
