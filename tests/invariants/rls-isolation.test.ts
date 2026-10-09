@@ -116,6 +116,15 @@ beforeAll(() => {
       v_lote uuid;
     begin
       foreach v_org in array array['${ORG_A}'::uuid, '${ORG_B}'::uuid] loop
+      insert into public.departments (organization_id, name)
+      values (v_org, 'RLS department')
+      on conflict (organization_id, name) do nothing;
+      insert into public.department_members (organization_id, department_id, user_id)
+      select v_org, d.id,
+        case when v_org = '${ORG_A}'::uuid then '${USER_A}'::uuid else '${USER_B}'::uuid end
+      from public.departments d
+      where d.organization_id = v_org and d.name = 'RLS department'
+      on conflict (department_id, user_id) do nothing;
         select id into v_sess from public.channel_sessions where organization_id = v_org limit 1;
 
         select id into v_contact from public.contacts
@@ -578,6 +587,8 @@ beforeAll(() => {
  * cabeçalho do caso de `contact_field_proposals` abaixo.
  */
 export const TABLES = [
+  "departments",
+  "department_members",
   "conversations",
   "messages",
   "contacts",

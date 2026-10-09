@@ -67,6 +67,13 @@ const ANON_PERMITIDO: readonly Excecao[] = [];
  */
 const AUTHENTICATED_PERMITIDO: readonly Excecao[] = [
   {
+    fn: "fn_conversation_assign_department(uuid,uuid,uuid,uuid)",
+    razao:
+      "POST app/api/v1/conversations/[id]/transfer/route.ts chama com a sessão do usuário. " +
+      "A função exige auth.uid(), papel agent na organização, setor ativo do mesmo tenant " +
+      "e, quando há destino individual, vínculo do usuário com o setor antes da atribuição.",
+  },
+  {
     fn: "fn_honorarios_parcela_pagar(uuid,uuid,uuid,uuid)",
     razao:
       "POST app/api/v1/honorarios/parcelas/[id]/pagar/route.ts usa createClient da " +
