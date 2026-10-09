@@ -1,4 +1,4 @@
--- manifest: Mantém a atribuição por departamento fechada a sessão autenticada agent da organização e aplica as travas de escrita do suporte às tabelas personalizadas.
+-- manifest: Mantém a atribuição por departamento fechada a sessão autenticada agent da organização; escrita administrativa exige escopo full e as tabelas personalizadas recebem as travas de suporte.
 create or replace function public.fn_conversation_assign_department(
   p_organization_id uuid, p_conversation_id uuid, p_department_id uuid, p_to_user_id uuid default null
 ) returns setof public.conversations language plpgsql security definer set search_path = public as $$
@@ -17,5 +17,14 @@ $$;
 revoke all on function public.fn_conversation_assign_department(uuid, uuid, uuid, uuid) from public, anon;
 grant execute on function public.fn_conversation_assign_department(uuid, uuid, uuid, uuid) to authenticated, service_role;
 notify pgrst, 'reload schema';
+
+drop policy if exists departments_manager_write on public.departments;
+create policy departments_manager_write on public.departments for all
+using (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')))
+with check (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')));
+drop policy if exists department_members_manager_write on public.department_members;
+create policy department_members_manager_write on public.department_members for all
+using (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')))
+with check (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')));
 
 select public.fn_aplicar_travas_de_suporte();
