@@ -1,7 +1,12 @@
 name: ci
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      migration_base:
+        description: Referência Git para conferir migrations na integração com o upstream
+        default: origin/main
+        type: string
   pull_request:
   push:
     branches: [main]
@@ -26,6 +31,10 @@ on:
 # continua por job em publish-image.yml — mesma regra, menor escopo que precisa.
 permissions:
   contents: read
+
+env:
+  # O fork acompanha a release oficial sem publicar uma release própria.
+  CONFERENCIA_KIT_RELEASE: ${{ vars.CONFERENCIA_KIT_RELEASE }}
 
 # ── Uma rodada por PR: o push novo cancela a antiga — POR JOB, nunca por workflow
 #
@@ -284,7 +293,9 @@ jobs:
       # contra o REMOTO (e o script busca a base: o checkout daqui não traz origin/main).
       - name: Colisão de número de migration
         if: matrix.parte == 1
-        run: pnpm checar:colisao-de-migration
+        env:
+          MIGRATION_BASE: ${{ inputs.migration_base }}
+        run: pnpm checar:colisao-de-migration "${MIGRATION_BASE:-origin/main}"
 
       # POR QUE NÃO HÁ UMA CAMADA "o número foi tomado depois da prévia": o
       # passo acima JÁ É ELA. O script busca a base no remoto no instante do job
