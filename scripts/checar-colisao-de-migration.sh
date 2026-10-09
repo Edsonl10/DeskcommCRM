@@ -158,6 +158,16 @@ adicionadas_nomes="$(xargs -n1 basename <<<"$adicionadas" | sed '/^$/d')"
 base_arvore="$(git ls-tree -r --name-only "$BASE" -- supabase/migrations 2>/dev/null | sed 's#^supabase/migrations/##' || true)"
 head_arvore="$(git ls-tree -r --name-only HEAD -- supabase/migrations 2>/dev/null | sed 's#^supabase/migrations/##' || true)"
 
+# Um renome reconhecido pelo Git continua ocupando o NNNN/timestamp do DESTINO.
+# Na integração de um fork, o número antigo pode passar à migration oficial:
+# comparar só com o nome antigo acusa colisão que não existe na árvore final.
+# Exclusão simples não libera número; apenas pares R reconhecidos pelo -M.
+renomes="$(git diff --name-status -M --diff-filter=R "$BASE" HEAD -- supabase/migrations/ 2>/dev/null \
+  | awk '{ sub(/^supabase\/migrations\//,"",$2); sub(/^supabase\/migrations\//,"",$3); print $2, $3 }')"
+base_para_colisao="$(awk 'FILENAME == ARGV[1] { destino[$1] = $2; next }
+  { print ($0 in destino) ? destino[$0] : $0 }' \
+  <(printf '%s\n' "$renomes") <(printf '%s\n' "$base_arvore"))"
+
 # ── as outras refs da máquina (issue #1155) ────────────────────────────────────────────
 base_commit="$(git rev-parse "$BASE^{commit}" 2>/dev/null || true)"
 head_commit="$(git rev-parse HEAD^{commit} 2>/dev/null || true)"
@@ -378,8 +388,8 @@ while IFS= read -r nome; do
     continue
   fi
 
-  colisao_n="$(grep -E "^[0-9]{14}_${nnnn}_.+\.sql$" <<<"$base_arvore" || true)"
-  colisao_t="$(grep -E "^${ts}_[0-9]{4}_.+\.sql$" <<<"$base_arvore" || true)"
+  colisao_n="$(grep -E "^[0-9]{14}_${nnnn}_.+\.sql$" <<<"$base_para_colisao" || true)"
+  colisao_t="$(grep -E "^${ts}_[0-9]{4}_.+\.sql$" <<<"$base_para_colisao" || true)"
   if [ -n "$colisao_n" ]; then
     lista="$(tr '\n' ' ' <<<"$colisao_n" | sed 's/ *$//')"
     echo "::error file=$caminho::NNNN=$nnnn já existe em '$BASE': $lista"

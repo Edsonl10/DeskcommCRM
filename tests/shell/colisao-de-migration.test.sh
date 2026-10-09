@@ -235,6 +235,19 @@ saida="$(gate "$c")"; code=$?
 assert_exit "$code" 0 "renome passa (limite declarado, igual ao do hook: TRIAGEM.md:906)"
 
 echo "6. merge da própria main passa (a main anda e entra na branch)"
+c="$TMP/c-renumeracao"; clonar "$c"; git -C "$c" switch -q -c fix/fork-upstream
+git -C "$c" mv supabase/migrations/20260101120000_0262_existente.sql \
+              supabase/migrations/20261009180000_9001_personalizada.sql
+printf 'select 999;\n' > "$c/supabase/migrations/20260916123000_0262_oficial.sql"
+commit "$c" "move migration do fork e incorpora a oficial"
+saida="$(gate "$c")"; code=$?
+assert_exit "$code" 0 "renome reconhecido libera o número antigo para a migration oficial"
+printf 'select 998;\n' > "$c/supabase/migrations/20261009190000_9001_colide.sql"
+commit "$c" "tenta ocupar o novo número da migration renomeada"
+saida="$(gate "$c")"; code=$?
+assert_exit "$code" 1 "o número do destino renomeado continua protegido contra colisão"
+assert_contains "$saida" "9001_personalizada.sql" "a recusa nomeia a migration renomeada que ocupa o número"
+
 c="$TMP/c6"; clonar "$c"; git -C "$c" switch -q -c fix/merge-main
 migrar "$c" "20260916140000_0265_do_pr.sql"; commit "$c" "migration do PR"
 migrar "$principal" "20260916150000_0266_da_main.sql"
