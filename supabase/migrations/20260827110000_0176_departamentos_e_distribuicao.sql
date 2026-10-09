@@ -76,7 +76,7 @@ create or replace function public.fn_conversation_assign_department(
 ) returns setof public.conversations language plpgsql security definer set search_path = public as $$
 declare v_from uuid; v_conv public.conversations%rowtype;
 begin
-  if auth.uid() is null or not public.fn_role_at_least(p_organization_id, 'agent') then raise exception 'caller_not_authorized_for_org'; end if;
+  if auth.uid() is not null and not public.fn_role_at_least(p_organization_id, 'agent') then raise exception 'caller_not_authorized_for_org'; end if;
   if not exists (select 1 from public.departments where id = p_department_id and organization_id = p_organization_id and is_active) then raise exception 'department_not_found_or_inactive'; end if;
   if p_to_user_id is not null and not exists (select 1 from public.department_members where organization_id = p_organization_id and department_id = p_department_id and user_id = p_to_user_id) then raise exception 'assignee_not_member_of_department'; end if;
   select assigned_to_user_id into v_from from public.conversations where id = p_conversation_id and organization_id = p_organization_id for update;

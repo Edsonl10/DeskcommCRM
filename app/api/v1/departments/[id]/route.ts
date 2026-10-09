@@ -1,3 +1,4 @@
+import { requireSupportWrite } from "@/lib/impersonate/support";
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 
@@ -12,6 +13,9 @@ export const dynamic = "force-dynamic";
 interface Ctx { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {
+  const supportDenied = await requireSupportWrite();
+  if (supportDenied) return supportDenied;
+
   const requestId = randomUUID();
   const { id } = await ctx.params;
   const authz = await requireRole("manager", { requestId, resource: "departments" });
