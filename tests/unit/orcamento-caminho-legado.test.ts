@@ -29,7 +29,7 @@
  * primeiro sintoma que o cliente veria da proteção que acabou de ligar seria o
  * WhatsApp mudo.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/logger", () => ({
@@ -39,13 +39,22 @@ vi.mock("@/lib/ai/gateway", () => ({
   DEFAULT_BOT_MODEL: "anthropic/claude-sonnet-4-6",
   gatewayConfig: () => ({ apiKey: "dublê" }),
   gatewayHeaders: () => ({}),
-  isAiGatewayConfigured: () => true,
   isEmbeddingProviderConfigured: () => false,
   // Resolvido via `resolverModeloDoPonto`; qualquer valor não-nulo serve, porque
   // quem consome é o `generateText` dublê logo abaixo.
   resolveLanguageModel: () => "modelo-dublê",
 }));
 vi.mock("@/lib/ai/budget/check", () => ({ getBudgetStatus: vi.fn() }));
+// Hoje `elegivelParaWorkerLegado` devolve SEMPRE false e o veto é inalcançável.
+// O mock deixa o padrão real (false) e só o último `describe` força a passagem.
+vi.mock("@/lib/ai/agents/no-ar", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ai/agents/no-ar")>()),
+  elegivelParaWorkerLegado: vi.fn(() => false),
+}));
+vi.mock("@/lib/ai/gateway-binding", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/ai/gateway-binding")>();
+  return { ...real, resolverModeloDoPonto: vi.fn(real.resolverModeloDoPonto) };
+});
 // O SDK nunca é alcançado de verdade: se o guard deixar passar, esta sentinela é
 // que prova a passagem — e nenhum byte sai para provedor nenhum.
 vi.mock("ai", () => ({
@@ -59,11 +68,16 @@ import { getBudgetStatus, type BudgetStatus } from "@/lib/ai/budget/check";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LIMIAR_PADRAO_PCT } from "@/lib/agent-engine/edge/llm/orcamento";
 import type { EventRow } from "@/lib/event-log/dispatcher";
+import { elegivelParaWorkerLegado } from "@/lib/ai/agents/no-ar";
+import { resolverModeloDoPonto } from "@/lib/ai/gateway-binding";
+import { TITULO_TETO_DO_PLANO } from "@/lib/agent-engine/edge/llm/orcamento";
 
 const ORG_ID = "22222222-2222-4222-8222-222222222222";
 const CONV_ID = "44444444-4444-4444-8444-444444444444";
 const MSG_ID = "55555555-5555-4555-8555-555555555555";
 const CONTACT_ID = "66666666-6666-4666-8666-666666666666";
+const SERVICE = { organization_id: ORG_ID, contact_id: CONTACT_ID, conversation_id: CONV_ID,
+  service_revision: 1, demanda_id: null, demanda_revision: null, status: "open", demanda_fechada_em: null };
 const AGENT_ID = "88888888-8888-4888-8888-888888888888";
 
 const ONTEM = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -107,7 +121,7 @@ interface Operacao {
  * `agent_inbox_items`; elas se distinguem pelo filtro, não pela ordem.
  */
 function makeAdminStub(
-  contagens: { avisosNoMes: number; itensAbertos: number },
+  contagens: { avisosNoMes: number; itensAbertos: number; tetoDoPlano?: number | null },
   corpoInbound: string = INBOUND_BODY,
 ) {
   const operacoes: Operacao[] = [];
@@ -126,6 +140,7 @@ function makeAdminStub(
             bot_silenced_until: null,
             last_handoff_at: null,
             assignee_kind: "ai",
+            organizations: { status: "active" },
             contacts: {
               id: CONTACT_ID,
               display_name: null, // sem PII em teste (LGPD)
@@ -135,18 +150,25 @@ function makeAdminStub(
             },
           }
         : table === "messages"
-          ? { id: MSG_ID, body: corpoInbound, direction: "inbound", organization_id: ORG_ID }
+          ? { ...SERVICE, id: MSG_ID, body: corpoInbound, direction: "inbound", organization_id: ORG_ID }
           : table === "ai_agents"
             ? {
                 id: AGENT_ID,
                 organization_id: ORG_ID,
                 model: "anthropic/claude-sonnet-4-6",
                 system_prompt: "Você é um atendente.",
-                config: { confidence_threshold: 0 },
+                config: {},
                 guardrails: {},
                 active_kb_version_id: "99999999-9999-4999-8999-999999999999",
                 is_active: true,
                 is_default: true,
+                // O banco tem `kind` NOT NULL DEFAULT 'rag_bot' e os dois ponteiros:
+                // sem eles o dublê descreveria uma linha que não existe, e a régua
+                // de `lib/ai/agents/no-ar.ts` — que falha FECHADA quando o select
+                // não trouxe `kind` — recusaria o agente pelo motivo errado.
+                kind: "rag_bot",
+                published_version_id: null,
+                archived_at: null,
               }
             : null;
 
@@ -188,13 +210,19 @@ function makeAdminStub(
             table === "messages"
               ? [
                   {
-                    id: MSG_ID,
+                    ...SERVICE,
+              id: MSG_ID,
                     body: corpoInbound,
                     direction: "inbound",
                     created_at: new Date().toISOString(),
                   },
                 ]
-              : [],
+              // A seleção de agente do worker legado é uma LISTA (ele filtra os
+              // candidatos pela régua de `lib/ai/agents/no-ar.ts` em vez de cortar
+              // com `.limit(1)` antes de saber quem serve). O dublê acompanha.
+              : table === "ai_agents"
+                ? (single ? [single] : [])
+                : [],
           count,
           error: null,
         }).then(resolve);
@@ -216,8 +244,20 @@ function makeAdminStub(
     return chain;
   };
 
-  const rpc = () => Promise.resolve({ data: [], error: null });
-  return { stub: { from, rpc }, operacoes, tabelasConsultadas };
+  const rpcs: string[] = [];
+  const rpc = (name: string) => {
+    rpcs.push(name);
+    return Promise.resolve({
+      data:
+        name === "fn_service_boundary"
+          ? SERVICE
+          : name === "fn_limite_do_plano"
+            ? (contagens.tetoDoPlano ?? null)
+            : [],
+      error: null,
+    });
+  };
+  return { stub: { from, rpc }, operacoes, tabelasConsultadas, rpcs };
 }
 
 const eventRow = {
@@ -228,10 +268,13 @@ const eventRow = {
 
 function montar(
   orcamento: Partial<BudgetStatus> | "erro",
-  contagens: { avisosNoMes: number; itensAbertos: number } = { avisosNoMes: 0, itensAbertos: 0 },
+  contagens: { avisosNoMes: number; itensAbertos: number; tetoDoPlano?: number | null } = {
+    avisosNoMes: 0,
+    itensAbertos: 0,
+  },
   corpoInbound: string = INBOUND_BODY,
 ) {
-  const { stub, operacoes, tabelasConsultadas } = makeAdminStub(contagens, corpoInbound);
+  const { stub, operacoes, tabelasConsultadas, rpcs } = makeAdminStub(contagens, corpoInbound);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vi.mocked(createAdminClient).mockReturnValue(stub as any);
   if (orcamento === "erro") {
@@ -239,7 +282,7 @@ function montar(
   } else {
     vi.mocked(getBudgetStatus).mockResolvedValue({ ...ARMADO_E_ESTOURADO, ...orcamento });
   }
-  return { operacoes, tabelasConsultadas };
+  return { operacoes, tabelasConsultadas, rpcs };
 }
 
 /**
@@ -265,135 +308,24 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("o teto de gasto no caminho legado", () => {
-  it("armado, estourado e já avisado no mês → a resposta é RECUSADA", async () => {
-    const { operacoes } = montar({}, { avisosNoMes: 1, itensAbertos: 0 });
-
-    const result = await processMessageReceived(eventRow);
-
-    expect(result).toEqual({ status: "skipped", reason: "budget_exceeded" });
-    // E o cliente descobre POR QUÊ: sem o item, a IA para e nada na tela explica.
-    const item = itensDeOrcamento(operacoes).find((o) => o.row.kind === "budget_exceeded");
-    expect(item, "IA parada sem nada na Central explicando").toBeDefined();
-    expect(item?.row.severity).toBe("critical");
-    expect(item?.row.organization_id).toBe(ORG_ID);
-    // `ref_kind`/`ref_id` são o que permite FECHAR o item quando o mês virar.
-    expect(item?.row.ref_kind).toBe("ai_budget");
-    expect(item?.row.ref_id).toBe(ORG_ID);
-  });
-
-  it("CONDIÇÃO 6 — estourado mas sem aviso no mês: avisa e a resposta SAI", async () => {
-    const { operacoes } = montar({}, { avisosNoMes: 0, itensAbertos: 0 });
-
-    const result = await processMessageReceived(eventRow);
-
-    // A sentinela do dublê do SDK: o pipeline chegou ao modelo, logo passou.
-    expect(result.status).not.toBe("skipped");
-    expect(String(result.detail)).toContain("SENTINELA");
-
-    const aviso = itensDeOrcamento(operacoes).find((o) => o.row.kind === "budget_warning");
-    expect(aviso, "cruzou o teto sem abrir o aviso — o bloqueio nunca poderia disparar").toBeDefined();
-    expect(aviso?.row.severity, "aviso não é parada: 'critical' aqui gasta o alarme à toa").toBe(
-      "warn",
-    );
-    expect(itensDeOrcamento(operacoes).some((o) => o.row.kind === "budget_exceeded")).toBe(false);
-  });
-
-  it("modo 'off' não consulta nem a Central — 100% das organizações no dia 1", async () => {
-    const { operacoes, tabelasConsultadas } = montar({ enforcement_mode: "off" });
-
-    const result = await processMessageReceived(eventRow);
-
-    expect(result.status).not.toBe("skipped");
-    expect(itensDeOrcamento(operacoes)).toEqual([]);
-    expect(
-      tabelasConsultadas.filter((t) => t === "agent_inbox_items"),
-      "o atalho do modo desligado deixou de ser atalho",
-    ).toEqual([]);
-  });
-
-  it("carência que ainda não venceu não bloqueia — no máximo avisa", async () => {
-    const { operacoes } = montar(
-      { enforcement_effective_at: AMANHA },
-      { avisosNoMes: 1, itensAbertos: 0 },
-    );
-
-    const result = await processMessageReceived(eventRow);
-
-    expect(result.status).not.toBe("skipped");
-    expect(itensDeOrcamento(operacoes).some((o) => o.row.kind === "budget_exceeded")).toBe(false);
-  });
-
-  it("modo 'avisar' nunca para a IA, por mais que o gasto passe", async () => {
-    const { operacoes } = montar(
-      { enforcement_mode: "avisar", current_month_consumed_cents: 99_999 },
-      { avisosNoMes: 1, itensAbertos: 0 },
-    );
-
-    const result = await processMessageReceived(eventRow);
-
-    expect(result.status).not.toBe("skipped");
-    expect(itensDeOrcamento(operacoes).some((o) => o.row.kind === "budget_exceeded")).toBe(false);
-  });
-
-  it("teto 0 é 'sem limite', nunca 'bloqueia tudo'", async () => {
-    // A inversão que o produto tinha: `spent < 0` é falso já com gasto zero, e
-    // quem recusou o orçamento de propósito levava o corte mais duro.
-    const { operacoes } = montar(
-      { monthly_limit_cents: 0, current_month_consumed_cents: 0 },
-      { avisosNoMes: 1, itensAbertos: 0 },
-    );
-
-    const result = await processMessageReceived(eventRow);
-
-    expect(result.status).not.toBe("skipped");
-    expect(itensDeOrcamento(operacoes)).toEqual([]);
-  });
-
-  it("a chave de emergência da instalação rebaixa o bloqueio a aviso", async () => {
-    const { operacoes } = montar({ enforcement_env: "avisar" }, { avisosNoMes: 1, itensAbertos: 0 });
-
-    const result = await processMessageReceived(eventRow);
-
-    expect(result.status).not.toBe("skipped");
-    expect(itensDeOrcamento(operacoes).some((o) => o.row.kind === "budget_exceeded")).toBe(false);
-  });
-
-  it("erro na leitura do orçamento SEGUE sem teto — falha aberta, nunca fechada", async () => {
-    // Errar frouxo custa dinheiro de provedor e é visível na tela de Uso; errar
-    // duro mata o WhatsApp de um negócio numa VPS onde não há para quem ligar.
-    const { operacoes } = montar("erro");
-
-    const result = await processMessageReceived(eventRow);
-
-    expect(result.status).not.toBe("skipped");
-    expect(itensDeOrcamento(operacoes)).toEqual([]);
-  });
-
-  it("LAÇO DE RETORNO: gasto de volta abaixo do limiar retrata os itens abertos", async () => {
-    // Sem isto o aviso atravessaria a virada do mês ABERTO, e a dedupe de "já
-    // existe item aberto" impediria o aviso do mês novo — travando o bloqueio
-    // para sempre num estado que ninguém consegue destravar pela tela.
-    const { operacoes } = montar(
-      { current_month_consumed_cents: 0 },
-      { avisosNoMes: 1, itensAbertos: 1 },
-    );
-
-    const result = await processMessageReceived(eventRow);
-
-    expect(result.status).not.toBe("skipped");
-    const retrato = itensDeOrcamento(operacoes).find((o) => o.tipo === "update");
-    expect(retrato, "alerta crítico aceso para sempre depois que a causa passou").toBeDefined();
-    expect(retrato?.row.status).toBe("resolved");
-  });
-
-  it("dedupe: com item já aberto, nenhum novo é inserido", async () => {
-    const { operacoes } = montar({}, { avisosNoMes: 1, itensAbertos: 1 });
-
-    await processMessageReceived(eventRow);
-
-    expect(itensDeOrcamento(operacoes).filter((o) => o.tipo === "insert")).toEqual([]);
-  });
+describe("recuperação substitui a resposta legada em qualquer estado de orçamento",()=>{
+ it.each([
+  ["bloqueio armado",{}],
+  ["desligado",{enforcement_mode:"off"}],
+  ["carência",{enforcement_effective_at:AMANHA}],
+  ["aviso",{enforcement_mode:"avisar",current_month_consumed_cents:99999}],
+  ["sem limite",{monthly_limit_cents:0,current_month_consumed_cents:0}],
+  ["chave de emergência",{enforcement_env:"avisar"}],
+  ["gasto normal",{current_month_consumed_cents:0}],
+  ["leitura indisponível","erro"],
+ ])("%s não consulta budget nem cria resposta órfã",async(_name,config)=>{
+  const {operacoes}=montar(config as Parameters<typeof montar>[0],{avisosNoMes:1,itensAbertos:1});
+  const result=await processMessageReceived(eventRow);
+  expect(result).toMatchObject({status:'skipped',reason:'agent_inactive_or_missing'});
+  expect(getBudgetStatus).not.toHaveBeenCalled();
+  expect(itensDeOrcamento(operacoes)).toEqual([]);
+  expect(operacoes.filter(o=>o.table==='messages'&&o.tipo==='insert'&&o.row.direction==='outbound')).toEqual([]);
+ });
 });
 
 describe("a ORDEM do veto — o teto de gasto não cala a triagem determinística", () => {
@@ -421,27 +353,65 @@ describe("a ORDEM do veto — o teto de gasto não cala a triagem determinístic
     expect(itensDeOrcamento(operacoes)).toEqual([]);
   });
 
-  it("bloqueio devolve a conversa à FILA HUMANA, como o engine faz", async () => {
-    // Os dois caminhos do produto param pelo mesmo veredito; dar respostas
-    // opostas ao lead seria a assimetria pior possível. Além disso, o texto do
-    // item `budget_exceeded` que este mesmo caminho abre PROMETE fila humana —
-    // sem o handoff, o próprio alerta mentiria.
-    const { operacoes } = montar({}, { avisosNoMes: 1, itensAbertos: 0 });
+  it("saudação sem publicação não finge handoff por orçamento",async()=>{
+    const {operacoes}=montar({}, {avisosNoMes:1,itensAbertos:0});
+    const result=await processMessageReceived(eventRow);
+    expect(result).toMatchObject({status:'skipped',reason:'agent_inactive_or_missing'});
+    expect(getBudgetStatus).not.toHaveBeenCalled();
+    expect(operacoes.filter(o=>o.table==='conversations'&&o.tipo==='update'&&o.row.last_handoff_reason==='orcamento_de_ia')).toEqual([]);
+  });
+});
 
-    const result = await processMessageReceived(eventRow);
+describe("o teto de IA do plano no caminho legado (forçado: hoje o veto é inalcançável)", () => {
+  beforeEach(() => vi.mocked(elegivelParaWorkerLegado).mockReturnValue(true));
+  afterEach(() => vi.mocked(elegivelParaWorkerLegado).mockReturnValue(false));
 
-    expect(result.reason).toBe("budget_exceeded");
-    const passagem = operacoes.find(
-      (o) => o.table === "conversations" && o.tipo === "update" && o.row.status === "pending",
+  const comOrigem = (origem: "padrao" | "credencial_da_organizacao") =>
+    vi.mocked(resolverModeloDoPonto).mockResolvedValueOnce({
+      model: "modelo-dublê" as never,
+      modelId: "anthropic/claude-sonnet-4-6",
+      origem,
+    });
+  const itensDoPlano = (operacoes: Operacao[]) =>
+    itensDeOrcamento(operacoes).filter((o) => o.tipo === "insert" && o.row.ref_kind === "plano");
+
+  it("⭐ plano estourado com a chave da instalação: equipe assume e o item nasce com ref_kind 'plano', mesmo com o orçamento da org em 'off'", async () => {
+    const { operacoes } = montar(
+      { enforcement_mode: "off", current_month_consumed_cents: 1500 },
+      { avisosNoMes: 0, itensAbertos: 0, tetoDoPlano: 1000 },
     );
+    comOrigem("padrao");
+
+    expect(await processMessageReceived(eventRow)).toEqual({ status: "skipped", reason: "budget_exceeded" });
+    expect(itensDoPlano(operacoes)).toHaveLength(1);
+    expect(itensDoPlano(operacoes)[0]!.row.title).toBe(TITULO_TETO_DO_PLANO);
     expect(
-      passagem,
-      "IA parada por gasto e a conversa continua marcada como atendida pela IA — ninguém responde",
-    ).toBeDefined();
-    expect(passagem?.row.bot_silenced_until).toBe("infinity");
-    expect(
-      passagem?.row.last_handoff_reason,
-      "razão diferente da que o engine grava faria quem filtra achar metade das conversas",
-    ).toBe("orcamento_de_ia");
+      operacoes.filter(
+        (o) => o.table === "conversations" && o.tipo === "update" && o.row.last_handoff_reason === "orcamento_de_ia",
+      ).length,
+      "o teto do plano parou a IA sem passar a conversa para a equipe",
+    ).toBeGreaterThan(0);
+  });
+
+  it("chave da organização (BYOK): o teto do plano nem é lido", async () => {
+    const { operacoes, rpcs } = montar(
+      { enforcement_mode: "off", current_month_consumed_cents: 1500 },
+      { avisosNoMes: 0, itensAbertos: 0, tetoDoPlano: 1000 },
+    );
+    comOrigem("credencial_da_organizacao");
+    await processMessageReceived(eventRow).catch(() => null);
+    expect(rpcs).not.toContain("fn_limite_do_plano");
+    expect(itensDoPlano(operacoes)).toEqual([]);
+  });
+
+  it("AI_BUDGET_ENFORCEMENT=off desliga o teto do plano (D-9)", async () => {
+    const { operacoes, rpcs } = montar(
+      { enforcement_env: "off", current_month_consumed_cents: 1500 },
+      { avisosNoMes: 0, itensAbertos: 0, tetoDoPlano: 1000 },
+    );
+    comOrigem("padrao");
+    await processMessageReceived(eventRow).catch(() => null);
+    expect(rpcs).not.toContain("fn_limite_do_plano");
+    expect(itensDoPlano(operacoes)).toEqual([]);
   });
 });

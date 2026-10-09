@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { LeadContextMessage } from "@/lib/agent-engine/edge/crm/get-lead-context";
 import { modelCapabilities } from "@/lib/agent-engine/edge/llm/capabilities";
+import { visaoEmVigor } from "@/lib/ai/pontos/capacidade-em-vigor";
 
 
 /**
@@ -32,7 +33,38 @@ export interface BuildNativeMediaPartsArgs {
 
 export async function buildNativeMediaParts(args: BuildNativeMediaPartsArgs): Promise<NativeMediaPart[]> {
   if (!args.multimodalInput) return [];
-  const caps = modelCapabilities(args.provider, args.model);
+  // ⚠️ A imagem NÃO pergunta ao registro direto. Num roteador (openrouter) o
+  // registro responde pelo prefixo do fabricante — `openai/gpt-3.5-turbo` casa
+  // `openai/` e o registro afirma que enxerga, quando não enxerga. Anexar a
+  // parte nativa ali manda bytes que o provedor recusa, e o custo é o turno,
+  // não um aviso. `visaoEmVigor` deixa o catálogo (sincronizado das
+  // modalidades que a própria OpenRouter declara) decidir nesse caso, e só
+  // nesse — no provedor direto ele nem toca o banco.
+  //
+  // O PDF continua no registro: o catálogo não tem coluna de PDF, então não há
+  // medida para preferir ao palpite.
+  //
+  // ⚠️ A consulta é escrita aqui, e no worker também, em vez de morar num helper
+  // compartilhado: casar o client do Supabase contra a interface estreita de um
+  // helper faz o checador estourar em TS2589 ("type instantiation is excessively
+  // deep") — é o parser de colunas do PostgREST, não incompatibilidade real. E
+  // ele estoura de forma DESIGUAL: `tsc --noEmit` passava e o `next build`
+  // reprovava, no mesmo arquivo e na mesma linha. O que precisava ser único é a
+  // REGRA, e ela é: `visaoEmVigor` decide aqui e em `media-derive-worker.ts`.
+  const catalogo = async (): Promise<boolean | null> => {
+    const { data } = await args.admin
+      .from("ai_models")
+      .select("supports_vision")
+      .eq("provider", args.provider)
+      .eq("model_id", args.model)
+      .is("deprecated_at", null)
+      .maybeSingle();
+    return (data?.supports_vision as boolean | null) ?? null;
+  };
+  const caps = {
+    image: (await visaoEmVigor({ provider: args.provider, modelId: args.model, catalogo })).enxerga,
+    pdf: modelCapabilities(args.provider, args.model).pdf,
+  };
   if (!caps.image && !caps.pdf) return [];
 
   const maxItems = args.maxItems ?? 1;
@@ -43,6 +75,10 @@ export async function buildNativeMediaParts(args: BuildNativeMediaPartsArgs): Pr
   // no máximo 1 item — maxItems fica só como teto declarado na assinatura.
   const latestInbound = [...args.messages].reverse().find((m) => m.direction === "inbound");
   const candidates = latestInbound?.media_storage_path ? [latestInbound].slice(0, maxItems) : [];
+  // A retenção (migration 0557, #1534) anula `media_storage_path` E `media_url`
+  // ao expirar, então quem expirou nem entra em `candidates` — o download abaixo
+  // é inalcançável para mídia podada. O comentário fica porque a guarda é
+  // ESTRUTURAL (coluna nula), não uma checagem que alguém possa esquecer.
 
   const parts: NativeMediaPart[] = [];
   // ponytail: esta camada é aprimoramento, não caminho crítico — o derivado textual

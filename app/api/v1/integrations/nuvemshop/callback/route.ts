@@ -1,3 +1,4 @@
+import { supportCallbackWriteAllowed } from "@/lib/impersonate/support";
 /**
  * GET /api/v1/integrations/nuvemshop/callback
  *
@@ -53,6 +54,32 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return redirectTo(`/app/integrations/nuvemshop?error=missing_code`);
   }
 
+  if (!(await supportCallbackWriteAllowed(state.orgId, state.userId, state.authSessionId))) return redirectTo("/app/integrations/nuvemshop?error=invalid_state");
+
+  const admin = createAdminClient();
+
+  // O retorno vale UMA vez: o nonce do `state` é queimado ANTES da troca, na
+  // mesma tabela e pela mesma razão do callback do Google Agenda
+  // (`app/api/v1/agenda/google/callback/route.ts`). Todo `state` emitido hoje
+  // carrega a pessoa (`connectNuvemshop`); sem ela não há linha a gravar, e
+  // sem gravar não há uso único a garantir — recusa, como qualquer outro erro.
+  const { error: erroDoNonce } = state.userId
+    ? await admin.from("calendar_oauth_nonces").insert({
+        nonce: state.nonce,
+        organization_id: state.orgId,
+        user_id: state.userId,
+        expira_em: new Date(state.expMs).toISOString(),
+      })
+    : { error: { code: "sem_pessoa" } };
+  if (erroDoNonce) {
+    await audit({
+      action: "nuvemshop.oauth_failed",
+      organizationId: state.orgId,
+      metadata: { reason: erroDoNonce.code === "23505" ? "state_reused" : "nonce_unavailable" },
+    });
+    return redirectTo(`/app/integrations/nuvemshop?error=invalid_state`);
+  }
+
   // Exchange code for access token.
   const tokenRes = await exchangeCodeForToken(code, cfg);
   if (!tokenRes.ok) {
@@ -65,7 +92,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const { accessToken, scope, storeId } = tokenRes;
-  const admin = createAdminClient();
 
   // Encrypt access token + webhook secret (we keep the client_secret in env, but
   // tenant_integrations.webhook_secret_encrypted is NOT NULL — we store the
@@ -100,7 +126,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const scopes = scope ? scope.split(/[\s,]+/).filter(Boolean) : [];
 
   // Upsert tenant_integrations row.
-  const { error: upsertErr } = await admin
+  const { data: integration, error: upsertErr } = await admin
     .from("tenant_integrations")
     .upsert(
       {
@@ -116,7 +142,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         last_sync_at: new Date().toISOString(),
       },
       { onConflict: "organization_id,provider" },
-    );
+    ).select("id").single();
 
   if (upsertErr) {
     await audit({
@@ -149,10 +175,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .eq("provider", "nuvemshop");
 
   await audit({
+    actorUserId: state.userId,
+    actorAuthSessionId: state.authSessionId,
     action: "nuvemshop.connected",
     organizationId: state.orgId,
     resourceType: "tenant_integration",
-    resourceId: storeId,
+    resourceId: integration?.id,
     requestId: randomUUID(),
     metadata: {
       store_id: storeId,

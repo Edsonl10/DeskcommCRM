@@ -47,6 +47,8 @@ import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { relativoEmBarraNormal } from "./helpers/caminho";
+
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { Sidebar } from "@/components/shell/Sidebar";
 import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
@@ -59,6 +61,10 @@ vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (chave: string) => chave }));
 vi.mock("@/components/connections/ConnectionHealthDot", () => ({
   ConnectionHealthDot: () => null,
 }));
+// O contador de casos lê a fila pelo React Query; aqui não há provider, e o
+// número não é o objeto destes casos (o dele mora em contador-de-casos.test.tsx).
+vi.mock("@/components/shell/ContadorDeCasos", () => ({ ContadorDeCasos: () => null }));
+vi.mock("@/components/shell/ContadorDaFila", () => ({ ContadorDaFila: () => null }));
 vi.mock("@/components/shell/VersionFooter", () => ({ VersionFooter: () => null }));
 
 const usuario = {
@@ -230,18 +236,16 @@ describe("catraca: `branding()` é server-only", () => {
     expect(semComentarios(`const nome = branding().name; // usa a marca`)).toMatch(/\bbranding\(\)/);
   });
 
-  it("os call sites REAIS de `branding()` continuam visíveis à varredura", () => {
+  it("o texto de `branding()` no CÓDIGO continua visível à varredura", () => {
     // A guarda contra o erro NOVO que o corte por bloco introduz: se o regex de
     // `/* … */` engolisse código, esta lista esvaziaria e a catraca ficaria verde
     // por cegueira — o mesmo defeito que ela existe para impedir, do lado do
-    // instrumento. Estes quatro são servidores e DEVEM chamar `branding()`.
-    const esperados = [
-      "app/(public)/login/page.tsx",
-      "app/(public)/signup/page.tsx",
-      "app/onboarding/layout.tsx",
-      "lib/legal/operador.ts",
-    ];
-    const vistos = varridos.filter(chamaBranding).map((f) => path.relative(RAIZ, f));
+    // instrumento. Os três call sites de produto (`app/legal/layout.tsx`,
+    // `lib/legal/operador.ts` e `app/(public)/signup/page.tsx`) saíram pelo
+    // resolvedor do banco, issue #2511; o que resta é a PRÓPRIA DECLARAÇÃO em
+    // `lib/branding.ts`, e ela tem de continuar visível ao corte.
+    const esperados = ["lib/branding.ts"];
+    const vistos = varridos.filter(chamaBranding).map((f) => relativoEmBarraNormal(RAIZ, f));
     expect(esperados.filter((e) => !vistos.includes(e))).toEqual([]);
   });
 
@@ -252,7 +256,7 @@ describe("catraca: `branding()` é server-only", () => {
     );
 
     expect(
-      infratores.map((f) => path.relative(RAIZ, f)),
+      infratores.map((f) => relativoEmBarraNormal(RAIZ, f)),
       "`branding()` lê `window.__PUBLIC_ENV__` no navegador e `process.env` no\n" +
         "servidor, e as duas fontes divergem desde que o layout raiz passou a\n" +
         "injetar a marca do BANCO. Num client component isso é hydration mismatch\n" +

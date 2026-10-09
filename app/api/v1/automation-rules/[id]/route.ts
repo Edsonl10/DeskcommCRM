@@ -1,3 +1,4 @@
+import { requireSupportWrite } from "@/lib/impersonate/support";
 /**
  * PATCH  /api/v1/automation-rules/[id] — atualiza campos (inclui is_active — switch da UI).
  * DELETE /api/v1/automation-rules/[id] — remove a regra.
@@ -10,9 +11,11 @@ import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { autoriaDaMudanca } from "@/lib/operacao/autoria";
 import { updateAutomationRuleSchema } from "@/lib/schemas";
+import { acoesQueFechamLaco, MENSAGEM_DO_LACO_DE_LEAD } from "@/lib/schemas/webhooks";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptRuleActionSecrets } from "@/lib/webhooks/secrets";
+import { traduzir } from "@/lib/i18n/dicionario";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +24,14 @@ interface RouteCtx {
 }
 
 export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> {
+  const supportDenied = await requireSupportWrite();
+  if (supportDenied) return supportDenied;
+
   const requestId = randomUUID();
   const { id } = await ctx.params;
   const authz = await requireRole("manager", { requestId, resource: "automation_rules" });
   if (!authz.ok) return authz.response;
+  const t = (texto: string) => traduzir(texto, authz.user.idioma);
   const { user, org: activeOrg } = authz;
 
   let raw: unknown = {};
@@ -35,7 +42,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
   }
   const parsed = updateAutomationRuleSchema.safeParse(raw);
   if (!parsed.success) {
-    return fail("invalid_request", "Dados inválidos.", 400, {
+    return fail("invalid_request", t("Dados inválidos."), 400, {
       requestId,
       details: parsed.error.flatten(),
     });
@@ -44,12 +51,40 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
   const supabase = await createClient();
   const { data: existing, error: fetchErr } = await supabase
     .from("automation_rules")
-    .select("id")
+    .select("id, trigger_event, trigger_config, actions")
     .eq("id", id)
     .eq("organization_id", activeOrg.orgId)
     .maybeSingle();
   if (fetchErr) return fail("internal_error", fetchErr.message, 500, { requestId });
-  if (!existing) return fail("not_found", "Regra não encontrada.", 404, { requestId });
+  if (!existing) return fail("not_found", t("Regra não encontrada."), 404, { requestId });
+
+  // O PATCH parcial (só o gatilho, ou só as ações) monta o laço de #1528 pela
+  // porta do lado: o schema só o vê quando os dois vêm juntos. Desligar a regra
+  // (só `is_active`) nunca é barrado.
+  const gravada = existing as { trigger_event: string; actions: { type: string }[] | null };
+  if (
+    (parsed.data.trigger_event !== undefined || parsed.data.actions !== undefined) &&
+    acoesQueFechamLaco(
+      parsed.data.trigger_event ?? gravada.trigger_event,
+      parsed.data.actions ?? gravada.actions ?? [],
+    ).length
+  ) {
+    return fail("invalid_request", t(MENSAGEM_DO_LACO_DE_LEAD), 400, { requestId });
+  }
+
+  const webhookSourceId = parsed.data.trigger_config?.webhook_source_id;
+  if (typeof webhookSourceId === "string") {
+    const { data: source, error: sourceError } = await supabase
+      .from("webhook_sources")
+      .select("id")
+      .eq("id", webhookSourceId)
+      .eq("organization_id", activeOrg.orgId)
+      .maybeSingle();
+    if (sourceError) return fail("internal_error", sourceError.message, 500, { requestId });
+    if (!source) {
+      return fail("invalid_request", t("A fonte escolhida não pertence a esta empresa."), 422, { requestId });
+    }
+  }
 
   // Secrets de call_webhook nunca ficam em claro no jsonb (migration 0041);
   // secret_enc existente (round-trip do editor) passa intacto.
@@ -66,7 +101,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
     if (safeActions === null) {
       return fail(
         "encryption_unavailable",
-        "Não foi possível guardar o segredo do webhook com segurança. Configure NUVEMSHOP_OAUTH_ENCRYPTION_KEY e tente de novo.",
+        t("Não foi possível guardar o segredo do webhook com segurança: a chave de cifra desta instalação não está ativa. Quem administra o servidor resolve rodando o update.sh, que gera e ativa a chave."),
         422,
         { requestId },
       );
@@ -98,10 +133,14 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
 }
 
 export async function DELETE(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
+  const supportDenied = await requireSupportWrite();
+  if (supportDenied) return supportDenied;
+
   const requestId = randomUUID();
   const { id } = await ctx.params;
   const authz = await requireRole("manager", { requestId, resource: "automation_rules" });
   if (!authz.ok) return authz.response;
+  const t = (texto: string) => traduzir(texto, authz.user.idioma);
   const { user, org: activeOrg } = authz;
 
   const supabase = await createClient();
@@ -112,7 +151,7 @@ export async function DELETE(_req: NextRequest, ctx: RouteCtx): Promise<Response
     .eq("organization_id", activeOrg.orgId)
     .maybeSingle();
   if (fetchErr) return fail("internal_error", fetchErr.message, 500, { requestId });
-  if (!existing) return fail("not_found", "Regra não encontrada.", 404, { requestId });
+  if (!existing) return fail("not_found", t("Regra não encontrada."), 404, { requestId });
 
   const { error: delErr } = await supabase.from("automation_rules").delete().eq("id", id);
   if (delErr) return fail("internal_error", delErr.message, 500, { requestId });

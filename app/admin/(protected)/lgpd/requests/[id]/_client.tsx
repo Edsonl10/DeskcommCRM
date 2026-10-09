@@ -1,7 +1,8 @@
 "use client";
+
+import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { CaretLeft } from "@/lib/ui/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TenantBadge } from "@/components/admin/inbox/TenantBadge";
 import { useAdminLgpdRequest } from "@/hooks/useAdminLgpdRequest";
 import type { AdminLgpdStatus, AdminLgpdRequestType } from "@/hooks/useAdminLGPDRequests";
+import { diasAtePrazo, prazoEmBr, progressoDoPrazo } from "@/lib/lgpd/sla";
+import { useT } from "@/hooks/i18n/useT";
 
 // ---------------------------------------------------------------------------
 // Inline SLA Timeline (simplified — no approve button, admin observe-only)
@@ -22,18 +25,22 @@ interface SlaTimelineProps {
 }
 
 function SlaTimelineInline({ received_at, due_at, request_type }: SlaTimelineProps) {
+  const localeDaData = useLocaleDeData();
+  const t = useT();
   const receivedAt = new Date(received_at);
-  const dueAt = new Date(due_at);
   const now = new Date();
 
+  // O FIM do dia guardado é a âncora da barra e da contagem. Antes, as duas
+  // mediam até a meia-noite UTC do dia do prazo: a barra chegava a 100% às 21h da
+  // VÉSPERA, e a contagem dizia "1d em atraso" às 9h do DIA do prazo. Medido —
+  // ver `tests/unit/lgpd-prazo-e-dia-civil.test.ts`.
+  const diasRestantes = diasAtePrazo(due_at, now);
+
   const elapsed = now.getTime() - receivedAt.getTime();
-  const total = dueAt.getTime() - receivedAt.getTime();
-  const progress = Math.min(1, Math.max(0, total > 0 ? elapsed / total : 0));
+  const progress = progressoDoPrazo(received_at, due_at, now);
   const progressPct = Math.round(progress * 100);
 
   const daysElapsed = Math.floor(elapsed / (1000 * 60 * 60 * 24));
-  const msUntilDue = dueAt.getTime() - now.getTime();
-  const daysRemaining = Math.floor(msUntilDue / (1000 * 60 * 60 * 24));
 
   const progressColor =
     progress >= 1 ? "bg-red-500" : progress >= 0.75 ? "bg-yellow-500" : "bg-emerald-500";
@@ -41,27 +48,27 @@ function SlaTimelineInline({ received_at, due_at, request_type }: SlaTimelinePro
   const milestones =
     request_type === "data_request"
       ? [
-          { label: "Recebido", day: 0 },
-          { label: "Revisão intermediária", day: 5 },
-          { label: "Entrega ao titular", day: 7 },
+          { label: t("Recebido"), day: 0 },
+          { label: t("Revisão intermediária"), day: 5 },
+          { label: t("Entrega ao titular"), day: 7 },
         ]
       : [
-          { label: "Recebido", day: 0 },
-          { label: "Processamento", day: 10 },
-          { label: "Anonimização concluída", day: 15 },
+          { label: t("Recebido"), day: 0 },
+          { label: t("Processamento"), day: 10 },
+          { label: t("Anonimização concluída"), day: 15 },
         ];
 
   return (
     <div className="space-y-4">
       <div className="space-y-1">
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>D+{daysElapsed} (hoje)</span>
+          <span>D+{daysElapsed} ({t("hoje")})</span>
           <span>
-            {daysRemaining > 0
-              ? `${daysRemaining}d restantes`
-              : daysRemaining === 0
-                ? "vence hoje"
-                : `${Math.abs(daysRemaining)}d em atraso`}
+            {diasRestantes > 0
+              ? `${diasRestantes}d ${t("restantes")}`
+              : diasRestantes === 0
+                ? t("vence hoje")
+                : `${Math.abs(diasRestantes)}d ${t("em atraso")}`}
           </span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -101,7 +108,7 @@ function SlaTimelineInline({ received_at, due_at, request_type }: SlaTimelinePro
                   D+{m.day} — {m.label}
                 </p>
                 <p className="text-xs text-muted-foreground opacity-70">
-                  {format(milestoneDate, "dd 'de' MMM yyyy", { locale: ptBR })}
+                  {format(milestoneDate, "dd 'de' MMM yyyy", { locale: localeDaData })}
                 </p>
               </div>
             </li>
@@ -124,10 +131,12 @@ interface AuditEntry {
 }
 
 function AuditTrailInline({ entries }: { entries: AuditEntry[] }) {
+  const localeDaData = useLocaleDeData();
+  const t = useT();
   if (entries.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Nenhuma entrada de auditoria registrada para esta solicitação.
+        {t("Nenhuma entrada de auditoria registrada para esta solicitação.")}
       </p>
     );
   }
@@ -150,10 +159,10 @@ function AuditTrailInline({ entries }: { entries: AuditEntry[] }) {
             <div className={`pb-3 min-w-0 flex-1 ${isLast ? "pb-0" : ""}`}>
               <p className="text-sm font-mono font-medium truncate">{entry.action}</p>
               <p className="text-xs text-muted-foreground">
-                {format(new Date(entry.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+                {format(new Date(entry.created_at), "dd/MM/yyyy HH:mm:ss", { locale: localeDaData })}
                 {entry.actor_user_id && (
                   <span className="ml-2 opacity-60">
-                    por {entry.actor_user_id.slice(0, 8)}…
+                    {t("por")} {entry.actor_user_id.slice(0, 8)}…
                   </span>
                 )}
               </p>
@@ -216,6 +225,8 @@ interface Props {
 }
 
 export function LgpdRequestAdminDetail({ id }: Props) {
+  const localeDaData = useLocaleDeData();
+  const t = useT();
   const { data, isLoading, error } = useAdminLgpdRequest(id);
 
   if (isLoading) {
@@ -233,7 +244,7 @@ export function LgpdRequestAdminDetail({ id }: Props) {
   if (error || !data) {
     return (
       <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-        Falha ao carregar solicitação.
+        {t("Falha ao carregar solicitação.")}
       </div>
     );
   }
@@ -241,8 +252,8 @@ export function LgpdRequestAdminDetail({ id }: Props) {
   const { request, tenant, audit_trail } = data.data;
 
   const shortId = request.id.slice(0, 8);
-  const typeLabel = TYPE_LABELS[request.request_type] ?? request.request_type;
-  const statusLabel = STATUS_LABELS[request.status] ?? request.status;
+  const typeLabel = t(TYPE_LABELS[request.request_type] ?? request.request_type);
+  const statusLabel = t(STATUS_LABELS[request.status] ?? request.status);
 
   return (
     <div className="flex flex-col gap-6">
@@ -256,7 +267,7 @@ export function LgpdRequestAdminDetail({ id }: Props) {
         >
           <Link href="/admin/lgpd">
             <CaretLeft size={14} aria-hidden />
-            LGPD Cross-tenant
+            {t("LGPD Cross-tenant")}
           </Link>
         </Button>
       </div>
@@ -267,23 +278,23 @@ export function LgpdRequestAdminDetail({ id }: Props) {
           <h1 className="text-xl font-semibold tracking-tight font-mono">#{shortId}</h1>
           <Badge variant={STATUS_VARIANT[request.status] ?? "secondary"}>{statusLabel}</Badge>
           <Badge variant="outline">{typeLabel}</Badge>
-          {request.emergency && <Badge variant="destructive">Urgente</Badge>}
+          {request.emergency && <Badge variant="destructive">{t("Urgente")}</Badge>}
           {tenant && <TenantBadge name={tenant.display_name} slug={tenant.slug} />}
         </div>
 
         <p className="text-sm text-muted-foreground">
-          Recebido em{" "}
-          {format(new Date(request.received_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+          {t("Recebido em")}{" "}
+          {format(new Date(request.received_at), `dd/MM/yyyy '${t("às")}' HH:mm`, { locale: localeDaData })}
           {request.due_at && (
             <>
               {" · "}
-              Vence em {format(new Date(request.due_at), "dd/MM/yyyy", { locale: ptBR })}
+              {t("Vence em")} {prazoEmBr(request.due_at)}
             </>
           )}
         </p>
 
         <p className="text-xs text-muted-foreground italic">
-          Somente leitura — aprovação é feita pelo operador no contexto do tenant.
+          {t("Somente leitura — aprovação é feita pelo operador no contexto do tenant.")}
         </p>
       </div>
 
@@ -292,7 +303,7 @@ export function LgpdRequestAdminDetail({ id }: Props) {
         {/* SLA Timeline */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Linha do tempo SLA</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("Linha do tempo SLA")}</CardTitle>
           </CardHeader>
           <CardContent>
             {request.due_at ? (
@@ -302,7 +313,7 @@ export function LgpdRequestAdminDetail({ id }: Props) {
                 request_type={request.request_type}
               />
             ) : (
-              <p className="text-sm text-muted-foreground">SLA não definido.</p>
+              <p className="text-sm text-muted-foreground">{t("SLA não definido.")}</p>
             )}
           </CardContent>
         </Card>
@@ -310,15 +321,15 @@ export function LgpdRequestAdminDetail({ id }: Props) {
         {/* Details */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Detalhes</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("Detalhes")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="ID completo" value={request.id} mono />
-            <Row label="Tipo" value={typeLabel} />
-            <Row label="Status" value={statusLabel} />
-            <Row label="Origem" value={(request as { source?: string | null }).source ?? "—"} />
-            <Row label="Escopo" value={request.scope} />
-            <Row label="Tentativas" value={String(request.attempts)} />
+            <Row label={t("ID completo")} value={request.id} mono />
+            <Row label={t("Tipo")} value={typeLabel} />
+            <Row label={t("Status")} value={statusLabel} />
+            <Row label={t("Origem")} value={(request as { source?: string | null }).source ?? "—"} />
+            <Row label={t("Escopo")} value={request.scope} />
+            <Row label={t("Tentativas")} value={String(request.attempts)} />
             {tenant && (
               <>
                 <Row label="Tenant" value={tenant.display_name} />
@@ -333,15 +344,15 @@ export function LgpdRequestAdminDetail({ id }: Props) {
             )}
             {request.completed_at && (
               <Row
-                label="Concluído em"
+                label={t("Concluído em")}
                 value={format(new Date(request.completed_at), "dd/MM/yyyy HH:mm", {
-                  locale: ptBR,
+                  locale: localeDaData,
                 })}
               />
             )}
             {request.error_message && (
               <div className="rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1">
-                <p className="text-xs text-muted-foreground">Erro</p>
+                <p className="text-xs text-muted-foreground">{t("Erro")}</p>
                 <p className="text-destructive text-xs">{request.error_message}</p>
               </div>
             )}
@@ -352,7 +363,7 @@ export function LgpdRequestAdminDetail({ id }: Props) {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-sm font-medium">
-              Trilha de auditoria ({audit_trail.length})
+              {t("Trilha de auditoria")} ({audit_trail.length})
             </CardTitle>
           </CardHeader>
           <CardContent>

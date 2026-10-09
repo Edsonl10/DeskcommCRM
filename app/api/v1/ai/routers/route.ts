@@ -1,3 +1,4 @@
+import { requireSupportWrite } from "@/lib/impersonate/support";
 /**
  * GET  /api/v1/ai/routers — lista routers da org (agent+), com member_count.
  * POST /api/v1/ai/routers — cria router (admin), audit `ai.router_created`.
@@ -16,6 +17,8 @@ import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/archived";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { traduzir } from "@/lib/i18n/dicionario";
+import { NEW_ROUTER_CONTEXT_MESSAGES, MAX_CLASSIFIER_CONTEXT_MESSAGES } from "@/lib/ai/classifier-context";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +28,11 @@ const createRouterSchema = z.object({
   name: z.string().min(1).max(120),
   channel_session_id: z.string().uuid(),
   fallback_agent_id: z.string().uuid().nullable().optional(),
-  config: z.record(z.string(), z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional().refine((c) =>
+    c?.context_message_count === undefined ||
+    (typeof c.context_message_count === "number" && Number.isInteger(c.context_message_count) &&
+      c.context_message_count >= 0 && c.context_message_count <= MAX_CLASSIFIER_CONTEXT_MESSAGES),
+    "context_message_count deve ser inteiro entre 0 e 16"),
 });
 
 // ---------------------------------------------------------------------------
@@ -72,21 +79,25 @@ export async function GET(_req: NextRequest): Promise<Response> {
 // ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const supportDenied = await requireSupportWrite();
+  if (supportDenied) return supportDenied;
+
   const requestId = randomUUID();
   const authz = await requireRole("admin", { requestId, resource: "ai_routers" });
   if (!authz.ok) return authz.response;
+  const t = (texto: string) => traduzir(texto, authz.user.idioma);
   const { user: authUser, org } = authz;
 
   let rawBody: unknown;
   try {
     rawBody = await req.json();
   } catch {
-    return fail("invalid_request", "Body JSON inválido.", 400, { requestId });
+    return fail("invalid_request", t("Body JSON inválido."), 400, { requestId });
   }
 
   const parsed = createRouterSchema.safeParse(rawBody);
   if (!parsed.success) {
-    return fail("validation_failed", "Campos inválidos.", 422, {
+    return fail("validation_failed", t("Campos inválidos."), 422, {
       requestId,
       details: parsed.error.flatten(),
     });
@@ -115,10 +126,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     () => base().maybeSingle(),
   );
   if (sessionErr) {
-    return fail("internal_error", "Erro ao verificar o número de WhatsApp.", 500, { requestId });
+    return fail("internal_error", t("Erro ao verificar o número de WhatsApp."), 500, { requestId });
   }
   if (!session) {
-    return fail("channel_session_not_found", "Número de WhatsApp não encontrado nesta organização.", 404, {
+    return fail("channel_session_not_found", t("Número de WhatsApp não encontrado nesta organização."), 404, {
       requestId,
     });
   }
@@ -130,7 +141,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       name: input.name,
       channel_session_id: input.channel_session_id,
       fallback_agent_id: input.fallback_agent_id ?? null,
-      ...(input.config !== undefined ? { config: input.config } : {}),
+      config: { ...input.config, context_message_count: input.config?.context_message_count ?? NEW_ROUTER_CONTEXT_MESSAGES },
       created_by: authUser.id,
     })
     .select("id")
@@ -138,7 +149,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (insErr || !created) {
     if (insErr?.code === "23505") {
-      return fail("router_already_exists", "Este número já tem um roteador ativo.", 409, { requestId });
+      return fail("router_already_exists", t("Este número já tem um roteador ativo."), 409, { requestId });
     }
     return fail("internal_error", "Erro ao criar router.", 500, { requestId });
   }

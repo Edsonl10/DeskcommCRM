@@ -1,7 +1,10 @@
 "use client";
+
+import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
+
+import type { Locale } from "date-fns";
 import Link from "next/link";
-import { formatDistanceToNow, differenceInHours } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +23,8 @@ import type {
   AdminLgpdStatus,
   AdminLgpdRequestType,
 } from "@/hooks/useAdminLGPDRequests";
+import { contagemDoPrazo } from "@/lib/lgpd/contagem-do-prazo";
+import { useT } from "@/hooks/i18n/useT";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -29,25 +34,18 @@ function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
-function relativeDate(iso: string): string {
+function relativeDate(iso: string, locale: Locale): string {
   try {
-    return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: ptBR });
+    return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: locale });
   } catch {
     return iso;
   }
 }
 
-function countdownLabel(dueAt: string | null, status: AdminLgpdStatus): string {
-  const terminal = new Set<AdminLgpdStatus>(["completed", "failed"]);
-  if (terminal.has(status) || !dueAt) return "—";
-  const now = new Date();
-  const due = new Date(dueAt);
-  const hours = differenceInHours(due, now);
-  if (hours < 0) return `${Math.abs(hours)}h em atraso`;
-  if (hours < 24) return `${hours}h restantes`;
-  const days = Math.floor(hours / 24);
-  return `${days}d restantes`;
-}
+// A frase da coluna "Vence em" é `contagemDoPrazo`, de `lib/lgpd/`: ela decide um
+// número de compliance e mora com a aritmética de `due_at`. Aqui ficava, e
+// ancorava no INSTANTE — o que fazia a coluna dizer "12h em atraso" às nove da
+// manhã do dia em que o prazo vencia. Causa e medição no cabeçalho de lá.
 
 const TYPE_LABELS: Record<AdminLgpdRequestType, string> = {
   redact: "Anonimização cliente",
@@ -96,12 +94,13 @@ const RISK_LABELS: Record<AdminLgpdRiskLevel, string> = {
 // ---------------------------------------------------------------------------
 
 export function LgpdRequestsTableSkeleton() {
+  const t = useT();
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            {["ID", "Tipo", "Tenant", "Recebido em", "Vence em", "Risco", "Status", ""].map(
+            {["ID", t("Tipo"), "Tenant", t("Recebido em"), t("Vence em"), t("Risco"), t("Status"), ""].map(
               (h) => (
                 <TableHead key={h}>{h}</TableHead>
               ),
@@ -129,12 +128,13 @@ export function LgpdRequestsTableSkeleton() {
 // ---------------------------------------------------------------------------
 
 function EmptyState() {
+  const t = useT();
   return (
     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
       <p className="text-sm font-medium text-muted-foreground">
-        Nenhuma solicitação encontrada
+        {t("Nenhuma solicitação encontrada")}
       </p>
-      <p className="mt-1 text-xs text-muted-foreground">Ajuste os filtros para ver solicitações.</p>
+      <p className="mt-1 text-xs text-muted-foreground">{t("Ajuste os filtros para ver solicitações.")}</p>
     </div>
   );
 }
@@ -156,6 +156,8 @@ export function LgpdRequestsTable({
   isFetchingNextPage,
   onLoadMore,
 }: LgpdRequestsTableProps) {
+  const localeDaData = useLocaleDeData();
+  const t = useT();
   if (data.length === 0) return <EmptyState />;
 
   return (
@@ -165,12 +167,12 @@ export function LgpdRequestsTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-[90px]">ID</TableHead>
-              <TableHead>Tipo</TableHead>
+              <TableHead>{t("Tipo")}</TableHead>
               <TableHead className="w-[160px]">Tenant</TableHead>
-              <TableHead className="w-[130px]">Recebido em</TableHead>
-              <TableHead className="w-[130px]">Vence em</TableHead>
-              <TableHead className="w-[80px]">Risco</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
+              <TableHead className="w-[130px]">{t("Recebido em")}</TableHead>
+              <TableHead className="w-[130px]">{t("Vence em")}</TableHead>
+              <TableHead className="w-[80px]">{t("Risco")}</TableHead>
+              <TableHead className="w-[100px]">{t("Status")}</TableHead>
               <TableHead className="w-[60px]" />
             </TableRow>
           </TableHeader>
@@ -182,7 +184,7 @@ export function LgpdRequestsTable({
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className="text-xs font-normal">
-                    {TYPE_LABELS[row.request_type] ?? row.request_type}
+                    {t(TYPE_LABELS[row.request_type] ?? row.request_type)}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -193,14 +195,14 @@ export function LgpdRequestsTable({
                   )}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                  {relativeDate(row.received_at)}
+                  {relativeDate(row.received_at, localeDaData)}
                 </TableCell>
                 <TableCell className="text-xs whitespace-nowrap">
-                  {countdownLabel(row.due_at, row.status)}
+                  {contagemDoPrazo(row.due_at, row.status, t)}
                 </TableCell>
                 <TableCell>
                   <Badge variant={RISK_VARIANT[row.risk_level]} className="text-[10px]">
-                    {RISK_LABELS[row.risk_level]}
+                    {t(RISK_LABELS[row.risk_level])}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -208,12 +210,12 @@ export function LgpdRequestsTable({
                     variant={STATUS_VARIANT[row.status]}
                     className="text-[10px]"
                   >
-                    {STATUS_LABELS[row.status] ?? row.status}
+                    {t(STATUS_LABELS[row.status] ?? row.status)}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                    <Link href={`/admin/lgpd/requests/${row.id}`}>Ver</Link>
+                    <Link href={`/admin/lgpd/requests/${row.id}`}>{t("Ver")}</Link>
                   </Button>
                 </TableCell>
               </TableRow>
@@ -230,7 +232,7 @@ export function LgpdRequestsTable({
             disabled={isFetchingNextPage}
             onClick={onLoadMore}
           >
-            {isFetchingNextPage ? "Carregando..." : "Carregar mais"}
+            {isFetchingNextPage ? t("Carregando...") : t("Carregar mais")}
           </Button>
         </div>
       )}

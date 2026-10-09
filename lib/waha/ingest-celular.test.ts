@@ -54,21 +54,65 @@ function bancoDeMentira(preexistentes: Array<Partial<LinhaMessage>> = []): Duplo
   const consulta = () => {
     let org: string | null = null;
     let externos: string[] = [];
+    const filtrosExtras: Array<[string, unknown]> = [];
+    // `.neq()` APLICADO, não decorativo: a re-checagem pós-insert da ingestão
+    // (corrida com o envio, lib/waha/ingest.ts) exclui a própria linha recém-
+    // inserida por `neq("id")`. Um elo que ignorasse o filtro acharia o eco nele
+    // mesmo e mediria o caminho errado.
+    const diferentes: Array<[string, unknown]> = [];
     const q = {
+      neq(coluna: string, valor: unknown) {
+        diferentes.push([coluna, valor]);
+        return q;
+      },
       eq(coluna: string, valor: string) {
         if (coluna === "organization_id") org = valor;
+        else filtrosExtras.push([coluna, valor]);
         return q;
       },
       in(coluna: string, valores: string[]) {
         if (coluna === "external_id") externos = valores;
+        else filtrosExtras.push([coluna, valores]);
         return q;
+      },
+      is(coluna: string, valor: unknown) {
+        // `.is(col, null)` = `col IS NULL`. A checagem de eco do próprio envio
+        // (`ehEcoDeEnvioNosso`, ver `lib/waha/ingest.ts`) pergunta por linhas
+        // ainda SEM `external_id`; sem este elo o dublê estoura em
+        // "is is not a function" e nove casos deste arquivo caem por um motivo
+        // que nada tem a ver com o que eles medem.
+        filtrosExtras.push([coluna, valor]);
+        return q;
+      },
+      gte() {
+        return q;
+      },
+      order() {
+        return q;
+      },
+      then(ok: (v: unknown) => unknown) {
+        // A checagem de eco lê uma LISTA (sem `.maybeSingle()`). Este arquivo
+        // não mede o silêncio — quem mede é
+        // `tests/unit/eco-do-envio-nao-silencia-o-bot.test.ts` —, então aqui
+        // basta responder no formato certo.
+        const casadas = messages.filter(
+          (m) =>
+            (org === null || m.organization_id === org) &&
+            filtrosExtras.every(([c, v]) => (Array.isArray(v) ? v.includes(m[c]) : (m[c] ?? null) === v)) &&
+            diferentes.every(([c, v]) => m[c] !== v),
+        );
+        return Promise.resolve(ok({ data: casadas, error: null }));
       },
       limit() {
         return q;
       },
       async maybeSingle() {
         const achou = messages.find(
-          (m) => m.organization_id === org && m.external_id !== null && externos.includes(m.external_id),
+          (m) =>
+            m.organization_id === org &&
+            m.external_id !== null &&
+            externos.includes(m.external_id) &&
+            diferentes.every(([c, v]) => m[c] !== v),
         );
         return { data: achou ? { id: achou.id } : null, error: null };
       },
@@ -98,7 +142,20 @@ function bancoDeMentira(preexistentes: Array<Partial<LinhaMessage>> = []): Duplo
         },
       }),
     }),
-    update: () => ({ eq: () => ({ in: async () => ({ error: null }) }) }),
+    // Encadeável em qualquer profundidade/ordem (.eq().in(), .eq().eq(), ...) — o
+    // `pausarIaPorAtendimentoManual` (ver `lib/escalacao/atendimento-manual.ts`) faz `.update(...).eq("id",
+    // ...).eq("organization_id", ...)`, dois `.eq()` seguidos, diferente do `.eq().in()`
+    // que os demais updates deste arquivo já usavam. `await` num objeto plano (não-thenable)
+    // simplesmente devolve o objeto — por isso resolver como `{ error: null }` direto
+    // funciona em qualquer ponto da cadeia.
+    update: () => {
+      const encadeavel: { error: null; eq: () => typeof encadeavel; in: () => typeof encadeavel } = {
+        error: null,
+        eq: () => encadeavel,
+        in: () => encadeavel,
+      };
+      return encadeavel;
+    },
   });
 
   const admin = {
@@ -141,7 +198,11 @@ describe("mensagem digitada no celular do dono (fromMe)", () => {
     await dispatchWahaEvent(admin as never, SESSION as never, envelope(CELULAR_NOWEB), "req-1");
 
     expect(messages, "a mensagem do celular sumiu — o webhook devolveu 200 e nada foi gravado").toHaveLength(1);
-    expect(messages[0]!.external_id).toBe(CELULAR_NOWEB.id);
+    // A forma CANÔNICA, não o id cru do payload: o eco grava o mesmo bare que o
+    // envio grava, e é por isso que o `unique (organization_id, external_id)`
+    // passa a valer como rede de segurança (issue #196). Ver
+    // `tests/unit/dedup-external-id-waha.test.ts`.
+    expect(messages[0]!.external_id).toBe("2A1B890FB8AA87730CBC");
     expect(messages[0]!.direction).toBe("outbound");
     expect(messages[0]!.body).toBe("respondi por aqui mesmo");
     expect(messages[0]!.sent_via).toBe("external_device");
@@ -275,8 +336,11 @@ describe("eco do próprio envio", () => {
   it("linha já gravada com o id bare não vira segunda mensagem", async () => {
     // O envio (composer/IA) grava `external_id` = id bare devolvido pelo WAHA
     // NOWEB (`2A1B…`); o mesmo envio volta pelo webhook com o id COMPOSTO
-    // (`true_<chat>_2A1B…`). São strings diferentes: o unique não dispara e
-    // nasceria uma segunda linha com a mesma frase.
+    // (`true_<chat>_2A1B…`). Aqui quem segura é a LEITURA: o SELECT cobre as
+    // duas formas e este caso é o em que o envio já commitou antes do eco
+    // chegar. O caso em que ele NÃO commitou a tempo é o da catraca
+    // `tests/unit/dedup-external-id-waha.test.ts` — é ali que só o INSERT
+    // gravando a forma canônica fecha a janela (#196).
     const { admin, messages } = bancoDeMentira([
       { organization_id: "org-1", external_id: "2A1B890FB8AA87730CBC", direction: "outbound", body: "respondi por aqui mesmo" },
     ]);

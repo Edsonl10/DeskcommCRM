@@ -45,6 +45,10 @@ const EMISSAO = /p_event_type:\s*"([a-z0-9_.]+)"/g;
  * mas eles existem e o arquivo está nomeado para poder ser conferido.
  */
 const CONSUMIDORES_FORA_DO_REGISTRY: Record<string, string> = {
+  "conversation.department_routing_requested":
+    "lib/routing/worker.ts — runRoutingWorker drena este evento junto de " +
+    "conversation.routing_requested, pelo cron app/api/v1/cron/routing-worker/route.ts. " +
+    "A transferência por departamento usa o mesmo claim e a mesma decisão de distribuição.",
   "ai_agent.dispatch_requested":
     "lib/agent-engine/edge/crm/drain.ts — o agent-engine roda em processo próprio " +
     "(serviço `worker` do docker-compose.prod.yml) e drena direto do event_log. " +

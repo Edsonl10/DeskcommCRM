@@ -4,12 +4,15 @@ import { useTenantDetail } from "@/hooks/useTenantDetail";
 import { TenantOverview } from "@/components/admin/tenants/TenantOverview";
 import { TenantActions } from "@/components/admin/tenants/TenantActions";
 import { SuspendedBanner } from "@/components/admin/tenants/SuspendedBanner";
+import { useT } from "@/hooks/i18n/useT";
 
 interface TenantOverviewClientProps {
   id: string;
+  cobrancaLigada?: boolean;
 }
 
-export function TenantOverviewClient({ id }: TenantOverviewClientProps) {
+export function TenantOverviewClient({ id, cobrancaLigada = false }: TenantOverviewClientProps) {
+  const t = useT();
   const { data, isLoading, isError } = useTenantDetail(id);
 
   if (isLoading) {
@@ -29,7 +32,7 @@ export function TenantOverviewClient({ id }: TenantOverviewClientProps) {
   if (isError || !data?.data) {
     return (
       <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-6 py-10 text-center text-sm text-destructive">
-        Não foi possível carregar os dados do tenant. Tente recarregar a página.
+        {t("Não foi possível carregar os dados do tenant. Tente recarregar a página.")}
       </div>
     );
   }
@@ -47,10 +50,12 @@ export function TenantOverviewClient({ id }: TenantOverviewClientProps) {
           organization={organization}
           counts={counts}
           integrations={integrations}
+          cobrancaLigada={cobrancaLigada}
         />
         <TenantActions
           organizationId={organization.id}
           status={organization.status}
+          suspendedKind={organization.suspended_kind ?? null}
           displayName={organization.display_name}
         />
       </div>

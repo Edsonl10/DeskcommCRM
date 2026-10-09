@@ -6,15 +6,22 @@
  */
 import type pg from 'pg';
 
+import { extrairJsonDoTexto } from '@/lib/agent-engine/texto/extrair-json-do-texto';
+
 import { runModelCall, type LlmEdgeConfig } from '../edge/llm/run-model-call';
 import type { Logger } from '../obs/logger';
 import { aggregateFollowupOutcomes, type FlowOutcomeStat } from '../../followup/outcome-stats';
 
-const JUDGE_MODEL = 'claude-haiku-4-5';
-// O distiller PRECISA de modelo próprio: o flywheel roda org-wide sem turno/agent
-// para herdar, então sem isto ele cai no settings.llm.default_model — não setado
-// em self-host configurado pela tela — e a rodada falha "modelo LLM não definido".
-const DISTILLER_MODEL = 'claude-haiku-4-5';
+// Os dois pontos do flywheel NÃO fixam modelo aqui. Fixavam `claude-haiku-4-5`,
+// e um id de modelo só é válido no vocabulário do provedor que a instalação usa:
+// numa VPS com a org apontada para OpenRouter, esse id literal voltava 400
+// `claude-haiku-4-5 is not a valid model ID` e a rodada agendada morria a cada
+// disparo (medido em produção em 2026-09-05). Sem `model`, cada ponto resolve
+// pela cadeia normal — escolha do painel de provedores, senão o padrão da
+// organização —, que é a mesma que faz todos os outros pontos funcionarem na
+// instalação. Onde não houver nenhum dos dois, o erro passa a ser o acionável
+// "modelo LLM não definido — configure o ponto no painel de provedores", em vez
+// de um 400 do provedor.
 const DIMENSION = 'memory_hygiene';
 const DATASET = 'live';
 
@@ -30,15 +37,36 @@ interface TraceMaterial {
   rollingSummary: string;
 }
 
-async function collectRecentTurns(pool: pg.Pool, limit: number): Promise<TurnRow[]> {
+/**
+ * O turno mais recente de cada contato, ainda sem veredito desta dimensão.
+ *
+ * A deduplicação do INSERT (`on conflict do nothing`) protege a TABELA, não a
+ * chamada: sem o `not exists`, cada rodada pagava o juiz de novo pelos mesmos
+ * turnos e jogava o veredito fora. Um por contato porque o material
+ * (`buildMaterial`) é do contato, não do turno — dois turnos do mesmo contato
+ * dariam o mesmo prompt. O `distinct on` vem ANTES do `not exists`: se o último
+ * turno do contato já foi julgado, o contato fica de fora, em vez de um turno
+ * mais velho dele ser julgado sobre o mesmo material. A janela impede que uma
+ * rodada vá desenterrar o histórico; `null` (o script manual) não a aplica.
+ */
+async function collectRecentTurns(pool: pg.Pool, limit: number, janelaMs: number | null): Promise<TurnRow[]> {
   const { rows } = await pool.query<TurnRow>(
-    `select j.id as job_id, j.organization_id, j.contact_id
-     from job_queue j
-     where j.kind = 'inbound_turn' and j.status = 'done' and j.contact_id is not null
-       and exists (select 1 from llm_calls c where c.job_id = j.id and c.purpose = 'agent_turn')
-     order by j.created_at desc
+    `select t.job_id, t.organization_id, t.contact_id
+     from (
+       select distinct on (j.contact_id) j.id as job_id, j.organization_id, j.contact_id, j.created_at
+       from job_queue j
+       where j.kind = 'inbound_turn' and j.status = 'done' and j.contact_id is not null
+         and ($2::float8 is null or j.created_at > now() - make_interval(secs => $2::float8))
+         and exists (select 1 from llm_calls c where c.job_id = j.id and c.purpose = 'agent_turn')
+       order by j.contact_id, j.created_at desc
+     ) t
+     where not exists (
+       select 1 from flywheel_judge_verdicts v
+       where v.dataset = $3 and v.dimension = $4 and v.trace_id = t.job_id::text
+     )
+     order by t.created_at desc
      limit $1`,
-    [limit],
+    [limit, janelaMs === null ? null : janelaMs / 1000, DATASET, DIMENSION],
   );
   return rows;
 }
@@ -110,10 +138,9 @@ function distillerPrompt(missingFacts: string[]): string {
 }
 
 function parseJson<T>(text: string): T {
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start === -1 || end <= start) throw new Error('saída do modelo sem JSON');
-  return JSON.parse(text.slice(start, end + 1)) as T;
+  const valor = extrairJsonDoTexto(text);
+  if (valor === null) throw new Error('saída do modelo sem JSON');
+  return valor as T;
 }
 
 
@@ -131,11 +158,11 @@ export interface FlywheelRunResult {
 export async function runFlywheelOnce(
   pool: pg.Pool,
   llmCfg: LlmEdgeConfig,
-  opts: { limit: number; log: Logger },
+  opts: { limit: number; log: Logger; janelaMs?: number },
 ): Promise<FlywheelRunResult> {
   const runId = crypto.randomUUID();
   const { limit, log } = opts;
-  const turns = await collectRecentTurns(pool, limit);
+  const turns = await collectRecentTurns(pool, limit, opts.janelaMs ?? null);
   log.info('flywheel: turnos reais coletados', { run_id: runId, turns: turns.length });
   let judged = 0;
   let proposals = 0;
@@ -152,7 +179,6 @@ export async function runFlywheelOnce(
         leadId: turn.contact_id,
         jobId: turn.job_id,
         purpose: 'flywheel_judge',
-        model: JUDGE_MODEL,
         messages: [{ role: 'user', content: judgePrompt(material, optionOrder) }],
       },
       { log },
@@ -163,7 +189,7 @@ export async function runFlywheelOnce(
     const { rowCount } = await pool.query(
       `insert into flywheel_judge_verdicts
          (organization_id, dataset, trace_id, dimension, verdict, option_order, judge_family, model, provenance, run_id)
-       values ($1,$2,$3,$4,$5,$6,'anthropic',$7,$8,$9)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        on conflict (dataset, trace_id, dimension) do nothing`,
       [
         turn.organization_id,
@@ -172,7 +198,8 @@ export async function runFlywheelOnce(
         DIMENSION,
         verdictValue,
         optionOrder,
-        JUDGE_MODEL,
+        judgedCall.provider,
+        judgedCall.model,
         JSON.stringify({ source: 'live_turn', job_id: turn.job_id, contact_id: turn.contact_id }),
         runId,
       ],
@@ -190,7 +217,6 @@ export async function runFlywheelOnce(
           leadId: turn.contact_id,
           jobId: turn.job_id,
           purpose: 'flywheel_distiller',
-          model: DISTILLER_MODEL,
           messages: [{ role: 'user', content: distillerPrompt(verdict.missing_facts ?? []) }],
         },
         { log },
@@ -243,7 +269,8 @@ export async function runFlywheelLoop(
 ): Promise<void> {
   while (!signal.aborted) {
     // dorme PRIMEIRO: no boot os turnos recentes já foram julgados pela rodada
-    // anterior (dedup pela unique), e subir o worker não deve custar LLM.
+    // anterior (o `not exists` de `collectRecentTurns`), e subir o worker não
+    // deve custar LLM.
     await new Promise<void>((resolve) => {
       const timer = setTimeout(resolve, opts.intervalMs);
       signal.addEventListener('abort', () => {
@@ -253,7 +280,13 @@ export async function runFlywheelLoop(
     });
     if (signal.aborted) return;
     try {
-      const result = await runFlywheelOnce(pool, llmCfg, { limit: opts.limit, log: opts.log });
+      // 2× o intervalo: a rodada cobre o que entrou desde a anterior, com folga
+      // para um atraso ou um reinício do worker, e nunca o histórico inteiro.
+      const result = await runFlywheelOnce(pool, llmCfg, {
+        limit: opts.limit,
+        log: opts.log,
+        janelaMs: 2 * opts.intervalMs,
+      });
       opts.log.info('flywheel: rodada agendada concluída', result as unknown as Record<string, unknown>);
     } catch (err) {
       opts.log.error('flywheel: rodada agendada falhou', {

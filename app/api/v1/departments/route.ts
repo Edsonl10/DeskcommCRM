@@ -1,3 +1,4 @@
+import { requireSupportWrite } from "@/lib/impersonate/support";
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 
@@ -26,6 +27,9 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const supportDenied = await requireSupportWrite();
+  if (supportDenied) return supportDenied;
+
   const requestId = randomUUID();
   const authz = await requireRole("manager", { requestId, resource: "departments" });
   if (!authz.ok) return authz.response;

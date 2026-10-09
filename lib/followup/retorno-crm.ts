@@ -1,3 +1,4 @@
+import { beginServiceAtOrigin } from "@/lib/atendimento/origem";
 /**
  * O retorno agendado do lado do CRM — adaptador de banco + as operações que a
  * capacidade da IA e a tela do humano compartilham.
@@ -34,7 +35,7 @@ import {
 
 /** As colunas que descrevem um retorno. Uma lista só — leitura e escrita. */
 const COLUNAS =
-  "id, contact_id, next_run_at, enabled, payload, cancelled_at, cancel_reason";
+  "id, contact_id, next_run_at, enabled, payload, cancelled_at, cancel_reason, last_error";
 
 interface LinhaDeCron {
   id: string;
@@ -44,6 +45,7 @@ interface LinhaDeCron {
   payload: Record<string, unknown> | null;
   cancelled_at: string | null;
   cancel_reason: string | null;
+  last_error: string | null;
 }
 
 function texto(v: unknown): string | null {
@@ -57,7 +59,11 @@ function paraRetorno(row: LinhaDeCron): RetornoAgendado {
     contactId: row.contact_id,
     quando: row.next_run_at,
     prometidoPara: texto(payload.promised_at),
-    situacao: situacaoDoRetorno({ enabled: row.enabled, cancelled_at: row.cancelled_at }),
+    situacao: situacaoDoRetorno({
+      enabled: row.enabled,
+      cancelled_at: row.cancelled_at,
+      last_error: row.last_error,
+    }),
     motivo: texto(payload.reason) ?? "Retorno agendado",
     promessa: texto(payload.promise),
     canceladoEm: row.cancelled_at,
@@ -91,6 +97,7 @@ export function criaRetornoDbSupabase(admin: SupabaseClient): RetornoDb {
     },
 
     async insere(orgId, input) {
+      const boundary = await beginServiceAtOrigin(admin, orgId, input.contactId);
       const { data, error } = await admin
         .from("cron_jobs")
         .insert({
@@ -99,7 +106,7 @@ export function criaRetornoDbSupabase(admin: SupabaseClient): RetornoDb {
           kind: "at",
           job_kind: "followup_turn",
           next_run_at: input.quando.toISOString(),
-          payload: input.payload,
+          payload: { ...input.payload, conversation_id: boundary.conversation_id, service_boundary: boundary },
         })
         .select(COLUNAS)
         .single();

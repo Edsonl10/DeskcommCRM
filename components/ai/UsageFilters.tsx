@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/hooks/i18n/useT";
+import { PONTO_POR_ID } from "@/lib/ai/pontos/registro";
 
 export interface UsageFiltersAgent {
   id: string;
@@ -18,6 +20,8 @@ export interface UsageFiltersAgent {
 
 interface Props {
   agents: UsageFiltersAgent[];
+  /** Os `llm_calls.purpose` que aparecem no período — a lista vem do banco, nunca fixa. */
+  kinds: string[];
   initial: {
     agent_id?: string;
     invocation_kind?: string;
@@ -26,20 +30,11 @@ interface Props {
   };
 }
 
-const KIND_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "all", label: "Todas" },
-  { value: "bot_respond", label: "bot_respond" },
-  { value: "sentiment_check", label: "sentiment_check" },
-  { value: "sentiment_classify", label: "sentiment_classify" },
-  { value: "embed_chunk", label: "embed_chunk" },
-  { value: "embed_query", label: "embed_query" },
-  { value: "intent_classify", label: "intent_classify" },
-];
-
 const ALL_AGENTS = "all";
 const DEBOUNCE_MS = 300;
 
-export function UsageFilters({ agents, initial }: Props) {
+export function UsageFilters({ agents, kinds, initial }: Props) {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -47,6 +42,16 @@ export function UsageFilters({ agents, initial }: Props) {
   const [kind, setKind] = useState<string>(initial.invocation_kind ?? "all");
   const [from, setFrom] = useState<string>(initial.from ?? "");
   const [to, setTo] = useState<string>(initial.to ?? "");
+
+  // A lista era fixa e quase toda de nomes que `llm_calls.purpose` não tem
+  // (`sentiment_check`, `embed_chunk`...): escolher um desses devolvia zero. O escolhido entra
+  // mesmo fora do período, senão o gatilho fica em branco e esconde o filtro ativo.
+  const kindOptions = [...new Set(kind === "all" ? kinds : [...kinds, kind])]
+    .map((value) => {
+      const ponto = PONTO_POR_ID.get(value);
+      return { value, label: ponto ? t(ponto.rotulo) : value };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label, "pt"));
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstRunRef = useRef(true);
@@ -79,13 +84,13 @@ export function UsageFilters({ agents, initial }: Props) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <div className="space-y-1">
-        <Label className="text-xs text-muted-foreground">Agente</Label>
+        <Label className="text-xs text-muted-foreground">{t("Agente")}</Label>
         <Select value={agentId} onValueChange={setAgentId}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL_AGENTS}>Todos</SelectItem>
+            <SelectItem value={ALL_AGENTS}>{t("Todos")}</SelectItem>
             {agents.map((a) => (
               <SelectItem key={a.id} value={a.id}>
                 {a.name}
@@ -96,13 +101,14 @@ export function UsageFilters({ agents, initial }: Props) {
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs text-muted-foreground">Tipo de uso</Label>
+        <Label className="text-xs text-muted-foreground">{t("Tipo de uso")}</Label>
         <Select value={kind} onValueChange={setKind}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {KIND_OPTIONS.map((o) => (
+            <SelectItem value="all">{t("Todas")}</SelectItem>
+            {kindOptions.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>
@@ -113,7 +119,7 @@ export function UsageFilters({ agents, initial }: Props) {
 
       <div className="space-y-1">
         <Label htmlFor="usage-from" className="text-xs text-muted-foreground">
-          De
+          {t("De")}
         </Label>
         <Input
           id="usage-from"
@@ -125,7 +131,7 @@ export function UsageFilters({ agents, initial }: Props) {
 
       <div className="space-y-1">
         <Label htmlFor="usage-to" className="text-xs text-muted-foreground">
-          Até
+          {t("Até")}
         </Label>
         <Input
           id="usage-to"

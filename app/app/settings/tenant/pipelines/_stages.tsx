@@ -1,10 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -23,11 +25,14 @@ import {
   useEditarEtapa,
   type PatchDeEtapa,
 } from "@/hooks/pipelines/useStages";
+import { useTaxasDasEtapas } from "@/hooks/pipelines/useWinRates";
 import { LEAD_STAGES, type LeadStage } from "@/lib/agent-engine/agent/lead-state";
 import { ApiError } from "@/lib/api/types";
 import { ROTULO_DO_PASSO } from "@/lib/leads/agent-mapping";
+import type { TaxaDaEtapa } from "@/lib/metrics/taxa-da-etapa";
 import { Archive, CaretDown, CaretUp, Plus, Warning } from "@/lib/ui/icons";
 import { SeloDeAutoria } from "@/components/operacao/SeloDeAutoria";
+import { useT } from "@/hooks/i18n/useT";
 
 import { mensagemDeErro } from "./_mapping";
 
@@ -136,8 +141,11 @@ function passoPorEtapa(mapa: MapaDoAgente): Map<string, LeadStage> {
 }
 
 /** "1 negócio", "4 negócios" — a tela recompõe a frase, então pluraliza como o servidor. */
-export function contagemDeNegocios(n: number): string {
-  return `${n} ${n === 1 ? "negócio" : "negócios"}`;
+export function contagemDeNegocios(
+  n: number,
+  t: (texto: string) => string = (texto) => texto,
+): string {
+  return `${n} ${n === 1 ? t("negócio") : t("negócios")}`;
 }
 
 /**
@@ -177,7 +185,12 @@ type Arquivamento = {
 // varre o texto-fonte, então `sm:${...}` montado por interpolação NÃO gera CSS.
 // E o prefixo é o certo de qualquer jeito — no celular a linha empilha e largura
 // fixa espremeria os controles.
-const LARGURA = { ordem: "sm:w-[76px]", papel: "sm:w-56", arquivar: "sm:w-[104px]" } as const;
+const LARGURA = {
+  chance: "sm:w-[124px]",
+  ordem: "sm:w-[76px]",
+  papel: "sm:w-56",
+  arquivar: "sm:w-[104px]",
+} as const;
 
 /**
  * O texto de cada rótulo, em UM lugar só — porque ele aparece em DOIS.
@@ -188,9 +201,133 @@ const LARGURA = { ordem: "sm:w-[76px]", papel: "sm:w-56", arquivar: "sm:w-[104px
  */
 export const ROTULO = {
   nome: "Nome da coluna (clique para renomear)",
+  chance: "Chance de fechamento (0 a 100)",
   ordem: "Ordem",
   papel: "O que acontece nesta coluna",
 } as const;
+
+/**
+ * A frase da taxa histórica (issue #1753) — a CONTAGEM com a amostra à vista.
+ *
+ * Três formas, e as três são honestas com o que a conta sabe:
+ *
+ * - `total: 0` → «sem dados». NUNCA «0%»: zero porcento afirmaria «já
+ *   passaram 20 e nenhum fechou», que é o oposto do silêncio — e é o número
+ *   que a previsão usaria para derrubar a etapa para perto de perda.
+ * - com amostra pequena → a fração aparece (é dado), mas o convite não: com 7
+ *   casos, arredondar é chute com cara de regra (`MINIMO_DE_CASOS`).
+ * - com amostra suficiente → a fração e a régua, para quem opera decidir.
+ *
+ * O `ganhos`/`total` sai daqui como frase, não como «40%» solto: toda medida
+ * publicada vem com a amostra (doutrina `sistema-vivo`, §medida do propósito).
+ */
+export function fraseDaTaxa(
+  taxa: TaxaDaEtapa,
+  t: (texto: string) => string = (texto) => texto,
+): string {
+  if (taxa.total === 0 || taxa.percentual === null) {
+    return t("Sem dados no período — nenhum negócio encerrado passou por esta etapa.");
+  }
+  const passaram = `${contagemDeNegocios(taxa.total, t)} ${
+    taxa.total === 1
+      ? t("encerrado passou por esta etapa")
+      : t("encerrados passaram por esta etapa")
+  }`;
+  const fechamento = `${taxa.ganhos} ${
+    taxa.ganhos === 1 ? t("foi ganho") : t("foram ganhos")
+  } (${taxa.percentual}%)`;
+  const veredito = taxa.sugestao === null ? ` ${t("Poucos casos para sugerir.")}` : "";
+  return `${passaram}; ${fechamento}.${veredito}`;
+}
+
+/**
+ * A ORIGEM do número, sem a qual «39%» é um chute que ninguém consegue
+ * contestar. Data numérica em vez de «12 meses»: o texto não envelhece quando
+ * a janela muda por query string, e `dd/MM/yyyy` é o mesmo em pt e em es.
+ */
+export function periodoDaTaxa(
+  inicio: string,
+  fim: string,
+  t: (texto: string) => string = (texto) => texto,
+): string {
+  return t("Período: de {inicio} a {fim}")
+    .replace("{inicio}", format(new Date(inicio), "dd/MM/yyyy"))
+    .replace("{fim}", format(new Date(fim), "dd/MM/yyyy"));
+}
+
+/**
+ * A frase da ETAPA ATUAL (issue #2032) — quem está NA coluna AGORA, medido
+ * pela ENTRADA do negócio na etapa (`crm_leads.stage_changed_at`, carimbada
+ * pelo trigger da 0071, com `created_at` de reserva para quem não tem carimbo).
+ *
+ * Duas honestidades nesta frase:
+ *
+ * - `null` sem ninguém. Etapa vazia não ganha frase — «0 h» afirmaria que
+ *   alguém acabou de entrar, que é o oposto do silêncio.
+ * - A origem está ESCRITA junto, porque a taxa logo acima é de OUTRA
+ *   população (quem passou pela etapa na janela de dias) e este número é de
+ *   quem está aqui fora de qualquer janela. Sem as duas frases dizerem qual é
+ *   qual, o leitor soma medida que não se soma.
+ */
+export function fraseDeTempoNaEtapa(
+  linha: { quantidade: number; horas_mediana: number | null },
+  t: (texto: string) => string = (texto) => texto,
+): string | null {
+  if (linha.quantidade === 0 || linha.horas_mediana === null) return null;
+  const mediana = t("mediana de {horas} h desde a entrada (stage_changed_at)").replace(
+    "{horas}",
+    String(linha.horas_mediana),
+  );
+  return `${contagemDeNegocios(linha.quantidade, t)} ${t("nesta etapa agora")} — ${mediana}.`;
+}
+
+/**
+ * A contagem ao lado do campo de probabilidade, com o convite só quando a
+ * amostra sustenta.
+ *
+ * ⚠️ NADA GRAVA SOZINHO — este componente só CHAMA `aoAceitar`, que é o
+ * mesmo `aplicar(etapa.id, { win_probability })` de digitar no campo. A
+ * decisão continua sendo de quem opera, e é por isso que a proposta não toca
+ * em `crm_lead_scores` nem em nenhuma outra tabela.
+ */
+function SugestaoDeTaxa({
+  taxa,
+  inicio,
+  fim,
+  truncado,
+  desabilitado,
+  aoAceitar,
+}: {
+  taxa: TaxaDaEtapa;
+  inicio: string;
+  fim: string;
+  /** A leitura bateu o teto da rota: o número é parte do período, não todo. */
+  truncado: boolean;
+  desabilitado: boolean;
+  aoAceitar: (valor: number) => void;
+}) {
+  const t = useT();
+  const sugestao = taxa.sugestao;
+  return (
+    <div className="space-y-1">
+      <p className="text-xs leading-snug text-text-muted" data-testid={`taxa-${taxa.etapa_id}`}>
+        {fraseDaTaxa(taxa, t)} {periodoDaTaxa(inicio, fim, t)}
+        {truncado ? ` ${t("Amostra limitada: este número cobre só parte do período.")}` : ""}
+      </p>
+      {sugestao !== null ? (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={desabilitado}
+          data-testid={`usar-taxa-${taxa.etapa_id}`}
+          onClick={() => aoAceitar(sugestao)}
+        >
+          {t("Usar {chance}%?").replace("{chance}", String(sugestao))}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 export function StagesSection({
   pipelineId,
@@ -200,7 +337,13 @@ export function StagesSection({
   /** Para onde mandar quem precisa desfazer o vínculo de uma etapa com o assistente. */
   ancoraMapeamento: string;
 }) {
+  const t = useT();
   const consulta = useAgentMapping(pipelineId);
+  const taxas = useTaxasDasEtapas(pipelineId);
+  // Confere o FORMATO antes de confiar: esta chave pode receber o corpo de
+  // outra leitura parada no cache, e corpo errado não pode virar «sem dados» na
+  // tela do gestor.
+  const corpoDasTaxas = taxas.data && Array.isArray(taxas.data.taxas) ? taxas.data : null;
   const criar = useCriarEtapa(pipelineId);
   const editar = useEditarEtapa(pipelineId);
   const arquivar = useArquivarEtapa(pipelineId);
@@ -215,14 +358,14 @@ export function StagesSection({
   if (consulta.isError) {
     return (
       <p className="text-sm text-text-muted" data-testid="etapas-erro-leitura">
-        Não foi possível carregar as etapas deste funil agora. Recarregue a página.
+        {t("Não foi possível carregar as etapas deste funil agora. Recarregue a página.")}
       </p>
     );
   }
   if (!consulta.data) {
     return (
       <p className="text-sm text-text-muted" data-testid="etapas-carregando">
-        Carregando as etapas deste funil…
+        {t("Carregando as etapas deste funil…")}
       </p>
     );
   }
@@ -244,8 +387,8 @@ export function StagesSection({
     editar.mutate(
       { stageId: etapaId, patch },
       {
-        onSuccess: () => toast.success("Etapa atualizada."),
-        onError: (e) => setErro({ etapaId, texto: mensagemDeErro(e), sobrePapel }),
+        onSuccess: () => toast.success(t("Etapa atualizada.")),
+        onError: (e) => setErro({ etapaId, texto: mensagemDeErro(e, t), sobrePapel }),
       },
     );
   }
@@ -265,8 +408,8 @@ export function StagesSection({
         papel,
         texto:
           papel === "won"
-            ? `Só uma etapa pode ser a de fechamento. Marcar esta desmarca «${atual.name}».`
-            : `Só uma etapa pode ser a de perda. Marcar esta desmarca «${atual.name}».`,
+            ? `${t("Só uma etapa pode ser a de fechamento. Marcar esta desmarca")} «${atual.name}».`
+            : `${t("Só uma etapa pode ser a de perda. Marcar esta desmarca")} «${atual.name}».`,
       });
       return;
     }
@@ -280,7 +423,7 @@ export function StagesSection({
       {
         onSuccess: () => {
           setArquivamento(null);
-          toast.success(`«${etapa.name}» saiu do quadro.`);
+          toast.success(`«${etapa.name}» ${t("saiu do quadro.")}`);
         },
         onError: (e) => {
           // Negócios parados na etapa não é recusa final: é a pergunta "para
@@ -291,7 +434,7 @@ export function StagesSection({
             etapaId: etapa.id,
             negocios: caso.negocios,
             destino: null,
-            erro: caso.precisaDestino ? null : mensagemDeErro(e),
+            erro: caso.precisaDestino ? null : mensagemDeErro(e, t),
           });
         },
       },
@@ -305,24 +448,27 @@ export function StagesSection({
     criar.mutate(nome, {
       onSuccess: () => {
         setNova(null);
-        toast.success(`«${nome}» entrou no fim do funil.`);
+        toast.success(`«${nome}» ${t("entrou no fim do funil.")}`);
       },
-      onError: (e) => setErro({ etapaId: null, texto: mensagemDeErro(e) }),
+      onError: (e) => setErro({ etapaId: null, texto: mensagemDeErro(e, t) }),
     });
   }
 
   return (
     <div className="space-y-4" id={ancoraDasEtapas(pipelineId)} data-testid={`etapas-${pipelineId}`}>
       <div className="space-y-1">
-        <h3 className="text-sm font-semibold">Etapas deste funil</h3>
+        <h3 className="text-sm font-semibold">{t("Etapas deste funil")}</h3>
         <p className="max-w-3xl text-sm leading-relaxed text-text-muted">
-          Estas são as colunas do seu quadro, na ordem em que o cliente avança. Você pode
-          renomear, criar, reordenar e arquivar.
+          {t(
+            "Estas são as colunas do seu quadro, na ordem em que o cliente avança. Você pode renomear, criar, reordenar e arquivar.",
+          )}
         </p>
         <p className="max-w-3xl text-sm leading-relaxed text-text-muted">
-          Duas colunas têm papel especial: a <strong>de fechamento</strong> é onde o negócio
-          vira venda, e a <strong>de perda</strong> é onde ele se perde. Cada funil precisa de uma
-          de cada — por isso a marcação se muda de lugar, não se apaga.
+          {t("Duas colunas têm papel especial: a")} <strong>{t("de fechamento")}</strong>{" "}
+          {t("é onde o negócio vira venda, e a")} <strong>{t("de perda")}</strong>{" "}
+          {t(
+            "é onde ele se perde. Cada funil precisa de uma de cada — por isso a marcação se muda de lugar, não se apaga.",
+          )}
         </p>
       </div>
 
@@ -341,15 +487,21 @@ export function StagesSection({
         data-testid="etapas-cabecalho"
       >
         <span className="w-6 shrink-0" />
-        <span className="min-w-0 flex-1">{ROTULO.nome}</span>
-        <span className={`${LARGURA.ordem} shrink-0 text-center`}>{ROTULO.ordem}</span>
-        <span className={`${LARGURA.papel} shrink-0`}>{ROTULO.papel}</span>
+        <span className="min-w-0 flex-1">{t(ROTULO.nome)}</span>
+        <span className={`${LARGURA.chance} shrink-0`}>{t(ROTULO.chance)}</span>
+        <span className={`${LARGURA.ordem} shrink-0 text-center`}>{t(ROTULO.ordem)}</span>
+        <span className={`${LARGURA.papel} shrink-0`}>{t(ROTULO.papel)}</span>
         <span className={`${LARGURA.arquivar} shrink-0`} />
       </div>
 
       <ul className="flex flex-col divide-y divide-border rounded-md border border-border">
         {etapas.map((etapa, i) => {
           const passo = passos.get(etapa.id) ?? null;
+          const taxa = corpoDasTaxas?.taxas.find((linha) => linha.etapa_id === etapa.id) ?? null;
+          const tempo =
+            corpoDasTaxas?.tempo_na_etapa?.etapas.find((linha) => linha.etapa_id === etapa.id) ??
+            null;
+          const fraseDeTempo = tempo ? fraseDeTempoNaEtapa(tempo, t) : null;
           const erroDaLinha = erro?.etapaId === etapa.id ? erro.texto : null;
           const confirmandoAqui = confirmacao?.etapaId === etapa.id ? confirmacao : null;
           const arquivandoAqui = arquivamento?.etapaId === etapa.id ? arquivamento : null;
@@ -370,13 +522,59 @@ export function StagesSection({
                     vive no cabeçalho — mesmas constantes, `sm:hidden`. */}
                 <div className="min-w-0 flex-1 space-y-1">
                   <span className="block text-xs font-medium text-text-muted sm:hidden">
-                    {ROTULO.nome}
+                    {t(ROTULO.nome)}
                   </span>
                   <NomeDaEtapa
                     etapa={etapa}
                     desabilitado={ocupado}
                     aoConfirmar={(nome) => aplicar(etapa.id, { name: nome })}
                   />
+                </div>
+
+                {/* A calibração da previsão (issue #1535). Ganho e perda valem
+                    100 e 0 NA REGRA, então o campo fica desabilitado ali —
+                    digitar um número seria uma promessa que a regra ignora. */}
+                <div className={`${LARGURA.chance} shrink-0 space-y-1`}>
+                  <span className="block text-xs font-medium text-text-muted sm:hidden">
+                    {t(ROTULO.chance)}
+                  </span>
+                  <ProbabilidadeDaEtapa
+                    key={`prob-${etapa.id}-${etapa.win_probability ?? "sem"}`}
+                    etapa={etapa}
+                    desabilitado={ocupado}
+                    aoConfirmar={(valor) => aplicar(etapa.id, { win_probability: valor })}
+                  />
+                  {/* Ganho e perda valem 100 e 0 NA REGRA, então não há
+                      calibração a sugerir ali — a contagem também não diria
+                      nada que a própria coluna já não diga. */}
+                  {corpoDasTaxas && taxa && !etapa.is_won && !etapa.is_lost ? (
+                    <SugestaoDeTaxa
+                      taxa={taxa}
+                      inicio={corpoDasTaxas.inicio}
+                      fim={corpoDasTaxas.fim}
+                      truncado={corpoDasTaxas.truncado}
+                      desabilitado={ocupado}
+                      aoAceitar={(valor) => aplicar(etapa.id, { win_probability: valor })}
+                    />
+                  ) : null}
+                  {/* #2032 — a etapa ATUAL, ao lado da taxa histórica (#1753),
+                      que é de OUTRA população: aquela mede quem passou na
+                      janela, esta quem está aqui agora. Ganho e perda ficam de
+                      fora porque lá a coluna não segura trabalho em curso — o
+                      tempo dela é tempo desde o desfecho, não espera. */}
+                  {!etapa.is_won && !etapa.is_lost && fraseDeTempo ? (
+                    <p
+                      className="text-xs leading-snug text-text-muted"
+                      data-testid={`tempo-etapa-${etapa.id}`}
+                    >
+                      {fraseDeTempo}
+                      {/* Este bloco não tem período: o corte é na leitura dos
+                          negócios abertos, e a frase diz isso — não a da taxa. */}
+                      {corpoDasTaxas?.tempo_na_etapa?.truncado
+                        ? ` ${t("Amostra limitada: este número cobre só parte dos negócios abertos do funil.")}`
+                        : ""}
+                    </p>
+                  ) : null}
                 </div>
 
                 {/* No empilhado o rótulo vai EM CIMA, como os outros dois: ao
@@ -387,13 +585,13 @@ export function StagesSection({
                   className={`flex flex-col gap-1 ${LARGURA.ordem} shrink-0 sm:flex-row sm:items-center sm:justify-center sm:gap-1`}
                 >
                   <span className="text-xs font-medium text-text-muted sm:hidden">
-                    {ROTULO.ordem}
+                    {t(ROTULO.ordem)}
                   </span>
                   <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={`Mover «${etapa.name}» uma coluna para trás`}
+                    aria-label={`${t("Mover")} «${etapa.name}» ${t("uma coluna para trás")}`}
                     data-testid={`subir-${etapa.id}`}
                     disabled={i === 0 || ocupado}
                     onClick={() =>
@@ -405,7 +603,7 @@ export function StagesSection({
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={`Mover «${etapa.name}» uma coluna para frente`}
+                    aria-label={`${t("Mover")} «${etapa.name}» ${t("uma coluna para frente")}`}
                     data-testid={`descer-${etapa.id}`}
                     disabled={i === etapas.length - 1 || ocupado}
                     onClick={() =>
@@ -419,7 +617,7 @@ export function StagesSection({
 
                 <div className={`w-full shrink-0 space-y-1 ${LARGURA.papel} sm:space-y-0`}>
                   <span className="block text-xs font-medium text-text-muted sm:hidden">
-                    {ROTULO.papel}
+                    {t(ROTULO.papel)}
                   </span>
                   <Select
                     value={papelDaEtapa(etapa)}
@@ -427,7 +625,7 @@ export function StagesSection({
                     disabled={ocupado}
                   >
                     <SelectTrigger
-                      aria-label={`Papel de «${etapa.name}» no funil`}
+                      aria-label={`${t("Papel de")} «${etapa.name}» ${t("no funil")}`}
                       data-testid={`papel-${etapa.id}`}
                     >
                       <SelectValue />
@@ -435,7 +633,7 @@ export function StagesSection({
                     <SelectContent>
                       {(["nenhum", "won", "lost"] as const).map((p) => (
                         <SelectItem key={p} value={p}>
-                          {ROTULO_DO_PAPEL[p]}
+                          {t(ROTULO_DO_PAPEL[p])}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -454,8 +652,25 @@ export function StagesSection({
                   }}
                 >
                   <Archive size={16} className="mr-1" aria-hidden />
-                  Arquivar
+                  {t("Arquivar")}
                 </Button>
+              </div>
+
+              {/* #1532: a janela de "esfriando" é configuração da etapa, não
+                  coluna do quadro — ela mora aqui, na segunda linha, com
+                  rótulo próprio. Ganhar uma coluna no cabeçalho exigiria
+                  medir `LARGURA` em dois lugares e apertar uma linha que já
+                  carrega nome, chance, ordem, papel e arquivar. */}
+              <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                <span className="font-medium">
+                  {t("Janela de esfriando (vazio = 24 h de padrão)")}
+                </span>
+                <JanelaDaEtapa
+                  key={`janela-${etapa.id}-${etapa.expected_duration_hours ?? "padrao"}`}
+                  etapa={etapa}
+                  desabilitado={ocupado}
+                  aoConfirmar={(valor) => aplicar(etapa.id, { expected_duration_hours: valor })}
+                />
               </div>
 
               {/* Uma coluna que apareceu no quadro sem o dono ter criado precisa
@@ -467,11 +682,25 @@ export function StagesSection({
                 className={`etapa-autoria-${etapa.id}`}
               />
 
+              {/* Numa venda com pagamento na entrega o momento que pede ação é o
+                  pedido confirmado, não o ganho — e quem sabe qual etapa é essa é
+                  a organização. Ver a migration 0440. */}
+              <label className="flex items-center gap-2 text-xs text-text-muted">
+                <Switch
+                  checked={etapa.avisar_na_central === true}
+                  onCheckedChange={(v) => aplicar(etapa.id, { avisar_na_central: v })}
+                  disabled={ocupado}
+                  aria-label={`${t("Avisar a equipe na Central quando um negócio entrar em")} «${etapa.name}»`}
+                  data-testid={`avisar-${etapa.id}`}
+                />
+                {t("Avisar a equipe na Central quando um negócio entrar aqui")}
+              </label>
+
               {passo && (
                 <p className="text-xs text-text-muted" data-testid={`passo-de-${etapa.id}`}>
-                  O assistente usa esta etapa para «{ROTULO_DO_PASSO[passo]}».{" "}
+                  {t("O assistente usa esta etapa para")} «{t(ROTULO_DO_PASSO[passo])}».{" "}
                   <a className="underline underline-offset-2" href={`#${ancoraMapeamento}`}>
-                    Mudar isso
+                    {t("Mudar isso")}
                   </a>
                 </p>
               )}
@@ -488,10 +717,10 @@ export function StagesSection({
                       data-testid={`confirmar-papel-sim-${etapa.id}`}
                       onClick={() => aplicar(etapa.id, patchDePapel(etapa, confirmandoAqui.papel))}
                     >
-                      Marcar mesmo assim
+                      {t("Marcar mesmo assim")}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setConfirmacao(null)}>
-                      Cancelar
+                      {t("Cancelar")}
                     </Button>
                   </div>
                 </Card>
@@ -508,23 +737,31 @@ export function StagesSection({
                     </p>
                   ) : arquivandoAqui.negocios === null ? (
                     <p className="text-sm leading-relaxed">
-                      Arquivar «{etapa.name}»? A coluna sai do quadro e para de receber negócios
-                      novos. Nada é apagado — o histórico de quem passou por ela continua
-                      guardado —, mas <strong>não dá para trazer a coluna de volta por aqui</strong>.
+                      {t("Arquivar")} «{etapa.name}»?{" "}
+                      {t(
+                        "A coluna sai do quadro e para de receber negócios novos. Nada é apagado — o histórico de quem passou por ela continua guardado —, mas",
+                      )}{" "}
+                      <strong>{t("não dá para trazer a coluna de volta por aqui")}</strong>.
                     </p>
                   ) : destinos.length === 0 ? (
                     // Sem destino possível não há pergunta a fazer — e mandar
                     // escolher entre nada seria um beco sem saída.
                     <p className="text-sm leading-relaxed" data-testid={`arquivar-sem-destino-${etapa.id}`}>
-                      {contagemDeNegocios(arquivandoAqui.negocios)} {arquivandoAqui.negocios === 1 ? "está" : "estão"} nesta
-                      etapa e não há outra coluna em aberto para recebê-{arquivandoAqui.negocios === 1 ? "lo" : "los"}. Crie
-                      uma etapa antes de arquivar «{etapa.name}».
+                      {contagemDeNegocios(arquivandoAqui.negocios, t)}{" "}
+                      {arquivandoAqui.negocios === 1
+                        ? t("está nesta etapa e não há outra coluna em aberto para recebê-lo.")
+                        : t(
+                            "estão nesta etapa e não há outra coluna em aberto para recebê-los.",
+                          )}{" "}
+                      {t("Crie uma etapa antes de arquivar")} «{etapa.name}».
                     </p>
                   ) : (
                     <>
                       <p className="text-sm leading-relaxed" data-testid={`arquivar-pergunta-${etapa.id}`}>
-                        {contagemDeNegocios(arquivandoAqui.negocios)}{" "}
-                        {arquivandoAqui.negocios === 1 ? "está nesta etapa. Para onde ele vai?" : "estão nesta etapa. Para onde eles vão?"}
+                        {contagemDeNegocios(arquivandoAqui.negocios, t)}{" "}
+                        {arquivandoAqui.negocios === 1
+                          ? t("está nesta etapa. Para onde ele vai?")
+                          : t("estão nesta etapa. Para onde eles vão?")}
                       </p>
                       <div className="sm:w-72">
                         <Select
@@ -534,10 +771,10 @@ export function StagesSection({
                           }
                         >
                           <SelectTrigger
-                            aria-label={`Para onde vão os negócios de «${etapa.name}»`}
+                            aria-label={`${t("Para onde vão os negócios de")} «${etapa.name}»`}
                             data-testid={`destino-${etapa.id}`}
                           >
-                            <SelectValue placeholder="Escolha a etapa" />
+                            <SelectValue placeholder={t("Escolha a etapa")} />
                           </SelectTrigger>
                           <SelectContent>
                             {destinos.map((d) => (
@@ -565,11 +802,12 @@ export function StagesSection({
                       className="text-sm leading-relaxed text-warning-fg"
                       data-testid={`arquivar-perde-passo-${etapa.id}`}
                     >
-                      Esta etapa é a que o assistente usa para «{ROTULO_DO_PASSO[passo]}».
-                      Arquivando, ele para de mover o card nesse passo até você escolher outra
-                      etapa em{" "}
+                      {t("Esta etapa é a que o assistente usa para")} «{t(ROTULO_DO_PASSO[passo])}».{" "}
+                      {t(
+                        "Arquivando, ele para de mover o card nesse passo até você escolher outra etapa em",
+                      )}{" "}
                       <a className="underline underline-offset-2" href={`#${ancoraMapeamento}`}>
-                        «Para onde o card vai em cada passo»
+                        «{t("Para onde o card vai em cada passo")}»
                       </a>
                       .
                     </p>
@@ -590,12 +828,12 @@ export function StagesSection({
                         onClick={() => pedirArquivamento(etapa, arquivandoAqui.destino)}
                       >
                         {arquivandoAqui.negocios === null
-                          ? "Arquivar"
-                          : "Mover os negócios e arquivar"}
+                          ? t("Arquivar")
+                          : t("Mover os negócios e arquivar")}
                       </Button>
                     )}
                     <Button size="sm" variant="ghost" onClick={() => setArquivamento(null)}>
-                      {arquivandoAqui.erro ? "Fechar" : "Cancelar"}
+                      {arquivandoAqui.erro ? t("Fechar") : t("Cancelar")}
                     </Button>
                   </div>
                 </Card>
@@ -613,7 +851,7 @@ export function StagesSection({
                       <>
                         {" "}
                         <a className="underline underline-offset-2" href={`#${ancoraMapeamento}`}>
-                          Ir para o mapeamento do assistente
+                          {t("Ir para o mapeamento do assistente")}
                         </a>
                         .
                       </>
@@ -629,7 +867,7 @@ export function StagesSection({
       {nova === null ? (
         <Button variant="ghost" size="sm" data-testid="nova-etapa" onClick={() => setNova("")}>
           <Plus size={16} className="mr-1" aria-hidden />
-          Acrescentar etapa ao fim
+          {t("Acrescentar etapa ao fim")}
         </Button>
       ) : (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -637,8 +875,8 @@ export function StagesSection({
             autoFocus
             value={nova}
             maxLength={80}
-            placeholder="Nome da nova coluna"
-            aria-label="Nome da nova etapa"
+            placeholder={t("Nome da nova coluna")}
+            aria-label={t("Nome da nova etapa")}
             data-testid="nova-etapa-nome"
             onChange={(e) => setNova(e.target.value)}
             onKeyDown={(e) => {
@@ -653,10 +891,10 @@ export function StagesSection({
             disabled={ocupado || nova.trim().length === 0}
             onClick={criarEtapa}
           >
-            Criar
+            {t("Criar")}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setNova(null)}>
-            Cancelar
+            {t("Cancelar")}
           </Button>
         </div>
       )}
@@ -671,6 +909,218 @@ export function StagesSection({
         </Card>
       )}
     </div>
+  );
+}
+
+/**
+ * A janela de "esfriando" da etapa, editada no lugar em DIAS e HORAS (#1532).
+ *
+ * A coluna é `crm_stages.expected_duration_hours` em HORAS, mas ninguém pensa
+ * "72 horas" — pensa "3 dias". A conversão acontece AQUI, na ponta: o PATCH
+ * manda horas inteiras, e a régua (1 a 8760) é a mesma da rota.
+ *
+ * Mesmo contrato do nome e da chance: salva ao CONFIRMAR, nunca a cada tecla.
+ * VAZIO nos dois campos = sem janela configurada, e limpar é um valor
+ * legítimo — a etapa volta ao padrão de 24 h/72 h do radar
+ * (`resolveStageWindow`), que é o estado de quem nunca mexeu nisso.
+ *
+ * O blur NÃO salva quando o foco só está passando para o outro campo do
+ * PAR: sem isto, digitar "2" dias e Tab para as horas gravaria 48 h por um
+ * instante — dois PATCHes e um valor que ninguém digitou.
+ */
+function JanelaDaEtapa({
+  etapa,
+  desabilitado,
+  aoConfirmar,
+}: {
+  etapa: EtapaDoFunil;
+  desabilitado: boolean;
+  aoConfirmar: (valor: number | null) => void;
+}) {
+  const t = useT();
+  const gravada = etapa.expected_duration_hours ?? null;
+  const rascunhoDe = (horas: number | null, pedaco: "dias" | "horas") => {
+    if (horas == null) return "";
+    return pedaco === "dias" ? String(Math.floor(horas / 24)) : String(horas % 24);
+  };
+  const [dias, setDias] = useState(rascunhoDe(gravada, "dias"));
+  const [hora, setHora] = useState(rascunhoDe(gravada, "horas"));
+  const diasRef = useRef<HTMLInputElement>(null);
+  const horaRef = useRef<HTMLInputElement>(null);
+  // Escape chama `blur()`, e o blur confirma — com o rascunho DESTA renderização,
+  // não com o restaurado (o setState ainda não aplicou). Sem esta marca, Escape
+  // gravava o que devia descartar.
+  const descartando = useRef(false);
+
+  function restaurar() {
+    setDias(rascunhoDe(gravada, "dias"));
+    setHora(rascunhoDe(gravada, "horas"));
+  }
+
+  function confirmar() {
+    if (descartando.current) {
+      descartando.current = false;
+      return;
+    }
+    const brutoDias = dias.trim();
+    const brutoHoras = hora.trim();
+    // Vazio NOS DOIS = limpar = voltar ao padrão de 24 h. Um dos dois
+    // preenchido vale como o outro sendo zero ("2 dias" não é "2 dias + nada").
+    if (brutoDias === "" && brutoHoras === "") {
+      if (gravada !== null) aoConfirmar(null);
+      return;
+    }
+    const d = brutoDias === "" ? 0 : Number(brutoDias);
+    const h = brutoHoras === "" ? 0 : Number(brutoHoras);
+    const total = d * 24 + h;
+    if (!Number.isInteger(d) || !Number.isInteger(h) || d < 0 || h < 0 || total < 1 || total > 8760) {
+      restaurar();
+      toast.error(t("A janela de esfriando vai de 1 hora a 8760 horas (365 dias)."));
+      return;
+    }
+    if (total === gravada) return;
+    aoConfirmar(total);
+  }
+
+  /** Só confirma quando o foco SAI do par — ver o docstring acima. */
+  function aoTeclar(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") event.currentTarget.blur();
+    if (event.key === "Escape") {
+      descartando.current = true;
+      restaurar();
+      event.currentTarget.blur();
+    }
+  }
+
+  const rotulo = t("Janela de esfriando");
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Input
+        ref={diasRef}
+        type="number"
+        min={0}
+        step={1}
+        inputMode="numeric"
+        value={dias}
+        disabled={desabilitado}
+        placeholder="0"
+        aria-label={`${rotulo} — ${t("dias")} — «${etapa.name}»`}
+        data-testid={`janela-dias-${etapa.id}`}
+        onChange={(e) => setDias(e.target.value)}
+        onBlur={(e) => {
+          if (e.relatedTarget === horaRef.current) return;
+          confirmar();
+        }}
+        onKeyDown={aoTeclar}
+        className="w-[76px]"
+      />
+      <span aria-hidden>{t("dias")}</span>
+      <Input
+        ref={horaRef}
+        type="number"
+        min={0}
+        step={1}
+        inputMode="numeric"
+        value={hora}
+        disabled={desabilitado}
+        placeholder="0"
+        aria-label={`${rotulo} — ${t("horas")} — «${etapa.name}»`}
+        data-testid={`janela-horas-${etapa.id}`}
+        onChange={(e) => setHora(e.target.value)}
+        onBlur={(e) => {
+          if (e.relatedTarget === diasRef.current) return;
+          confirmar();
+        }}
+        onKeyDown={aoTeclar}
+        className="w-[64px]"
+      />
+      <span aria-hidden>{t("horas")}</span>
+    </span>
+  );
+}
+
+/**
+ * A probabilidade de ganho da etapa, editada no lugar (0–100).
+ *
+ * Mesmo contrato do nome: salva ao CONFIRMAR (Enter ou sair do campo), nunca a
+ * cada tecla. Vazio = sem calibração — e limpar é um valor legítimo, não um
+ * apagão acidental: a previsão passa a reportar a etapa no balde "sem
+ * probabilidade" em vez de somar zero.
+ *
+ * `key` na linha de cima remonta o campo quando o valor GRAVADO muda, então uma
+ * edição de outra aba não fica escondida atrás de um rascunho velho.
+ */
+function ProbabilidadeDaEtapa({
+  etapa,
+  desabilitado,
+  aoConfirmar,
+}: {
+  etapa: EtapaDoFunil;
+  desabilitado: boolean;
+  aoConfirmar: (valor: number | null) => void;
+}) {
+  const t = useT();
+  const [rascunho, setRascunho] = useState(
+    etapa.win_probability == null ? "" : String(etapa.win_probability),
+  );
+  // Ganho e perda valem 100 e 0 na regra (`lib/leads/previsao.ts`): o número
+  // gravado ali seria lido por ninguém e entenderia mal quem lê a tela.
+  const fixa = etapa.is_won || etapa.is_lost;
+  // Escape chama `blur()`, e o blur confirma — com o rascunho DESTA renderização,
+  // não com o restaurado (o setState ainda não aplicou). Sem esta marca, Escape
+  // gravava o que devia descartar; o mesmo conserto do JanelaDaEtapa (#2161).
+  const descartando = useRef(false);
+
+  function confirmar() {
+    if (descartando.current) {
+      descartando.current = false;
+      return;
+    }
+    const bruto = rascunho.trim().replace(/%$/, "");
+    if (bruto === "") {
+      if (etapa.win_probability != null) aoConfirmar(null);
+      else setRascunho("");
+      return;
+    }
+    const numero = Number(bruto);
+    if (!Number.isInteger(numero) || numero < 0 || numero > 100) {
+      setRascunho(etapa.win_probability == null ? "" : String(etapa.win_probability));
+      toast.error(t("A chance de fechamento vai de 0 a 100."));
+      return;
+    }
+    if (numero === etapa.win_probability) return;
+    aoConfirmar(numero);
+  }
+
+  return (
+    <Input
+      type="number"
+      min={0}
+      max={100}
+      step={1}
+      inputMode="numeric"
+      value={rascunho}
+      disabled={desabilitado || fixa}
+      placeholder={fixa ? (etapa.is_won ? "100" : "0") : "—"}
+      title={
+        fixa
+          ? t("Etapa de fechamento ou de perda: a chance vale 100 e 0 na regra, sem calibração.")
+          : t(ROTULO.chance)
+      }
+      aria-label={`${t(ROTULO.chance)} «${etapa.name}»`}
+      data-testid={`probabilidade-${etapa.id}`}
+      onChange={(e) => setRascunho(e.target.value)}
+      onBlur={confirmar}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") {
+          descartando.current = true;
+          setRascunho(etapa.win_probability == null ? "" : String(etapa.win_probability));
+          e.currentTarget.blur();
+        }
+      }}
+      className="w-full"
+    />
   );
 }
 
@@ -693,9 +1143,18 @@ function NomeDaEtapa({
   desabilitado: boolean;
   aoConfirmar: (nome: string) => void;
 }) {
+  const t = useT();
   const [rascunho, setRascunho] = useState(etapa.name);
+  // Escape chama `blur()`, e o blur confirma — com o rascunho DESTA renderização,
+  // não com o restaurado (o setState ainda não aplicou). Sem esta marca, Escape
+  // gravava o que devia descartar; o mesmo conserto do JanelaDaEtapa (#2161).
+  const descartando = useRef(false);
 
   function confirmar() {
+    if (descartando.current) {
+      descartando.current = false;
+      return;
+    }
     const nome = rascunho.trim();
     if (!nome || nome === etapa.name) {
       setRascunho(etapa.name);
@@ -709,13 +1168,14 @@ function NomeDaEtapa({
       value={rascunho}
       maxLength={80}
       disabled={desabilitado}
-      aria-label={`Nome da etapa «${etapa.name}»`}
+      aria-label={`${t("Nome da etapa")} «${etapa.name}»`}
       data-testid={`nome-${etapa.id}`}
       onChange={(e) => setRascunho(e.target.value)}
       onBlur={confirmar}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();
         if (e.key === "Escape") {
+          descartando.current = true;
           setRascunho(etapa.name);
           e.currentTarget.blur();
         }

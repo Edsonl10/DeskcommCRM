@@ -20,8 +20,9 @@
  */
 
 import { embedText } from "@/lib/ai/embed";
-import { isEmbeddingProviderConfigured } from "@/lib/ai/gateway";
-import { anonymize, detectResidualPii } from "@/lib/ai/anonymize";
+import { modeloDeEmbedding, resolverChaveDeEmbedding } from "@/lib/ai/embeddings/chave";
+import { anonymize, detectResidualPii, padroesDaIngestao } from "@/lib/ai/anonymize";
+import { perfilDaOrganizacao } from "@/lib/legal/perfil-do-pais";
 import { chunkText, computeContentHash } from "@/lib/ai/rag/chunker";
 import {
   activateVersion,
@@ -52,8 +53,16 @@ export interface IngestConversationsResult {
 }
 
 /**
- * Returns the per-agent `conversations` knowledge source id, creating it on
- * first use. Required because ai_chunks.knowledge_source_id is NOT NULL.
+ * A fonte de conversas da ORGANIZAÇÃO, criada no primeiro lote.
+ *
+ * Era por AGENTE, e com o índice único `(agent_id, source_type)` isso dava uma
+ * fonte de conversas por assistente — o mesmo acervo anonimizado indexado e pago
+ * N vezes. Desde a 0181 o acervo é da organização e quem lê o quê é escolha da
+ * versão publicada de cada agente.
+ *
+ * `maybeSingle` sobre a busca antiga estourava quando havia mais de uma linha
+ * (duas ficavam ativas ao mesmo tempo se dois agentes rodassem o lote). Agora a
+ * busca é ordenada e pega a primeira.
  */
 async function ensureConversationsSource(
   organizationId: string,
@@ -61,31 +70,37 @@ async function ensureConversationsSource(
 ): Promise<string | null> {
   const admin = createAdminClient();
 
-  const { data: existing } = await admin
+  const { data: existentes } = await admin
     .from("ai_knowledge_sources")
     .select("id")
     .eq("organization_id", organizationId)
-    .eq("agent_id", agentId)
-    .eq("source_type", "conversations")
-    .maybeSingle();
+    .eq("source_type", "conversas")
+    .eq("is_active", true)
+    .order("created_at", { ascending: true })
+    .limit(1);
 
-  if (existing) return (existing as { id: string }).id;
+  const primeira = (existentes ?? [])[0] as { id: string } | undefined;
+  if (primeira) return primeira.id;
 
   const { data: inserted, error } = await admin
     .from("ai_knowledge_sources")
     .insert({
       organization_id: organizationId,
+      // Histórico: de qual assistente partiu o primeiro lote. Não é dono.
       agent_id: agentId,
-      source_type: "conversations",
-      source_metadata: { auto_created: true, purpose: "conversation_history_rag" },
+      source_type: "conversas",
+      name: "Conversas anteriores",
+      status: "ready",
+      source_metadata: { criada_automaticamente: true, origem: "conversas_anonimizadas" },
       is_active: true,
+      ingested_at: new Date().toISOString(),
     })
     .select("id")
     .single();
 
   if (error || !inserted) {
     console.error(
-      "[kb-conversations] failed to ensure conversations source",
+      "[kb-conversations] não consegui criar a fonte de conversas",
       error?.message,
     );
     return null;
@@ -96,6 +111,7 @@ async function ensureConversationsSource(
 interface ConvRow {
   id: string;
   organization_id: string;
+  contact_id: string;
 }
 
 interface MsgRow {
@@ -115,6 +131,30 @@ function buildTranscript(messages: MsgRow[]): string {
   return lines.join("\n");
 }
 
+/**
+ * Tira do lote as conversas de contatos pessoais (spec 21, etapa 9).
+ *
+ * Uma leitura a mais por lote, e não por conversa: os contatos do lote são
+ * poucos (teto `cap`) e a pergunta é uma só.
+ */
+async function semConversasDePessoal(
+  admin: ReturnType<typeof createAdminClient>,
+  organizationId: string,
+  convs: ConvRow[],
+): Promise<ConvRow[]> {
+  if (convs.length === 0) return convs;
+  const ids = [...new Set(convs.map((c) => c.contact_id))];
+  const { data } = await admin
+    .from("contacts")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("is_personal", true)
+    .in("id", ids);
+  const pessoais = new Set(((data ?? []) as Array<{ id: string }>).map((c) => c.id));
+  if (pessoais.size === 0) return convs;
+  return convs.filter((c) => !pessoais.has(c.contact_id));
+}
+
 export async function ingestConversationsBatch(
   args: IngestConversationsArgs,
 ): Promise<IngestConversationsResult> {
@@ -122,9 +162,13 @@ export async function ingestConversationsBatch(
   const cap = args.cap ?? 50;
   const admin = createAdminClient();
 
-  if (!isEmbeddingProviderConfigured()) {
+  // A chave é resolvida UMA vez por lote, e POR ORGANIZAÇÃO: a versão anterior
+  // perguntava ao `process.env`, então uma organização que tivesse cadastrado a
+  // chave pela tela era tratada como se não tivesse nenhuma.
+  const chave = await resolverChaveDeEmbedding(organizationId, "embedding_indexar");
+  if (!chave) {
     console.warn(
-      "[kb-conversations] embedding provider missing; skipping batch for org",
+      "[kb-conversations] organização sem chave de embedding; lote adiado",
       organizationId,
     );
     return { processed: 0, flaggedReview: 0, skipped: 0, embeddingSkipped: true };
@@ -138,7 +182,7 @@ export async function ingestConversationsBatch(
   // 1. Pull eligible conversations.
   const { data: convRows, error: convErr } = await admin
     .from("conversations")
-    .select("id, organization_id")
+    .select("id, organization_id, contact_id")
     .eq("organization_id", organizationId)
     .eq("usable_for_rag", true)
     .eq("status", "resolved")
@@ -151,7 +195,15 @@ export async function ingestConversationsBatch(
     return { processed: 0, flaggedReview: 0, skipped: 0, embeddingSkipped: false };
   }
 
-  const conversations = (convRows ?? []) as ConvRow[];
+  // Contato pessoal nunca é ingerido (spec 21, etapa 9): a conversa some do
+  // acervo junto com o resto. O lote que já passou continua respondível se
+  // nada for feito — por isso o marcar zera `usable_for_rag` na hora
+  // (`contacts/[id]/personal/route.ts`); aqui cai quem é pessoal agora.
+  const conversations = await semConversasDePessoal(
+    admin,
+    organizationId,
+    (convRows ?? []) as ConvRow[],
+  );
   if (conversations.length === 0) {
     return { processed: 0, flaggedReview: 0, skipped: 0, embeddingSkipped: false };
   }
@@ -160,9 +212,11 @@ export async function ingestConversationsBatch(
   let versionId: string | null = null;
   try {
     const v = await createKnowledgeVersion({
-      agentId,
       organizationId,
-      sourceType: "conversations",
+      knowledgeSourceId: sourceId,
+      agentId,
+      sourceType: "conversas",
+      embeddingModel: modeloDeEmbedding(chave.provedor),
     });
     versionId = v.versionId;
   } catch (err) {
@@ -177,6 +231,12 @@ export async function ingestConversationsBatch(
   let flaggedReview = 0;
   let skipped = 0;
   let totalChunkInserts = 0;
+
+  // O perfil do PAÍS da organização (issue #1033): o mesmo conjunto de padrões
+  // anonimiza e vigia. Resolvido UMA vez por rodada — ler por conversa daria o
+  // mesmo resultado e uma consulta por conversa. O Brasil vai por baixo de
+  // qualquer país: ver `padroesDaIngestao`.
+  const padroes = padroesDaIngestao(await perfilDaOrganizacao(admin, organizationId));
 
   for (const conv of conversations) {
     // Defense in depth: re-check org id.
@@ -217,7 +277,7 @@ export async function ingestConversationsBatch(
     }
 
     // b. Anonymize.
-    const { anonymized, hits } = anonymize(transcript);
+    const { anonymized, hits } = anonymize(transcript, padroes);
 
     // c. False-negative guard: long conversation with zero PII signal is
     //    suspicious -> route to manual review, do NOT ingest.
@@ -245,7 +305,7 @@ export async function ingestConversationsBatch(
     // e. Final leak guard.
     let leaked = false;
     for (const chunk of chunks) {
-      const residual = detectResidualPii(chunk);
+      const residual = detectResidualPii(chunk, padroes);
       if (residual) {
         console.error(
           `[kb-conversations] PII LEAK detected (${residual}) -- skipping conversation`,
@@ -275,7 +335,7 @@ export async function ingestConversationsBatch(
 
       let embedding: number[];
       try {
-        const embedded = await embedText(content, { organizationId });
+        const embedded = await embedText(content, { organizationId, chave });
         embedding = embedded.embedding;
       } catch (err) {
         console.error(
@@ -300,13 +360,19 @@ export async function ingestConversationsBatch(
           token_count: Math.ceil(content.length / 4),
           embedding: embedding as unknown as string,
           metadata: {
-            source_type: "conversations",
+            source_type: "conversas",
             conversation_id: conv.id,
             anonymizer_hits: hits.length,
           },
         },
         {
-          onConflict: "organization_id,kb_version_id,content_hash",
+          // A constraint que EXISTE é `ai_chunks_position_unique`
+          // (knowledge_source_id, kb_version_id, position). O alvo antigo
+          // (organization_id, kb_version_id, content_hash) NUNCA existiu, e o
+          // Postgres respondia "there is no unique or exclusion constraint
+          // matching the ON CONFLICT specification" — TODO chunk de conversa
+          // falhava ao gravar, e a conversa era marcada 'ingested' assim mesmo.
+          onConflict: "knowledge_source_id,kb_version_id,position",
           ignoreDuplicates: true,
         },
       );
@@ -329,6 +395,15 @@ export async function ingestConversationsBatch(
       continue;
     }
 
+    // `ingested` é IRREVERSÍVEL: o filtro do lote é `rag_review_status is null`,
+    // então marcar sem ter gravado nada tira a conversa da fila para sempre. Era
+    // exatamente o que acontecia — o upsert falhava em todos os trechos e a
+    // marcação vinha assim mesmo.
+    if (convChunkInserts === 0) {
+      skipped++;
+      continue;
+    }
+
     totalChunkInserts += convChunkInserts;
     await admin
       .from("conversations")
@@ -343,7 +418,7 @@ export async function ingestConversationsBatch(
   try {
     if (totalChunkInserts > 0) {
       await markVersionReady(versionId, organizationId, totalChunkInserts);
-      await activateVersion({ agentId, versionId, organizationId });
+      await activateVersion({ organizationId, knowledgeSourceId: sourceId, versionId });
     } else {
       await markVersionFailed(versionId, organizationId, "no_chunks_ingested");
     }

@@ -1,10 +1,20 @@
+import type { EmailDeliveryError } from "@/lib/email/roteador";
+import { requireSupportWrite } from "@/lib/impersonate/support";
+import { issueInvite } from "@/lib/auth/issue-invite";
+import { emitirConvite } from "@/lib/team/convites";
+import { isServiceRoleConfigured } from "@/lib/audit";
+import { lerLimiteDoPlano, mensagemDoLimite } from "@/lib/cobranca/limites";
+import { logger } from "@/lib/logger";
 /**
  * POST /api/v1/team/invite — bulk-invite up to 20 emails.
  *
- * Pragmatic MVP: invitations are stateless HMAC tokens (no team_invites table).
- * If a user with that email already has an active membership in the org, we
- * skip with reason `already_member`. Otherwise we sign a 24h token containing
- * a fresh invite_id (uuid) + email + org_id + role and email the link.
+ * O que viaja no e-mail é um token HMAC stateless (`lib/auth/invite-token.ts`).
+ * Quando o service-role está configurado, cada convite também vira uma linha em
+ * `team_invites` (migration 0238) — é o que a tela de Equipe lista e o que
+ * torna a revogação possível. Reconvidar um e-mail com convite pendente RENOVA
+ * a linha. Sem service-role, degrada para só-token (nada some, só não persiste).
+ *
+ * Se o e-mail já tem membership ATIVA na org, pula com `already_member`.
  *
  * Membership row is created at /accept-invite time (Server Action) — that's
  * also when audit emits `member.accepted`. Here we audit `member.invited`.
@@ -12,17 +22,12 @@
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 
-import { env } from "@/lib/env";
 import { ok, fail } from "@/lib/api/wrappers";
 import { ApiError } from "@/lib/api/types";
-import { audit, isServiceRoleConfigured } from "@/lib/audit";
+
 import { requireRole } from "@/lib/auth/require-role";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { inviteMemberSchema, validateRequest } from "@/lib/schemas";
-import { signInviteToken, INVITE_TTL_SECONDS } from "@/lib/auth/invite-token";
-import { buildInviteEmail } from "@/lib/email/templates/invite";
-import { sendEmail } from "@/lib/email/resend";
-import { marcaDaSaida } from "@/lib/branding/saida";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +36,8 @@ interface SentItem {
   invite_id: string;
   expires_at: string;
   email_dispatched: boolean;
+  /** Por que não saiu, quando não saiu. Vocabulário de `lib/email/roteador.ts`. */
+  email_error?: EmailDeliveryError;
   accept_url: string;
 }
 interface FailedItem {
@@ -39,6 +46,9 @@ interface FailedItem {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const supportDenied = await requireSupportWrite();
+  if (supportDenied) return supportDenied;
+
   const requestId = randomUUID();
   const authz = await requireRole("admin", { requestId, resource: "team" });
   if (!authz.ok) return authz.response;
@@ -61,14 +71,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const failed: FailedItem[] = [];
 
   const admin = isServiceRoleConfigured() ? createAdminClient() : null;
-  // env.* parseia process.env em runtime → funciona na imagem genérica self-host
-  // (não fica queimado no bundle como process.env.NEXT_PUBLIC_APP_URL direto).
-  const baseUrl = env.NEXT_PUBLIC_APP_URL;
   const inviterName = authUser.full_name ?? authUser.email ?? "Um colega";
-  // Uma vez, fora do laço: a marca é a mesma para todo convite desta chamada, e
-  // resolvê-la por destinatário multiplicaria a leitura por 20 (o teto do lote).
-  const marca = await marcaDaSaida(activeOrg.orgId);
-
   // Emails com membership ATIVA na org — para pular o reconvite de quem já é membro.
   // O schema `auth` NÃO é acessível via PostgREST (erro "Invalid schema: auth"), então
   // resolvemos email↔usuário pela GoTrue admin API (getUserById) — mesmo padrão de
@@ -77,9 +80,33 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (admin) {
     const { data: members } = await admin
       .from("user_organizations")
-      .select("user_id")
+      .select("user_id, provisional_until_handover")
       .eq("organization_id", activeOrg.orgId)
       .is("revoked_at", null);
+
+    // Plano cheio: RECUSA antes do e-mail (spec cobrança §5, D-10; decisão do
+    // dono de 30/09), com a saída na frase. A trava do que já foi convidado
+    // segue no gatilho de assentos, no ACEITE. Convite pendente não conta, e o
+    // provisório do handover também não — a mesma contagem do gatilho. Ler o
+    // limite falhou → segue: falhou a informação, e a trava continua no banco.
+    const ativos = (members ?? []).filter((m) => !m.provisional_until_handover).length;
+    let limite: number | null = null;
+    try {
+      limite = await lerLimiteDoPlano(admin, activeOrg.orgId, "assentos");
+    } catch (err) {
+      logger.warn("team.invite: limite do plano não pôde ser lido — o convite segue", {
+        organization_id: activeOrg.orgId,
+        request_id: requestId,
+        causa: err instanceof Error ? err.message : String(err),
+      });
+    }
+    if (limite !== null && ativos >= limite) {
+      return fail("plan_limit_reached", mensagemDoLimite("assentos", limite, authUser.idioma), 409, {
+        requestId,
+        details: { recurso: "assentos", limite },
+      });
+    }
+
     for (const m of members ?? []) {
       const { data: u } = await admin.auth.admin.getUserById(m.user_id as string);
       const memberEmail = u?.user?.email?.trim().toLowerCase();
@@ -96,61 +123,39 @@ export async function POST(req: NextRequest): Promise<Response> {
       continue;
     }
 
-    const inviteId = randomUUID();
-    const exp = Math.floor(Date.now() / 1000) + INVITE_TTL_SECONDS;
-    const token = signInviteToken({
-      invite_id: inviteId,
-      email,
-      organization_id: activeOrg.orgId,
-      role: inv.role,
-      exp,
-    });
-    const acceptUrl = `${baseUrl.replace(/\/$/, "")}/team/accept-invite/${token}`;
-    const expiresAt = new Date(exp * 1000);
-
-    const { subject, html, text } = buildInviteEmail({
-      inviterName,
-      orgName: activeOrg.name,
-      acceptUrl,
-      role: inv.role,
-      expiresAt,
-      marca,
-    });
-
-    const result = await sendEmail({
-      to: email,
-      subject,
-      html,
-      text,
-      fromName: marca.nome,
-      tags: [
-        { name: "kind", value: "team_invite" },
-        { name: "org", value: activeOrg.orgId },
-      ],
-    });
-
-    sent.push({
-      email,
-      invite_id: inviteId,
-      expires_at: expiresAt.toISOString(),
-      email_dispatched: result.ok,
-      accept_url: acceptUrl,
-    });
-
-    await audit({
-      action: "member.invited",
-      actorUserId: authUser.id,
-      organizationId: activeOrg.orgId,
-      resourceType: "membership",
-      resourceId: inviteId,
-      requestId,
-      metadata: {
+    if (admin) {
+      const { convite, accept_url, email_dispatched, email_error } = await emitirConvite(admin, {
         email,
         role: inv.role,
-        email_dispatched: result.ok,
-        email_error: result.ok ? null : (result.error ?? null),
-      },
-    });
+        interfaceSettings: inv.interface_settings,
+        organizationId: activeOrg.orgId,
+        orgName: activeOrg.name,
+        inviterId: authUser.id,
+        inviterName,
+        requestId,
+      });
+      sent.push({
+        email,
+        invite_id: convite.id,
+        expires_at: convite.expires_at,
+        email_dispatched,
+        email_error,
+        accept_url,
+      });
+    } else {
+      sent.push(
+        await issueInvite({
+          email,
+          role: inv.role,
+          interfaceSettings: inv.interface_settings,
+          organizationId: activeOrg.orgId,
+          orgName: activeOrg.name,
+          inviterId: authUser.id,
+          inviterName,
+          requestId,
+        }),
+      );
+    }
   }
 
   return ok({ sent, failed }, { status: 201, requestId });

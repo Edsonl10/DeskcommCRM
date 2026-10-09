@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
 import { agentRunsKey } from "@/hooks/ai/useAgentRuns";
+import { useT } from "@/hooks/i18n/useT";
 import type { AgentRow } from "@/hooks/ai/useAgent";
 import type { AgentVersionRow } from "@/hooks/ai/useAgentVersions";
 
@@ -44,9 +45,20 @@ interface TestResponse {
     latency_ms?: number;
     would_send_to?: { session?: string | null; chat_id?: string | null };
     stub?: boolean;
+    candidates?: Array<{ body: string; trace: Array<{ gate: string; verdict: string }> }>;
+    proposals?: Array<{ tool: string; arguments: unknown }>;
+    impediments?: Array<{ code: string; message: string }>;
+    /**
+     * Não bloqueiam o teste: dizem o que impediria o ENVIO real agora (ex.: fora
+     * do horário). Ver `gatesDoSandbox` em lib/agent-engine/agent/preview.ts.
+     */
+    warnings?: Array<{ code: string; message: string }>;
+    restrictions?: string[];
     /** Ver lib/ai/agents/avaliar-resposta-de-teste.ts. */
     guardrails?: {
       passou: boolean;
+      /** false = não havia texto para avaliar (teste sem resposta). */
+      avaliado?: boolean;
       categorias: string[];
       termos: string[];
       naoAvaliados: Array<{ gate: string; porque: string }>;
@@ -58,20 +70,21 @@ interface TestResponse {
  * O que as verificações disseram sobre a resposta — e o que elas NÃO puderam
  * dizer.
  *
- * Antes disto, o teste mostrava a resposta e mais nada: nenhum gate a examinava
- * (o runtime desta tela não importa a cadeia), então o usuário publicava achando
- * que tinha visto o comportamento real. Mostrar "não verificado" em voz alta é o
- * conserto — silêncio que parece aprovação foi o defeito.
+ * Este componente mostra o resultado da checagem textual suplementar. O motor
+ * de prévia executa verificações próprias com contexto simulado; nenhuma delas
+ * é prova de que o envio real esteja liberado.
  */
 function Verificacoes({ g }: { g: NonNullable<TestResponse["data"]["guardrails"]> }) {
+  const t = useT();
   return (
     <div className="space-y-2" data-testid="teste-verificacoes">
-      {g.passou ? (
+      {/* Sem texto não há veredito: nem "limpo", nem "vazou". */}
+      {g.avaliado === false ? null : g.passou ? (
         <p
           data-testid="teste-vazamento-limpo"
           className="rounded-md border border-border/60 bg-muted/40 p-2 text-xs"
         >
-          A resposta não usa palavras internas do sistema.
+          {t("A resposta não usa palavras internas do sistema.")}
         </p>
       ) : (
         <div
@@ -79,34 +92,20 @@ function Verificacoes({ g }: { g: NonNullable<TestResponse["data"]["guardrails"]
           className="rounded-md border border-destructive/50 bg-destructive/5 p-2 text-xs"
         >
           <p className="font-medium text-destructive">
-            Esta resposta usa palavras que o cliente não deveria ver.
+            {t("Esta resposta usa palavras que o cliente não deveria ver.")}
           </p>
           <p className="mt-1 text-muted-foreground">
-            Em produção ela seria barrada e o assistente teria que reescrever. Encontrado:{" "}
+            {t("Em produção ela seria barrada e o assistente teria que reescrever. Encontrado:")}{" "}
             <span className="font-mono">{g.termos.join(", ")}</span>
           </p>
         </div>
       )}
 
-      {/*
-        A lista do que NÃO foi checado. Ela é o que separa este conserto de uma
-        mentira mais bonita: as verificações que dependem do turno real não podem
-        ser avaliadas aqui, e inventá-las daria um veredito com aparência de
-        prova. O usuário precisa saber a diferença entre "passou em tudo" e
-        "passou no que dava para checar sem uma conversa de verdade".
-
-        (O texto dizia "os seis gates" enquanto a lista renderizava nove — número
-        que já foi verdade para um subconjunto e envelheceu. A contagem agora sai
-        da própria lista, logo abaixo, e não de prosa.)
-
-        Esta lista responde "o que este teste NÃO checou"; a aba "Confere antes de
-        enviar" responde "o que é checado, e o que cada uma protege". São
-        perguntas diferentes, e por isso há um ponteiro em vez de uma cópia — as
-        duas saem da mesma cadeia, cada uma com o seu teste de casamento.
-      */}
+      {/* Esta lista descreve somente o alcance da checagem textual adicional. */}
       <details className="text-xs text-muted-foreground">
         <summary className="cursor-pointer" data-testid="teste-nao-verificado">
-          O teste não consegue verificar tudo ({g.naoAvaliados.length} verificações ficam de fora)
+          {t("A checagem textual não reavalia todas as regras (")}
+          {g.naoAvaliados.length} {t("verificações fora desta camada)")}
         </summary>
         <ul className="mt-2 space-y-1 pl-4">
           {g.naoAvaliados.map((n) => (
@@ -114,9 +113,10 @@ function Verificacoes({ g }: { g: NonNullable<TestResponse["data"]["guardrails"]
           ))}
         </ul>
         <p className="mt-2">
-          Estas só acontecem numa conversa real, com um cliente de verdade do outro lado. Para ver
-          a lista inteira do que é conferido — e o que cada verificação protege — abra a aba{" "}
-          <span className="font-medium text-foreground">Confere antes de enviar</span>.
+          {t(
+            "O motor de prévia pode executar algumas dessas verificações com dados simulados e fazer chamadas ao modelo. Isso não comprova liberação para envio real. Para ver as regras de envio, abra a aba",
+          )}{" "}
+          <span className="font-medium text-foreground">{t("Confere antes de enviar")}</span>.
         </p>
       </details>
     </div>
@@ -124,6 +124,7 @@ function Verificacoes({ g }: { g: NonNullable<TestResponse["data"]["guardrails"]
 }
 
 export function TestPanel({ agent, draft, published, readOnly }: Props) {
+  const t = useT();
   const target = draft ?? published;
   const qc = useQueryClient();
 
@@ -136,19 +137,19 @@ export function TestPanel({ agent, draft, published, readOnly }: Props) {
   if (!target) {
     return (
       <p className="text-sm text-muted-foreground">
-        Configure e salve uma versão antes de testar.
+        {t("Configure e salve uma versão antes de testar.")}
       </p>
     );
   }
 
   const versionLabel =
     target.status === "published"
-      ? `v${target.version_number} (publicada)`
-      : `v${target.version_number} (rascunho)`;
+      ? `v${target.version_number} ${t("(publicada)")}`
+      : `v${target.version_number} ${t("(rascunho)")}`;
 
   async function handleRun() {
     if (!message.trim()) {
-      toast.error("Informe uma mensagem de teste.");
+      toast.error(t("Informe uma mensagem de teste."));
       return;
     }
     if (!target) return;
@@ -165,15 +166,26 @@ export function TestPanel({ agent, draft, published, readOnly }: Props) {
       const res = await apiClient.post<TestResponse>(
         `/api/v1/ai/agents/${agent.id}/versions/${target.id}/test`,
         body,
+        // ⚠️ O padrão do cliente é 10s, e um turno de agente NÃO cabe nele: o
+        // teste roda o motor inteiro (classificador de etapa, jailbreak, o
+        // agente com as ferramentas, checkpoint, verificação de promessa).
+        // Medido numa instalação real: 14,5s só na chamada ao modelo. Com 10s,
+        // o resultado nunca chegava — o painel ficava em "Nenhum teste
+        // executado ainda" enquanto o servidor terminava e devolvia para
+        // ninguém (issue #783).
+        //
+        // 120s é o teto do orçamento de passos do agente, não um chute
+        // confortável: acima disso o problema é o agente, não a espera.
+        { timeoutMs: 120_000 },
       );
       setResult(res.data);
       qc.invalidateQueries({ queryKey: agentRunsKey(agent.id) });
-      toast.success("Teste executado.");
+      toast.success(t("Teste executado."));
     } catch (err) {
       if (err instanceof ApiError) {
-        toast.error(err.message ?? `Erro: ${err.code}`);
+        toast.error(t(err.message) || `${t("Erro")}: ${err.code}`);
       } else {
-        toast.error("Erro inesperado.");
+        toast.error(t("Erro inesperado."));
       }
     } finally {
       setPending(false);
@@ -184,8 +196,8 @@ export function TestPanel({ agent, draft, published, readOnly }: Props) {
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="flex flex-col gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Versão alvo
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            {t("Versão alvo")}
           </p>
           <div className="flex items-center gap-2 text-sm">
             <Badge variant="outline">{versionLabel}</Badge>
@@ -197,20 +209,20 @@ export function TestPanel({ agent, draft, published, readOnly }: Props) {
 
         <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs">
           <p className="font-medium text-amber-700 dark:text-amber-400">
-            ⚠ Modo teste consome créditos do provider.
+            {t("⚠ Modo teste consome créditos do provider.")}
           </p>
           <p className="mt-1 text-muted-foreground">
-            Nenhuma mensagem é enviada via WhatsApp. O run é registrado como dry-run.
+            {t("Nenhuma mensagem é enviada via WhatsApp. O run é registrado como dry-run.")}
           </p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="test-message">Mensagem do cliente (sample)</Label>
+          <Label htmlFor="test-message">{t("Mensagem do cliente (sample)")}</Label>
           <Textarea
             id="test-message"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Oi, quanto custa X?"
+            placeholder={t("Oi, quanto custa X?")}
             rows={4}
             disabled={pending || readOnly}
           />
@@ -218,7 +230,7 @@ export function TestPanel({ agent, draft, published, readOnly }: Props) {
 
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-2">
-            <Label htmlFor="test-name">Nome (opcional)</Label>
+            <Label htmlFor="test-name">{t("Nome (opcional)")}</Label>
             <Input
               id="test-name"
               value={contactName}
@@ -228,7 +240,7 @@ export function TestPanel({ agent, draft, published, readOnly }: Props) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="test-phone">Telefone (opcional)</Label>
+            <Label htmlFor="test-phone">{t("Telefone (opcional)")}</Label>
             <Input
               id="test-phone"
               value={contactPhone}
@@ -240,52 +252,102 @@ export function TestPanel({ agent, draft, published, readOnly }: Props) {
         </div>
 
         <Button onClick={handleRun} disabled={pending || readOnly} className="self-start">
-          {pending ? "Executando…" : "Executar teste"}
+          {pending ? t("Executando…") : t("Executar teste")}
         </Button>
       </div>
 
       <div className="flex flex-col gap-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Resultado
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          {t("Resultado")}
         </p>
 
         {!result && !pending ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhum teste executado ainda.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("Nenhum teste executado ainda.")}</p>
         ) : null}
 
         {pending ? (
-          <p className="text-sm text-muted-foreground">Executando dry-run…</p>
+          <p className="text-sm text-muted-foreground">{t("Executando dry-run…")}</p>
         ) : null}
 
         {result ? (
           <>
             {result.stub ? (
               <p className="rounded-md border border-border/60 bg-muted/40 p-2 text-xs text-muted-foreground">
-                Stub: o runtime real é entregue na S-13.08. O trace abaixo é simulado.
+                {t(
+                  "Provedor de teste controlado. O motor e as verificações são os mesmos; não há chamada a uma IA externa.",
+                )}
               </p>
             ) : null}
 
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <Cell label="Status">{result.status}</Cell>
-              <Cell label="Latência">
+              <Cell label={t("Status")}>{result.status}</Cell>
+              <Cell label={t("Latência")}>
                 {typeof result.latency_ms === "number" ? `${result.latency_ms}ms` : "—"}
               </Cell>
-              <Cell label="Tokens in/out">
-                {(result.tokens_in ?? 0).toLocaleString()} /{" "}
-                {(result.tokens_out ?? 0).toLocaleString()}
+              <Cell label={t("Tokens in/out")}>
+                {result.tokens_in?.toLocaleString()??"—"} /{" "}
+                {result.tokens_out?.toLocaleString()??"—"}
               </Cell>
-              <Cell label="Custo (cents)">{result.cost_cents ?? 0}</Cell>
+              <Cell label={t("Custo (cents)")}>{result.cost_cents ?? "—"}</Cell>
             </div>
 
             <RunTrace
               toolCalls={result.tool_calls}
               finalText={result.final_text ?? null}
-              emptyMessage="Sem tool calls (resposta direta do LLM)."
+              emptyMessage={t("Sem tool calls (resposta direta do LLM).")}
             />
 
-            {result.guardrails ? <Verificacoes g={result.guardrails} /> : null}
+            {result.candidates ? (
+              <div className="space-y-2 text-xs">
+                <p>
+                  {t(
+                    "Mesmo motor e conhecimento do agente; nenhuma alteração é aplicada ao cliente.",
+                  )}
+                </p>
+                <p>
+                  {t(
+                    "Estado do contato simulado. Canal, opt-out e contexto serão conferidos novamente antes de um envio real.",
+                  )}
+                </p>
+                {result.candidates.map((candidate, i) => (
+                  <details key={i}>
+                    <summary>{t("Verificações da resposta")}</summary>
+                    <pre className="overflow-auto whitespace-pre-wrap">
+                      {JSON.stringify(candidate.trace, null, 2)}
+                    </pre>
+                  </details>
+                ))}
+                {result.warnings?.map((x, i) => (
+                  <p
+                    role="status"
+                    key={`aviso-${i}`}
+                    data-testid="teste-aviso-de-envio"
+                    className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2"
+                  >
+                    {x.message}
+                  </p>
+                ))}
+                {result.impediments?.map((x, i) => (
+                  <p role="status" key={i}>
+                    {x.message}
+                  </p>
+                ))}
+                {!!result.proposals?.length && (
+                  <div>
+                    <p className="font-medium">
+                      {t("Ações propostas: precisam de autorização separada")}
+                    </p>
+                    <ul>
+                      {result.proposals.map((x, i) => (
+                        <li key={i}>{x.tool}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : result.guardrails ? (
+              <Verificacoes g={result.guardrails} />
+            ) : null}
           </>
         ) : null}
       </div>
@@ -295,8 +357,8 @@ export function TestPanel({ agent, draft, published, readOnly }: Props) {
 
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded border border-border/60 px-2 py-1">
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+    <div className="rounded-md border border-border/60 px-2 py-1">
+      <p className="text-[10px] tracking-wide text-muted-foreground uppercase">{label}</p>
       <p className="font-mono">{children}</p>
     </div>
   );

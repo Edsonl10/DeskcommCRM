@@ -20,6 +20,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const EPHEMERAL_TOKEN_TTL_SEC = 300;
 
 export interface MintEphemeralTokenInput {
+  readOnly?: boolean;
   organizationId: string;
   runId: string;
   versionCreatedBy?: string | null;
@@ -82,9 +83,7 @@ async function resolveCreatedBy(
   return (data?.user_id as string | undefined) ?? null;
 }
 
-export async function mintEphemeralToken(
-  input: MintEphemeralTokenInput,
-): Promise<EphemeralToken> {
+export async function mintEphemeralToken(input: MintEphemeralTokenInput): Promise<EphemeralToken> {
   const ttl = input.ttlSec ?? EPHEMERAL_TOKEN_TTL_SEC;
   const createdBy = await resolveCreatedBy(
     input.organizationId,
@@ -112,7 +111,7 @@ export async function mintEphemeralToken(
       token_hash: `\\x${tokenHash.toString("hex")}`,
       scopes: [
         "mcp:read",
-        "mcp:write",
+        ...(input.readOnly ? [] : ["mcp:write"]),
         "actor:ai_agent",
         `agent_run:${input.runId}`,
         "role:ai_operator",
@@ -129,10 +128,11 @@ export async function mintEphemeralToken(
   return { id: data.id as string, plaintext, expiresAt: data.expires_at as string };
 }
 
-export async function revokeEphemeralToken(tokenId: string): Promise<void> {
+export async function revokeEphemeralToken(tokenId: string, organizationId: string): Promise<void> {
   const admin = createAdminClient();
   await admin
     .from("api_tokens")
     .update({ revoked_at: new Date().toISOString() })
+    .eq("organization_id", organizationId)
     .eq("id", tokenId);
 }

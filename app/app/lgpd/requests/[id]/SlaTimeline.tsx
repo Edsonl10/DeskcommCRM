@@ -1,7 +1,10 @@
 "use client";
 
+import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
+
 import { differenceInDays, format, isBefore } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useT } from "@/hooks/i18n/useT";
+import { diasAtePrazo, diasDeAtraso, progressoDoPrazo } from "@/lib/lgpd/sla";
 
 interface SlaTimelineProps {
   received_at: string;
@@ -34,22 +37,38 @@ function getMilestones(
   ];
 }
 
+/**
+ * O estado do último marco. `prazoPassou` chega calculado de `diasDeAtraso` —
+ * ver `SlaTimeline`, abaixo —, e não de `isBefore(dueDate, now)`: `due_at` é o
+ * INÍCIO do dia guardado, então o predicado antigo já dava o prazo por passado
+ * às 21h da VÉSPERA (São Paulo), enquanto o resto da tela dizia "vence hoje".
+ * Agora ele vira no mesmo instante que o selo `expired`.
+ *
+ * Na prática o ramo `isLast && prazoPassou` não é alcançado hoje: o último marco
+ * (D+7 ou D+15 corridos) cai antes do prazo (7 ou 15 dias ÚTEIS), e o marco já
+ * está "completed" quando o prazo passa — medido em 4.380 recebimentos de 2026
+ * e 2027, zero alcançam o ramo, com o predicado antigo ou com este.
+ */
 function milestoneStatus(
   milestoneDate: Date,
   now: Date,
-  dueDate: Date,
+  prazoPassou: boolean,
   isLast: boolean,
 ): "completed" | "current" | "future" {
   if (isBefore(milestoneDate, now)) return "completed";
-  if (isLast && isBefore(dueDate, now)) return "current";
+  if (isLast && prazoPassou) return "current";
   // Is it the "next" milestone?
   return "future";
 }
 
 export function SlaTimeline({ received_at, due_at, request_type }: SlaTimelineProps) {
+  const localeDaData = useLocaleDeData();
+  const t = useT();
   const receivedAt = new Date(received_at);
-  const dueAt = new Date(due_at);
   const now = new Date();
+
+  const diasRestantes = diasAtePrazo(due_at, now);
+  const prazoPassou = diasDeAtraso(due_at, now) > 0;
 
   const milestoneConfigs = getMilestones(receivedAt, request_type);
   const milestones: (Milestone & { status: "completed" | "current" | "future" })[] =
@@ -62,18 +81,16 @@ export function SlaTimeline({ received_at, due_at, request_type }: SlaTimelinePr
         label: m.label,
         targetDay: m.day,
         date,
-        status: milestoneStatus(date, now, dueAt, isLast),
+        status: milestoneStatus(date, now, prazoPassou, isLast),
       };
     });
 
-  // Linear progress 0..1
-  const elapsed = now.getTime() - receivedAt.getTime();
-  const total = dueAt.getTime() - receivedAt.getTime();
-  const progress = Math.min(1, Math.max(0, total > 0 ? elapsed / total : 0));
+  // Medida até o FIM do dia guardado. Antes, até a meia-noite UTC do dia do
+  // prazo: a barra chegava a 100% às 21h da VÉSPERA (São Paulo).
+  const progress = progressoDoPrazo(received_at, due_at, now);
   const progressPct = Math.round(progress * 100);
 
   const daysElapsed = differenceInDays(now, receivedAt);
-  const daysRemaining = differenceInDays(dueAt, now);
 
   const progressColor =
     progress >= 1
@@ -87,13 +104,13 @@ export function SlaTimeline({ received_at, due_at, request_type }: SlaTimelinePr
       {/* Progress bar */}
       <div className="space-y-1">
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>D+{daysElapsed} (hoje)</span>
+          <span>D+{daysElapsed} ({t("hoje")})</span>
           <span>
-            {daysRemaining > 0
-              ? `${daysRemaining}d restantes`
-              : daysRemaining === 0
-                ? "vence hoje"
-                : `${Math.abs(daysRemaining)}d em atraso`}
+            {diasRestantes > 0
+              ? `${diasRestantes}${t("d restantes")}`
+              : diasRestantes === 0
+                ? t("vence hoje")
+                : `${Math.abs(diasRestantes)}${t("d em atraso")}`}
           </span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -140,10 +157,10 @@ export function SlaTimeline({ received_at, due_at, request_type }: SlaTimelinePr
               </div>
               <div className={`pb-1 text-sm ${isLast ? "" : "pb-3"}`}>
                 <p className={`leading-tight ${labelColor}`}>
-                  D+{m.targetDay} — {m.label}
+                  D+{m.targetDay} — {t(m.label)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {format(m.date, "dd 'de' MMM yyyy", { locale: ptBR })}
+                  {format(m.date, "dd 'de' MMM yyyy", { locale: localeDaData })}
                 </p>
               </div>
             </li>

@@ -44,7 +44,10 @@ function sqlLiteral(v: unknown): string {
 }
 
 type QResult = { data: unknown; error: { message: string; code?: string } | null };
-type RowResult = { data: Record<string, unknown> | null; error: { message: string; code?: string } | null };
+type RowResult = {
+  data: Record<string, unknown> | null;
+  error: { message: string; code?: string } | null;
+};
 
 type FilterOp = "eq" | "in";
 interface Filter {
@@ -130,7 +133,8 @@ class FakeQuery implements PromiseLike<QResult> {
     const { data, error } = await this.execute();
     if (error) return { data: null, error };
     const rows = (data as Array<Record<string, unknown>>) ?? [];
-    if (rows.length !== 1) return { data: null, error: { message: `expected 1 row, got ${rows.length}` } };
+    if (rows.length !== 1)
+      return { data: null, error: { message: `expected 1 row, got ${rows.length}` } };
     return { data: rows[0]!, error: null };
   }
 
@@ -155,7 +159,10 @@ class FakeQuery implements PromiseLike<QResult> {
 
   /** Split top-level da lista de colunas (respeitando parênteses) — distingue coluna
    *  plana de embed PostgREST-style `alias:fk_col(col1, col2, ...)`. */
-  private parseCols(): { plain: string[]; embeds: Array<{ alias: string; fk: string; cols: string[] }> } {
+  private parseCols(): {
+    plain: string[];
+    embeds: Array<{ alias: string; fk: string; cols: string[] }>;
+  } {
     const plain: string[] = [];
     const embeds: Array<{ alias: string; fk: string; cols: string[] }> = [];
     const parts: string[] = [];
@@ -263,6 +270,27 @@ function fakeAdminClient(): SupabaseClient {
     from: (table: string) => new FakeQuery(table),
     rpc: (name: string, params: Record<string, unknown>): Promise<QResult> => {
       return (async () => {
+        if (name === "fn_service_boundary" || name === "fn_service_event_origin") {
+          try {
+            const expression =
+              name === "fn_service_boundary"
+                ? `public.fn_service_boundary(${sqlLiteral(params.p_org)}::uuid,${sqlLiteral(params.p_conversation)}::uuid)`
+                : `public.fn_service_event_origin(${sqlLiteral(params.p_org)}::uuid,${sqlLiteral(params.p_event)}::uuid,${sqlLiteral(params.p_contact)}::uuid,${sqlLiteral(params.p_session)}::uuid)`;
+            return { data: JSON.parse(sql(`select ${expression};`)), error: null };
+          } catch (error) {
+            return { data: null, error: { message: String(error) } };
+          }
+        }
+        if (name === "fn_service_begin") {
+          try {
+            const out = sql(
+              `select public.fn_service_begin(p_org => ${sqlLiteral(params.p_org)}::uuid, p_contact => ${sqlLiteral(params.p_contact)}::uuid, p_session => ${sqlLiteral(params.p_session)}::uuid);`,
+            );
+            return { data: JSON.parse(out), error: null };
+          } catch (error) {
+            return { data: null, error: { message: String(error) } };
+          }
+        }
         if (name !== "emit_event") throw new Error(`fakeAdminClient: unsupported rpc ${name}`);
         const p = params as unknown as EmitEventParams;
         try {
@@ -321,12 +349,36 @@ function baseCtx(overrides: Partial<ActionCtx> = {}): ActionCtx {
     admin,
     organizationId: GOV_ORG,
     ruleId: RULE_ID,
-  ruleName: "Automação de teste",
-    event: { id: lastLine(sql(`select gen_random_uuid();`)) } as unknown as EventRow,
+    ruleName: "Automação de teste",
+    event: {
+      id: lastLine(
+        sql(`select public.emit_event('contact.tag_added','contact','${CONTACT_ID}',
+      jsonb_build_object('service_origin',jsonb_build_object('kind','command','observed',public.fn_service_observe_command('${GOV_ORG}','${CONTACT_ID}'))),'{}','${GOV_ORG}');`),
+      ),
+    } as unknown as EventRow,
     context: {},
     requestId: "test-request-id",
     ...overrides,
   };
+}
+
+/**
+ * `emit_event` SEM `service_origin` injetada — como o cron do aniversário e o
+ * handler da Agenda chamam. O carimbo é responsabilidade DO SERVIDOR (#2326).
+ */
+function emitirSemOrigem(
+  tipo: string,
+  kind: string,
+  id: string,
+  payload: Record<string, unknown> = {},
+): string {
+  return lastLine(
+    sql(
+      `select public.emit_event(${sqlString(tipo)},${sqlString(kind)},${sqlString(id)},${sqlString(
+        JSON.stringify(payload),
+      )}::jsonb,'{}'::jsonb,${sqlString(GOV_ORG)});`,
+    ),
+  );
 }
 
 describe("ensureConversation (Task 11)", () => {
@@ -347,7 +399,9 @@ describe("send_whatsapp_message — execute (Task 11)", () => {
     vi.setSystemTime(new Date("2026-07-17T10:00:00"));
     const executor = getAction("send_whatsapp_message")!;
     const ctx = baseCtx({
-      context: { contact: { id: CONTACT_ID, is_blocked: false, phone_number: "+5511999990001", name: "Ana" } },
+      context: {
+        contact: { id: CONTACT_ID, is_blocked: false, phone_number: "+5511999990001", name: "Ana" },
+      },
     });
     const result = await executor.execute(ctx, {
       channel_session_id: SESSION_ID,
@@ -375,7 +429,9 @@ describe("send_whatsapp_message — execute (Task 11)", () => {
     const messageId = String(result.detail?.message_id);
     expect(messageId).toBeTruthy();
 
-    const found = rows(`select body, direction, type, contact_id from public.messages where id = '${messageId}'`);
+    const found = rows(
+      `select body, direction, type, contact_id from public.messages where id = '${messageId}'`,
+    );
     expect(found.length).toBe(1);
     expect(found[0]!.body).toBe("Oi Ana");
     expect(found[0]!.direction).toBe("outbound");
@@ -462,10 +518,19 @@ describe("send_whatsapp_message — postponeUntil (Task 11)", () => {
 describe("send_whatsapp_message — contato bloqueado (Task 11)", () => {
   it("5. contato bloqueado: skipped, zero mensagens inseridas", async () => {
     vi.setSystemTime(new Date("2026-07-17T10:00:00"));
-    const before = rows(`select id from public.messages where contact_id = '${CONTACT_BLOCKED_ID}'`).length;
+    const before = rows(
+      `select id from public.messages where contact_id = '${CONTACT_BLOCKED_ID}'`,
+    ).length;
     const executor = getAction("send_whatsapp_message")!;
     const ctx = baseCtx({
-      context: { contact: { id: CONTACT_BLOCKED_ID, is_blocked: true, phone_number: "+5511999990002", name: "Bloqueado" } },
+      context: {
+        contact: {
+          id: CONTACT_BLOCKED_ID,
+          is_blocked: true,
+          phone_number: "+5511999990002",
+          name: "Bloqueado",
+        },
+      },
     });
     const result = await executor.execute(ctx, {
       channel_session_id: SESSION_ID,
@@ -474,7 +539,9 @@ describe("send_whatsapp_message — contato bloqueado (Task 11)", () => {
 
     expect(result.status).toBe("skipped");
     expect(result.detail?.reason).toBe("contact_blocked");
-    const after = rows(`select id from public.messages where contact_id = '${CONTACT_BLOCKED_ID}'`).length;
+    const after = rows(
+      `select id from public.messages where contact_id = '${CONTACT_BLOCKED_ID}'`,
+    ).length;
     expect(after).toBe(before);
   });
 });
@@ -577,7 +644,13 @@ describe("send_whatsapp_message — gate de recusa de consentimento (achado 2026
           is_blocked: false,
           phone_number: "+5511999990001",
           name: "Ana",
-          consent: { marketing: { granted_at: "2026-08-01T00:00:00Z", source: "webhook:respondi", version: "9FiY9mrO" } },
+          consent: {
+            marketing: {
+              granted_at: "2026-08-01T00:00:00Z",
+              source: "webhook:respondi",
+              version: "9FiY9mrO",
+            },
+          },
         },
       },
     });
@@ -592,5 +665,96 @@ describe("send_whatsapp_message — gate de recusa de consentimento (achado 2026
     // harness.
     expect(result.status).toBe("postponed");
     expect(result.detail?.reason).toBe("waha_not_configured");
+  });
+});
+
+/**
+ * #2326 — a ação de WhatsApp disparada por `contact.birthday` ou por um dos
+ * seis `appointment.*` nunca enviava: o evento não ganhava `service_origin` no
+ * carimbo do servidor (`emit_event`) e `fn_service_event_origin` recusava o tipo
+ * com `service_event_origin_unsupported` (40001), que `serviceForEvent` engole
+ * como origem obsoleta — o run terminava `failed` com `service_boundary_stale`.
+ *
+ * As duas pontas leem agora a mesma tabela `(tipo, entidade) → contato`
+ * (`fn_service_event_contact`), e estes dois casos provam os dois caminhos: o
+ * aniversário dispara a AÇÃO inteira e os seis `appointment.*` resolvem a
+ * FRONTEIRA. Sem o conserto da 0551, os dois reprovam — o primeiro com
+ * `failed`/`service_boundary_stale` e o segundo com
+ * `service_event_origin_unsupported`.
+ */
+describe("send_whatsapp_message — gatilhos de aniversário e de agenda (#2326)", () => {
+  it("9. contact.birthday sem origem: emit_event carimba e a ação envia (não morre em service_boundary_stale)", async () => {
+    // 13:00Z = 10:00 em São Paulo: dentro da janela do canal.
+    vi.setSystemTime(new Date("2026-07-17T13:00:00Z"));
+    await ensureConversation(admin, GOV_ORG, CONTACT_ID, SESSION_ID);
+
+    const eventoId = emitirSemOrigem("contact.birthday", "contact", CONTACT_ID, {
+      local_date: "2026-07-17",
+    });
+
+    const executor = getAction("send_whatsapp_message")!;
+    const result = await executor.execute(
+      baseCtx({
+        event: { id: eventoId } as unknown as EventRow,
+        context: {
+          contact: {
+            id: CONTACT_ID,
+            is_blocked: false,
+            phone_number: "+5511999990001",
+            name: "Ana",
+          },
+        },
+      }),
+      { channel_session_id: SESSION_ID, template: "Feliz aniversário, {{contact.name}}!" },
+    );
+
+    // O desfecho do defeito era `failed` com `service_boundary_stale`.
+    expect(result.status).toBe("postponed");
+    expect(result.detail?.reason).toBe("waha_not_configured");
+    const mensagemId = String(result.detail?.message_id);
+    expect(mensagemId).toBeTruthy();
+    const encontradas = rows(
+      `select body, direction, contact_id from public.messages where id = '${mensagemId}'`,
+    );
+    expect(encontradas.length).toBe(1);
+    expect(encontradas[0]!.body).toBe("Feliz aniversário, Ana!");
+    expect(encontradas[0]!.direction).toBe("outbound");
+    expect(encontradas[0]!.contact_id).toBe(CONTACT_ID);
+  });
+
+  it("10. os seis appointment.* resolvem a fronteira de origem (sem service_event_origin_unsupported)", async () => {
+    vi.setSystemTime(new Date("2026-07-17T13:00:00Z"));
+    await ensureConversation(admin, GOV_ORG, CONTACT_ID, SESSION_ID);
+    const compromissoId = "44444444-5555-4000-8000-000000000001";
+    sql(`
+      insert into public.calendar_appointments (id, organization_id, contact_id, title, starts_at, ends_at)
+        values ('${compromissoId}', '${GOV_ORG}', '${CONTACT_ID}', 'Compromisso T11',
+                now() + interval '30 days', now() + interval '30 days 1 hour')
+        on conflict (id) do nothing;
+    `);
+
+    for (const tipo of [
+      "created",
+      "confirmed",
+      "rescheduled",
+      "cancelled",
+      "completed",
+      "no_show",
+    ]) {
+      const eventoId = emitirSemOrigem(
+        `appointment.${tipo}`,
+        "calendar_appointment",
+        compromissoId,
+        { appointment_id: compromissoId },
+      );
+      const fronteira = JSON.parse(
+        sql(
+          `select public.fn_service_event_origin(${sqlString(GOV_ORG)}::uuid, ${sqlString(
+            eventoId,
+          )}::uuid, ${sqlString(CONTACT_ID)}::uuid, ${sqlString(SESSION_ID)}::uuid);`,
+        ),
+      ) as { conversation_id?: string };
+      expect(fronteira.conversation_id, `appointment.${tipo} não resolveu a conversa`).toBeTruthy();
+    }
   });
 });
