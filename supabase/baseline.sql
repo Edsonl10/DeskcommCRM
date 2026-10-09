@@ -48549,11 +48549,11 @@ alter table public.department_members enable row level security;
 drop policy if exists departments_select on public.departments;
 create policy departments_select on public.departments for select using (public.fn_is_platform_admin() or organization_id in (select public.fn_user_org_ids()));
 drop policy if exists departments_manager_write on public.departments;
-create policy departments_manager_write on public.departments for all using (public.fn_is_platform_admin() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager'))) with check (public.fn_is_platform_admin() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')));
+create policy departments_manager_write on public.departments for all using (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager'))) with check (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')));
 drop policy if exists department_members_select on public.department_members;
 create policy department_members_select on public.department_members for select using (public.fn_is_platform_admin() or organization_id in (select public.fn_user_org_ids()));
 drop policy if exists department_members_manager_write on public.department_members;
-create policy department_members_manager_write on public.department_members for all using (public.fn_is_platform_admin() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager'))) with check (public.fn_is_platform_admin() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')));
+create policy department_members_manager_write on public.department_members for all using (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager'))) with check (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')));
 
 -- Duas FKs independentes não garantem que o setor e o membro são do mesmo tenant.
 create or replace function public.fn_validate_department_member_org()
@@ -48632,16 +48632,6 @@ grant execute on function public.fn_conversation_assign_department(uuid, uuid, u
 notify pgrst, 'reload schema';
 
 select public.fn_aplicar_travas_de_suporte();
-
-drop policy if exists departments_manager_write on public.departments;
-create policy departments_manager_write on public.departments for all
-using (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')))
-with check (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')));
-drop policy if exists department_members_manager_write on public.department_members;
-create policy department_members_manager_write on public.department_members for all
-using (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')))
-with check (public.fn_is_platform_admin_full() or (organization_id in (select public.fn_user_org_ids()) and public.fn_role_at_least(organization_id, 'manager')));
-
 
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
