@@ -6,6 +6,12 @@
 - Incorporadas as proteções locais de suporte e de autenticação da atribuição por departamento.
 - Mantidos os modos oficiais `round_robin`/`load` e o modo personalizado `least_loaded`.
 
+## Alteração em revisão — ações do atendimento (13/10/2026)
+- Pedido aprovado: remover Arquivar, Marcar como pessoal e Liberar da interface do atendimento. Removida também a nova marcação pessoal na ficha de contato.
+- Mantida a recuperação de contatos pessoais anteriores e o acesso ao histórico arquivado. APIs e dados históricos permanecem compatíveis.
+- Alteração na branch `fix/simplificar-acoes-inbox`; ainda não instalada em produção.
+- Validações e resultado do PR devem ser conferidos no GitHub antes da publicação das imagens e do deploy.
+
 ## Decisões aprovadas
 - Atualizar pelo repositório oficial preservando as melhorias da instalação.
 - A produção só deve receber código e banco compatíveis após backup e validação.

@@ -27,7 +27,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useContact } from "@/hooks/contacts/useContact";
 import { useUnblockContact } from "@/hooks/contacts/useUnblockContact";
 import {
-  useMarkPersonalContact,
   useUnmarkPersonalContact,
 } from "@/hooks/contacts/usePersonalContact";
 import { useHierarquiaDoAnuncio } from "@/hooks/contacts/useHierarquiaDoAnuncio";
@@ -85,9 +84,8 @@ export function ContactDetailClient({ contactId, paineisDeModulo = [] }: Props) 
   // O hook fica ANTES dos early returns: chamá-lo depois mudaria a ordem dos
   // hooks entre renderizações e o React reprova.
   const desbloquear = useUnblockContact(contactId);
-  // Marcar/desmarcar pessoal (spec 21, etapa 15): os hooks ficam aqui pelo
+  // Recupera contatos pessoais anteriores: o hook fica aqui pelo
   // mesmo motivo do `desbloquear` acima.
-  const marcarPessoal = useMarkPersonalContact(contactId);
   const desmarcarPessoal = useUnmarkPersonalContact(contactId);
 
   /*
@@ -127,11 +125,11 @@ export function ContactDetailClient({ contactId, paineisDeModulo = [] }: Props) 
   const contact = q.data.data;
   const isAdmin =
     (user.is_platform_admin && !user.support) || (activeOrg && ROLE_RANK[activeOrg.role] >= ROLE_RANK.admin);
-  // Gerente e dono marcam/desmarcam pessoal (spec 21, decisão 1, D3) — e este
+  // Gerente e dono recuperam contatos pessoais anteriores (spec 21, decisão 1, D3) — e este
   // gate fica LADO A LADO com o `isAdmin` do desbloquear, cada um com seu
   // motivo: desfazer descadastro reabre um canal que o cliente fechou (só
   // admin, LGPD); pessoal é decisão operacional (gerente pode).
-  const podeMarcarPessoal =
+  const podeDesmarcarPessoal =
     (user.is_platform_admin && !user.support) ||
     (activeOrg && ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager);
 
@@ -234,38 +232,7 @@ export function ContactDetailClient({ contactId, paineisDeModulo = [] }: Props) 
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            {/* PESSOAL (spec 21, etapa 15): gerente marca e desmarca; sem
-                exceção de envio — quem é pessoal não recebe por nenhum caminho.
-                Marcar confirma (esconde da operação); desmarcar é direto. */}
-            {!contact.is_personal && podeMarcarPessoal && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    disabled={marcarPessoal.isPending}
-                    className="shrink-0"
-                    data-testid="marcar-pessoal"
-                  >
-                    <span>{t("Marcar como pessoal")}</span>
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t("Marcar este contato como pessoal?")}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t("O contato sai da operação: conversas fecham, IA, follow-ups, campanha e envios param. O histórico continua no banco e volta à vista ao desmarcar; follow-ups e campanhas cancelados não voltam.")}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => marcarPessoal.mutate()}>
-                      {t("Marcar como pessoal")}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-            {contact.is_personal && podeMarcarPessoal && (
+            {contact.is_personal && podeDesmarcarPessoal && (
               <Button
                 variant="outline"
                 disabled={desmarcarPessoal.isPending}

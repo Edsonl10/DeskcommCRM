@@ -695,7 +695,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
         )}
         {selectedConversation ? (
           <>
-            {/* `key`: trocar de conversa desmonta a confirmação de Fechar/Arquivar
+            {/* `key`: trocar de conversa desmonta a confirmação de Fechar
                 aberta — senão o clique de dentro agiria sobre a conversa nova. */}
             <ConversationHeader
               key={selectedConversation.id}

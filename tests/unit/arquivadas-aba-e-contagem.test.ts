@@ -107,13 +107,6 @@ describe("contagem de arquivadas", () => {
 });
 
 describe("o botão de arquivar", () => {
-  it("oferece arquivar com confirmação e some quando já está arquivada", () => {
-    const header = fonte("components/inbox/ConversationHeader.tsx");
-    expect(header).toContain('t("Arquivar")');
-    expect(header).toContain('t("Arquivar esta conversa?")');
-    expect(header).toMatch(/status !== "archived"/);
-  });
-
   it("as strings do botão existem no dicionário (pt-BR e es)", () => {
     const dic = fonte("lib/i18n/dicionario.ts");
     // `"Arquivar"` já existia no dicionário, e sem aspas: a chave é um
