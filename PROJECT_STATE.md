@@ -12,7 +12,9 @@
 - Alteração na branch `fix/simplificar-acoes-inbox`; ainda não instalada em produção.
 - Validação local: 34 testes relacionados passaram; typecheck passou com Node limitado a 8 GB; lint dos arquivos funcionais alterados passou. Controle de regressão: restaurar o cabeçalho anterior fez falhar os quatro casos previstos.
 - Suíte completa tentada em Windows e interrompida após apresentar falhas em outros testes, incluindo scripts Linux; não considerada verde. E2E e build de produção ainda não provados neste ambiente.
-- Usuário autorizou o envio ao GitHub. Branch publicada em `Edsonl10/DeskcommCRM`; revisão em rascunho: https://github.com/Edsonl10/DeskcommCRM/pull/4. Conferir CI, build e E2E antes de integrar, publicar imagens e fazer deploy.
+- Usuário autorizou envio, integração e instalação. PR aberto para revisão: https://github.com/Edsonl10/DeskcommCRM/pull/4. Build e verificações das imagens passaram; suíte completa identificou um teste de conversão com data fixa expirada (janela de sete dias). Relógio desse caso estabilizado e os 20 testes do arquivo passaram, sem mudar runtime.
+- Acesso ao terminal web da VPS confirmado pelo painel Hostinger. Backup do banco (5,3 MB, gzip conferido), sessões WhatsApp (1016 KB) e configurações em `/opt/backups/crm-ui-20261013-212957`.
+- Caddyfile tem ajustes locais e deve ser preservado. Para esta alteração só de interface, atualizar apenas APP_IMAGE por digest da imagem do fork; não substituir worker, scheduler, WhatsApp ou banco. Integração e deploy aguardam as validações restantes.
 
 ## Decisões aprovadas
 - Atualizar pelo repositório oficial preservando as melhorias da instalação.
