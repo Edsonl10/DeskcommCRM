@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMessagesRealtime } from "@/hooks/inbox/useMessagesRealtime";
 import { useConversationNotes } from "@/hooks/inbox/useConversationNotes";
 import { usePassagensDaConversa } from "@/hooks/inbox/usePassagensDaConversa";
+import { ApiError } from "@/lib/api/types";
 
 const { get, showApiError } = vi.hoisted(() => ({ get: vi.fn(), showApiError: vi.fn() }));
 vi.mock("@/lib/api/client", () => ({ apiClient: { get } }));
@@ -25,10 +26,21 @@ describe.each([
   ["notas", useConversationNotes],
   ["passagens", usePassagensDaConversa],
 ] as const)("cancelamento de %s", (_name, useLeitura) => {
+  let qc: QueryClient;
+  beforeEach(() => {
+    qc = new QueryClient({ defaultOptions: { queries: { retry: 2, retryDelay: 0 } } });
+  });
   function wrapper({ children }: { children: ReactNode }) {
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
   }
+
+  it("não multiplica as tentativas de uma leitura que o cliente HTTP já retentou", async () => {
+    get.mockRejectedValue(new ApiError(503, "service_unavailable", undefined, "request-test"));
+    renderHook(() => useLeitura("c-1"), { wrapper });
+    await waitFor(() => expect(qc.getQueryCache().getAll()[0]?.state.status).toBe("error"));
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(showApiError).toHaveBeenCalledTimes(1);
+  });
 
   it("trocar de conversa cancela a requisição antiga sem aviso de falha", async () => {
     get.mockImplementation((_path: string, opts?: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {

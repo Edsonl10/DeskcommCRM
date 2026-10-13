@@ -16,6 +16,7 @@ export function useConversationNotes(conversationId: string | null) {
   const query = useQuery({
     queryKey,
     enabled: !!conversationId && podeConsultar,
+    retry: false, // O cliente HTTP já retenta leituras transitórias.
     queryFn: async ({ signal }) => {
       try {
         return await apiClient.get<{ data: Note[] }>(

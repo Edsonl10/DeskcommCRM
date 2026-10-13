@@ -20,6 +20,7 @@ export function useMessagesRealtime(conversationId: string | null) {
   const query = useInfiniteQuery({
     queryKey,
     enabled: !!conversationId,
+    retry: false, // O cliente HTTP já retenta leituras; não multiplicar as tentativas.
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) => {
       if (!conversationId) {

@@ -1640,7 +1640,8 @@ contato, sem tornar os dados brutos do prospect acessíveis ao navegador.
 
 Trocar de conversa cancela as leituras anteriores da ficha, mensagens, notas e
 passagens pelo `AbortSignal` do React Query. Cancelamento não é aviso de falha;
-falhas da leitura ainda ativa continuam sendo mostradas. Nenhum cache compartilhado
+falhas da leitura ainda ativa continuam sendo mostradas. As retentativas de GET
+ficam no cliente HTTP, sem multiplicação pelo React Query. Nenhum cache compartilhado
 de servidor ou alteração de permissões participa deste caminho.
 
 ## Anexos
