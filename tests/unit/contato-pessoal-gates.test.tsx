@@ -140,10 +140,10 @@ describe("gate do botão pessoal no cabeçalho", () => {
     atual.assigned_to_user_id = "u1";
     render(<ConversationHeader conversation={atual} />);
     for (const name of ["Arquivar", "Liberar", "Marcar como pessoal"]) {
-      expect(screen.queryByRole("button", { name, exact: true })).toBeNull();
+      expect(screen.queryByRole("button", { name })).toBeNull();
     }
-    expect(screen.getByRole("button", { name: "Fechar", exact: true })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Transferir", exact: true })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Fechar" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Transferir" })).toBeTruthy();
     expect(marcarMutate).not.toHaveBeenCalled();
   });
 
