@@ -5,18 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConversationHeader } from "@/components/inbox/ConversationHeader";
 import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
 
-/**
- * GATES DO BOTÃO PESSOAL (spec 21, etapa 15 — decisão 1).
- *
- * Atendente não vê o botão; gerente e dono veem. Sem contato, sem botão.
- * Marcar pede confirmação (esconde da operação); desmarcar é direto.
- *
- * ─── SABOTAGEM (prova no CI) ───────────────────────────────────────────────
- * - Trocar o gate para `>= ROLE_RANK.agent`: o caso "atendente não vê" cai.
- * - Tirar a confirmação do marcar: o caso "marcar confirma antes" cai.
- * Linha para reverter: `components/inbox/ConversationHeader.tsx`,
- * `app/app/contacts/[id]/_client.tsx` (mesmo gate, lado a lado com o de admin).
- */
+/** Recuperação de contatos pessoais anteriores; novas marcações não são oferecidas. */
 
 const papel = vi.hoisted(() => ({ atual: "agent" }));
 const marcarMutate = vi.hoisted(() => vi.fn());
@@ -120,10 +109,10 @@ describe("gate do botão pessoal no cabeçalho", () => {
     unmount();
   });
 
-  it("gerente vê marcar no contato normal", () => {
+  it("gerente não pode marcar contato normal como pessoal", () => {
     papel.atual = "manager";
     const { unmount } = render(<ConversationHeader conversation={conversa(false)} />);
-    expect(screen.getByTestId("marcar-pessoal")).toBeTruthy();
+    expect(screen.queryByTestId("marcar-pessoal")).toBeNull();
     expect(screen.queryByTestId("desmarcar-pessoal")).toBeNull();
     unmount();
   });
@@ -144,14 +133,18 @@ describe("gate do botão pessoal no cabeçalho", () => {
     unmount();
   });
 
-  it("marcar pede confirmação antes de mutar", async () => {
-    papel.atual = "manager";
-    const user = userEvent.setup();
-    const { unmount } = render(<ConversationHeader conversation={conversa(false)} />);
-    await user.click(screen.getByTestId("marcar-pessoal"));
+  it.each(["agent", "manager", "admin"])("%s não vê Arquivar, Liberar ou Marcar como pessoal, mesmo sendo responsável", (role) => {
+    papel.atual = role;
+    const atual = conversa(false);
+    atual.status = "claimed";
+    atual.assigned_to_user_id = "u1";
+    render(<ConversationHeader conversation={atual} />);
+    for (const name of ["Arquivar", "Liberar", "Marcar como pessoal"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
+    expect(screen.getByRole("button", { name: "Fechar" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Transferir" })).toBeTruthy();
     expect(marcarMutate).not.toHaveBeenCalled();
-    expect(await screen.findByText("Marcar este contato como pessoal?")).toBeTruthy();
-    unmount();
   });
 
   it("desmarcar é direto no botão", async () => {

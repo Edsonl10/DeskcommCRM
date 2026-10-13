@@ -642,7 +642,8 @@ test.describe("Jev — os pedidos do cliente, pela tela", () => {
       await item.getByRole("link", { name: "Abrir a conversa" }).click();
       await expect(page).toHaveURL(new RegExp(`/app/inbox(/|\\?id=)${quemSai}`), { timeout: 30_000 });
       await page.getByRole("button", { name: "Assumir", exact: true }).click();
-      await expect(page.getByRole("button", { name: "Liberar", exact: true })).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId("comando-da-conversa").getByLabel(/^Responsável:/)).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByRole("button", { name: "Liberar", exact: true })).toHaveCount(0);
       // Controle: assumiu de verdade — é o passo 1 do aviso.
       const { data: conv } = await admin.from("conversations").select("assigned_to_user_id").eq("id", quemSai).single();
       expect((conv as { assigned_to_user_id: string | null }).assigned_to_user_id).not.toBeNull();

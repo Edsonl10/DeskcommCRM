@@ -60,7 +60,7 @@ async function criarContato(page: Page): Promise<string> {
   return corpo.data.contact.id;
 }
 
-test("marcar some da lista, Pessoais acha com selo, desmarcar volta sem selo", async ({ page }) => {
+test("sem marcação pela tela, Pessoais recupera contato legado e desmarcar volta sem selo", async ({ page }) => {
   await login(page);
   const contatoId = await criarContato(page);
 
@@ -68,14 +68,14 @@ test("marcar some da lista, Pessoais acha com selo, desmarcar volta sem selo", a
   await page.goto("/app/contacts");
   await expect(page.getByText(NOME).first()).toBeVisible({ timeout: 20_000 });
 
-  // Marca PELA TELA, na ficha — com confirmação.
+  // A tela não oferece novas marcações. A API prepara um contato legado
+  // para provar que a recuperação de registros anteriores continua disponível.
   await page.goto(`/app/contacts/${contatoId}`);
-  await expect(page.getByTestId("marcar-pessoal")).toBeVisible({ timeout: 20_000 });
-  await page.getByTestId("marcar-pessoal").click();
-  const dialogo = page.getByRole("alertdialog");
-  await expect(dialogo.getByText("Marcar este contato como pessoal?")).toBeVisible();
-  await dialogo.getByRole("button", { name: "Marcar como pessoal" }).click();
-  // Marcado: o botão virou desmarcar.
+  await expect(page.getByRole("button", { name: "Editar", exact: true })).toBeVisible();
+  await expect(page.getByTestId("marcar-pessoal")).toHaveCount(0);
+  const marcado = await page.request.post(`/api/v1/contacts/${contatoId}/personal`, { data: {} });
+  expect(marcado.status()).toBe(200);
+  await page.reload();
   await expect(page.getByTestId("desmarcar-pessoal")).toBeVisible({ timeout: 20_000 });
 
   // Segunda régua (API): padrão não lista; ?pessoais=true lista.
@@ -103,7 +103,8 @@ test("marcar some da lista, Pessoais acha com selo, desmarcar volta sem selo", a
   await page.waitForURL(/\/app\/contacts\//, { timeout: 20_000 });
   await expect(page.getByTestId("desmarcar-pessoal")).toBeVisible({ timeout: 20_000 });
   await page.getByTestId("desmarcar-pessoal").click();
-  await expect(page.getByTestId("marcar-pessoal")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("desmarcar-pessoal")).toHaveCount(0);
+  await expect(page.getByTestId("marcar-pessoal")).toHaveCount(0);
 
   // Volta à lista, sem selo e com o mesmo nome (nada apagado).
   await page.goto("/app/contacts");
