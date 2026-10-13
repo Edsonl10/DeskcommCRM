@@ -2,10 +2,22 @@
 
 ## Estado atual
 - Correção da espera no Inbox preparada no PR #3, branch `fix/inbox-carregamento` (13/10/2026), ainda sem deploy: cache de sessão para a ficha, consultas paralelas do resumo, cancelamento de leituras de conversas anteriores e fim das retentativas duplicadas entre cliente HTTP e React Query. Não muda schema nem os departamentos.
-- Release oficial `v1.78.0` integrada às melhorias do fork e instalada em produção em 09/10/2026. App, worker e scheduler executam o código `ce7829f90d6eb7c9626e17c4093dc99574250617`, com imagens do fork fixadas por digest.
+- Interface atualizada em produção em 13/10/2026 pelo PR #4, código `c7c8f6c887c4d3a40e494d733741324cfc8c516b`. App saudável, fixado em `ghcr.io/edsonl10/deskcommcrm@sha256:3b9d24c22d48146cbcb292f3c1aff836e6fd03aceb637548d36aa4aeb177e477`. Worker e scheduler permanecem na versão anterior por esta mudança tocar somente a interface.
+- Release oficial `v1.78.0` integrada às melhorias do fork e instalada em 09/10/2026. Naquela atualização, app, worker e scheduler passaram a executar `ce7829f90d6eb7c9626e17c4093dc99574250617`, com imagens do fork fixadas por digest.
 - Preservados departamentos, membros Normal/Supervisor, transferência por departamento, participação na distribuição e visibilidade do supervisor.
 - Incorporadas as proteções locais de suporte e de autenticação da atribuição por departamento.
 - Mantidos os modos oficiais `round_robin`/`load` e o modo personalizado `least_loaded`.
+
+## Ações do atendimento instaladas (13/10/2026)
+- Pedido aprovado: remover Arquivar, Marcar como pessoal e Liberar da interface do atendimento. Removida também a nova marcação pessoal na ficha de contato.
+- Mantida a recuperação de contatos pessoais anteriores e o acesso ao histórico arquivado. APIs e dados históricos permanecem compatíveis.
+- PR #4 integrado e instalado. Conferência pelo site: Arquivar, Liberar e Marcar como pessoal ausentes da conversa; Fechar e Transferir visíveis. Na ficha, Editar visível e Marcar como pessoal ausente.
+- Validação local: 34 testes relacionados passaram; typecheck passou com Node limitado a 8 GB; lint dos arquivos funcionais alterados passou. Controle de regressão: restaurar o cabeçalho anterior fez falhar os quatro casos previstos.
+- Suíte completa local em Windows interrompida após falhas em outros testes, incluindo scripts Linux. No GitHub, `verify` completo, build e publicação AMD64 do commit instalado passaram. E2E e invariantes de banco ainda rodavam na última medição deste deploy; conferir os runs de `c7c8f6c` antes de afirmar resultado integral.
+- Teste preexistente de conversão com data fixa expirada estabilizado (janela de sete dias); 20 testes passaram, sem mudar runtime. Duas verificações E2E passaram a conferir o responsável e a ausência de Liberar.
+- Acesso ao terminal web da VPS confirmado pelo painel Hostinger. Backup do banco (5,3 MB, gzip conferido), sessões WhatsApp (1016 KB) e configurações em `/opt/backups/crm-ui-20261013-212957`.
+- Somente APP_IMAGE mudou no .env (comparação conferida); Caddyfile preservado por SHA-256. Worker e scheduler seguem saudáveis e WhatsApp não foi reiniciado. Recibo e script de instalação/rollback no mesmo diretório do backup.
+- Checkout da VPS continua em `a47fec4` com Caddyfile local modificado; runtime do app vem da imagem `c7c8f6c` acima. Não sobrescrever esse Caddyfile nem usar update oficial que substitua os pins do fork.
 
 ## Decisões aprovadas
 - Atualizar pelo repositório oficial preservando as melhorias da instalação.
@@ -15,8 +27,9 @@
 
 ## Validações e pendências
 - Correção do Inbox: 45 casos em seis arquivos relacionados passaram. Retirar os cinco arquivos corrigidos em cópia isolada fez os testes reprovarem nos dez casos previstos (10 falhas, 23 passes). Typecheck completo passou com heap de 8 GB; lint sem erros (avisos preexistentes), build e guardas de canal/papel/release passaram. Suíte completa local em Windows: 2079 arquivos passaram, 28 falharam (77 casos); não é um verde integral.
-- CI do PR #3 em `f0792fe`: E2E (inclusive a prova de reabertura da ficha), perf, imagens e invariants passaram. Verify teve uma falha em `conversao-pelo-canal.test.ts`: fixture de 06/10 vencida pela janela da Meta em 13/10. A mesma falha foi reproduzida com o código anterior do Inbox. Relógio dos casos de etapa fixado em 07/10, sem alterar runtime; 20 casos desse arquivo e 9 de cancelamento passaram. Nova rodada do CI pendente.
-- Consulta da VPS em 13/10: painel Hostinger indica limitação de CPU ativa e limite de resets já usado. `vmstat` mostrou 70% de steal; carga ~7-8 com 2 núcleos, cerca de 5 GB de RAM disponíveis. Quatro backends do banco compartilhado `sistema-rh-db` consomem CPU e mostram chamadas à rotina `career_test_write`; a origem dessas chamadas ainda não foi confirmada. Nenhum serviço, banco, configuração ou imagem foi alterado nessa consulta. Os avisos do Inbox não tiveram a causa individual confirmada por logs.
+- CI do PR #3 em `f0792fe`: E2E (inclusive a prova de reabertura da ficha), perf, imagens e invariants passaram. Verify teve uma falha em `conversao-pelo-canal.test.ts`: fixture de 06/10 vencida pela janela da Meta em 13/10. A mesma falha foi reproduzida com o código anterior do Inbox. A main corrigiu o relógio desse caso pelo PR #4; essa correção foi preservada ao incorporar `16fcd71`, sem duplicar o ajuste de data. Nova rodada do CI pendente.
+- Consulta inicial da VPS em 13/10: painel Hostinger indicava limitação de CPU ativa e limite de resets já usado. `vmstat` mostrou 70% de steal; carga ~7-8 com 2 núcleos, cerca de 5 GB de RAM disponíveis. Quatro backends do banco compartilhado `sistema-rh-db` consumiam CPU e mostravam chamadas à rotina `career_test_write`; a origem dessas chamadas não foi confirmada. Os avisos do Inbox não tiveram a causa individual confirmada por logs.
+- Após upgrade feito pelo usuário para KVM 4, consulta às 23:00 UTC de 13/10 confirmou 4 núcleos, 15992 MiB de RAM, disco de 193 GiB e 14443 MiB de memória disponível. Carga 0,51/0,44/0,25; amostras atuais de `vmstat` com 55–74% ocioso e 24–41% de steal (a espera de CPU da hospedagem ainda existe). Painel já sem o aviso anterior de limitação; app, worker, scheduler, banco RH e demais serviços saudáveis. Banco RH com CPU 0,01% nessa amostra. Uptime de 9 minutos mostra reinicialização no upgrade; nenhum serviço, banco, configuração ou imagem foi alterado por esta consulta.
 - Erro de mensagens corrigido em produção pela migration oficial 0168: `messages.reply_to_message_id` agora existe. Leitura de mensagens confirmada visualmente.
 - Backup verificado do banco e das sessões WhatsApp em `/opt/DeskcommCRM/backups`, prefixo `20261009-180722`; cópias protegidas de código, Caddy e configuração em `/opt/backups/crm-update-20261009`.
 - Typecheck e lint dos arquivos adaptados passaram. Testes de roteamento/transferência/idiomas passaram; baseline install e update passaram em Postgres isolado; guarda de migrations passou 109 casos em Linux.
@@ -27,5 +40,5 @@
 - Não usar a imagem oficial pura: ela não contém as melhorias de departamentos deste fork.
 
 ## Próximo passo
-- Concluir o verify do PR #3 antes de integrar/publicar as imagens do fork. Console da VPS acessível pelo painel Hostinger; os dados de conexão foram consultados, sem precisar pedir senha. Investigar a carga da rotina de testes de carreira do RH e a restrição de CPU antes do deploy. Não usar a atualização oficial pura para este fix.
+- Concluir o verify do PR #3 após incorporar a main antes de integrar/publicar as imagens do fork. Console da VPS acessível pelo painel Hostinger; os dados de conexão foram consultados, sem precisar pedir senha. Monitorar se a carga das chamadas de carreira RH retorna e se a espera de CPU da hospedagem persiste. Não usar a atualização oficial pura para este fix.
 - Para futuras atualizações, mesclar a release oficial neste fork, preservar o baseline e as migrations exclusivas, validar, publicar imagens do fork e atualizar os pins por digest. O `update.sh` oficial sem adaptação usa imagens oficiais e não deve substituir as imagens personalizadas.

@@ -19,14 +19,9 @@ import { ChannelLogo } from "@/components/inbox/ChannelLogo";
 import { Phone, ArrowRight, MagnifyingGlass } from "@/lib/ui/icons";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useClaimConversation } from "@/hooks/inbox/useClaimConversation";
-import { useReleaseConversation } from "@/hooks/inbox/useReleaseConversation";
-import {
-  useMarkPersonalContact,
-  useUnmarkPersonalContact,
-} from "@/hooks/contacts/usePersonalContact";
+import { useUnmarkPersonalContact } from "@/hooks/contacts/usePersonalContact";
 import { ROLE_RANK } from "@/lib/auth/types";
 import {
-  useArchiveConversation,
   useCloseConversation,
   useReopenConversation,
 } from "@/hooks/inbox/useCloseConversation";
@@ -95,10 +90,8 @@ export function ConversationHeader({
   const t = useT();
   const { user, activeOrg } = useAuth();
   const claim = useClaimConversation();
-  const release = useReleaseConversation();
   const close = useCloseConversation();
   const reopen = useReopenConversation();
-  const arquivar = useArchiveConversation();
   const retomar = useResumeAiAttendance();
   const pausar = usePauseAiAttendance();
   // "Existe automático nesta org?" — sem isto o selo afirmava que o robô estava
@@ -106,8 +99,6 @@ export function ConversationHeader({
   const automaticoDaOrg = useAutomaticoAtivo();
   const [reassignOpen, setReassignOpen] = useState(false);
   const [confirmFecharOpen, setConfirmFecharOpen] = useState(false);
-  const [confirmArquivarOpen, setConfirmArquivarOpen] = useState(false);
-  const [confirmPessoalOpen, setConfirmPessoalOpen] = useState(false);
 
   const c = conversation.contacts ?? null;
   const displayName = rotuloDoContato(c, t);
@@ -118,24 +109,13 @@ export function ConversationHeader({
   const rotuloCanal = rotuloDoCanalDaConversa(conversation.channel_sessions, t);
   const phone = c?.phone_number ? phoneForDisplay(c.phone_number) : null;
   const status = conversation.status;
-  const isMineAssigned = conversation.assigned_to_user_id === user.id;
   const isOpen = status === "open" || conversation.assigned_to_user_id == null;
 
-  // Marcar/desmarcar pessoal (spec 21, etapa 15 — botão no cabeçalho).
-  //
-  // GERENTE pode (spec decisão 1, D3): pessoal é decisão operacional — esconder
-  // uma conversa da operação. Desbloquear exige ADMIN porque reabre um canal
-  // que o cliente fechou (direito do titular, LGPD): dois gestos parecidos,
-  // dois gates diferentes, cada um com seu motivo.
-  //
-  // Os hooks ficam AQUI, antes de qualquer early return (a ordem dos hooks não
-  // pode mudar entre renderizações); com contato ausente o id vazio nunca
-  // dispara porque o botão nem é desenhado.
+  // Mantém a recuperação de contatos pessoais anteriores, sem oferecer novas marcações.
   const ehPessoal = c?.is_personal === true;
-  const podeMarcarPessoal =
+  const podeDesmarcarPessoal =
     (user.is_platform_admin && !user.support) ||
     (activeOrg != null && ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager);
-  const marcarPessoal = useMarkPersonalContact(c?.id ?? "");
   const desmarcarPessoal = useUnmarkPersonalContact(c?.id ?? "");
 
   /**
@@ -167,7 +147,7 @@ export function ConversationHeader({
    * ENCERRADA. Antes ela era condicionada a `status !== "closed"`, e o resultado
    * era um beco sem saída medido: atendente assume, fecha, sai de férias; a
    * conversa fica com o automático parado e, para qualquer colega, sem NENHUMA
-   * porta — "Liberar" só existe para o próprio dono e a rota recusa quem não é.
+   * porta — a devolução precisa estar disponível para qualquer colega habilitado.
    * `devolverAtendimentoAoAgente` funciona nesse estado (o status fechado está na
    * lista de reativáveis), então esconder o botão escondia uma ação que existe.
    *
@@ -345,16 +325,6 @@ export function ConversationHeader({
             {t("Assumir")}
           </Button>
         )}
-        {isMineAssigned && (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={release.isPending}
-            onClick={() => release.mutate({ conversation_id: conversation.id })}
-          >
-            {t("Liberar")}
-          </Button>
-        )}
         {/* O INTERRUPTOR. Um botão, dois rótulos, um slot.
             Fica ANTES de transferir/fechar porque é a ação que a pessoa procura
             quando terminou o que tinha para fazer aqui.
@@ -429,40 +399,7 @@ export function ConversationHeader({
           onClick={() => reopen.mutate({ conversation_id: conversation.id, expected_revision: conversation.service_revision })}>
           {t("Reabrir")}
         </Button>}
-        {/* ARQUIVAR (#923): tira da frente sem destruir.
-            A conversa já arquivada não mostra o botão — arquivar duas vezes não
-            é um gesto que exista, e o botão só reapareceria como um clique que
-            não muda nada. Fechada E resolvida mostram: são exatamente as que se
-            quer mandar para o arquivo depois de encerradas, e é o caminho que
-            faz a aba "Arquivadas" deixar de ser uma pasta morta.
-            A permissão é a mesma de fechar (a rota `/conversations/[id]` é
-            `requireSupportWrite`): quem pode encerrar, pode arquivar. */}
-        {status !== "archived" && (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={arquivar.isPending}
-            onClick={() => setConfirmArquivarOpen(true)}
-          >
-            {arquivar.isPending ? t("Arquivando...") : t("Arquivar")}
-          </Button>
-        )}
-        {/* PESSOAL (spec 21, etapa 15): marcar tira a conversa do inbox na
-            hora; desmarcar relista. O `data-testid` é contrato do e2e da
-            spec (`contato-pessoal-sai-da-operacao.spec.ts`). */}
-        {podeMarcarPessoal && c?.id && !ehPessoal && (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={marcarPessoal.isPending}
-            data-testid="marcar-pessoal"
-            title={t("Tira este contato da operação: a conversa sai do inbox.")}
-            onClick={() => setConfirmPessoalOpen(true)}
-          >
-            {t("Marcar como pessoal")}
-          </Button>
-        )}
-        {podeMarcarPessoal && c?.id && ehPessoal && (
+        {podeDesmarcarPessoal && c?.id && ehPessoal && (
           <Button
             size="sm"
             variant="outline"
@@ -540,63 +477,6 @@ export function ConversationHeader({
               }
             >
               {t("Fechar")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      {/* A confirmação precisa dizer o que ACONTECE, e o que acontece depende
-          do estado. `fn_conversation_set_status` trata `archived` como
-          terminal: encerra o atendimento (grava `service_closed_at`,
-          incrementa a revisão) e, com isso, desfaz a pausa do automático. Um
-          atendente que leia "arquivar = tirar da vista, volto depois"
-          encerraria o atendimento sem saber — e o robô voltaria a responder
-          no próximo "oi" do cliente. Por isso a descrição só aparece quando
-          `!encerrada`: quando já está encerrada, arquivar não muda o
-          atendimento, só o lugar onde a conversa mora. */}
-      <AlertDialog open={confirmArquivarOpen} onOpenChange={setConfirmArquivarOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("Arquivar esta conversa?")}</AlertDialogTitle>
-            {!encerrada && (
-              <AlertDialogDescription>
-                {t(
-                  "Arquivar encerra este atendimento e guarda a conversa no histórico. Se o cliente escrever de novo, ela volta.",
-                )}
-              </AlertDialogDescription>
-            )}
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() =>
-                arquivar.mutate({
-                  conversation_id: conversation.id,
-                  expected_revision: conversation.service_revision,
-                })
-              }
-            >
-              {t("Arquivar")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      {/* A confirmação diz o que ACONTECE ao marcar: a conversa fecha e sai do
-          atendente, e o contato fica inutilizado para envio — sem apagar nada.
-          Desmarcar é direto no botão porque só relista o que já está lá. */}
-      <AlertDialog open={confirmPessoalOpen} onOpenChange={setConfirmPessoalOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("Marcar este contato como pessoal?")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                "A conversa sai do inbox e o contato fica fora da operação: sem IA, sem follow-up, sem campanha e sem envio. O histórico continua no banco e volta à vista ao desmarcar; follow-ups e campanhas cancelados não voltam.",
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => marcarPessoal.mutate()}>
-              {t("Marcar como pessoal")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

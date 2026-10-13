@@ -6,15 +6,14 @@ import { ConversationHeader } from "./ConversationHeader";
 import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
 
 /**
- * "Fechar" e "Arquivar" usavam `window.confirm()` — mesmo defeito documentado
+ * "Fechar" usava `window.confirm()` — mesmo defeito documentado
  * em `app/app/tasks/_components/ListaDeTarefas.tsx`: bloqueado em iframe,
- * ignora o tema, não passa por `t()`. Agora usam o `AlertDialog` da casa
+ * ignora o tema, não passa por `t()`. Agora usa o `AlertDialog` da casa
  * (docs/doctrine/destrutivo-pede-confirmacao.md): o botão só ABRE o diálogo,
  * a mutação só dispara no clique de DENTRO dele.
  */
 
 const closeMutate = vi.hoisted(() => vi.fn());
-const arquivarMutate = vi.hoisted(() => vi.fn());
 const startCall = vi.hoisted(() => vi.fn());
 
 vi.mock("@/hooks/auth/AuthProvider", () => ({
@@ -29,7 +28,6 @@ vi.mock("@/hooks/inbox/useReleaseConversation", () => ({
 vi.mock("@/hooks/inbox/useCloseConversation", () => ({
   useCloseConversation: () => ({ mutate: closeMutate, isPending: false }),
   useReopenConversation: () => ({ mutate: vi.fn(), isPending: false }),
-  useArchiveConversation: () => ({ mutate: arquivarMutate, isPending: false }),
 }));
 vi.mock("@/hooks/inbox/useResumeAiAttendance", () => ({
   useResumeAiAttendance: () => ({ mutate: vi.fn(), isPending: false }),
@@ -90,7 +88,6 @@ function conversa(status: string): ConversationWithContact {
 
 beforeEach(() => {
   closeMutate.mockReset();
-  arquivarMutate.mockReset();
   startCall.mockReset();
 });
 
@@ -132,7 +129,7 @@ describe("ConversationHeader — chamada de voz na Inbox", () => {
   });
 });
 
-describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
+describe("ConversationHeader — Fechar por AlertDialog", () => {
   it("Fechar pede confirmação e só encerra no clique de dentro do diálogo", async () => {
     const user = userEvent.setup();
     render(<ConversationHeader conversation={conversa("open")} />);
@@ -158,43 +155,6 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     });
   });
 
-  it("Arquivar, numa conversa aberta, avisa que o atendimento é encerrado junto", async () => {
-    const user = userEvent.setup();
-    render(<ConversationHeader conversation={conversa("open")} />);
-
-    await user.click(screen.getByRole("button", { name: "Arquivar" }));
-
-    const dialogo = await screen.findByRole("alertdialog");
-    expect(within(dialogo).getByText("Arquivar esta conversa?")).toBeTruthy();
-    expect(
-      within(dialogo).getByText(
-        "Arquivar encerra este atendimento e guarda a conversa no histórico. Se o cliente escrever de novo, ela volta.",
-      ),
-    ).toBeTruthy();
-    expect(arquivarMutate).not.toHaveBeenCalled();
-
-    await user.click(within(dialogo).getByRole("button", { name: "Arquivar" }));
-    await waitFor(() => expect(arquivarMutate).toHaveBeenCalledTimes(1));
-    expect(arquivarMutate).toHaveBeenCalledWith({
-      conversation_id: "conv-1",
-      expected_revision: 3,
-    });
-  });
-
-  it("Arquivar, numa conversa já encerrada, não repete o aviso de encerramento", async () => {
-    const user = userEvent.setup();
-    render(<ConversationHeader conversation={conversa("closed")} />);
-
-    await user.click(screen.getByRole("button", { name: "Arquivar" }));
-
-    const dialogo = await screen.findByRole("alertdialog");
-    expect(within(dialogo).getByText("Arquivar esta conversa?")).toBeTruthy();
-    expect(
-      screen.queryByText(
-        "Arquivar encerra este atendimento e guarda a conversa no histórico. Se o cliente escrever de novo, ela volta.",
-      ),
-    ).toBeNull();
-  });
 });
 
 describe("ConversationHeader — busca dentro da conversa (#1793)", () => {
@@ -212,6 +172,5 @@ describe("ConversationHeader — busca dentro da conversa (#1793)", () => {
     await user.click(botao);
     expect(buscar).toHaveBeenCalledOnce();
     expect(closeMutate).not.toHaveBeenCalled();
-    expect(arquivarMutate).not.toHaveBeenCalled();
   });
 });
