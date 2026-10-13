@@ -39,13 +39,15 @@ export function usePassagensDaConversa(conversationId: string | null): PassagemD
   const query = useQuery({
     queryKey,
     enabled: !!conversationId && podeConsultar,
-    queryFn: async () => {
+    retry: false, // O cliente HTTP já retenta leituras transitórias.
+    queryFn: async ({ signal }) => {
       try {
         return await apiClient.get<{ data: PassagemDaConversa[] }>(
           `/api/v1/conversations/${conversationId}/passagens`,
+          { signal },
         );
       } catch (err) {
-        showApiError(err);
+        if (!signal.aborted) showApiError(err);
         throw err;
       }
     },

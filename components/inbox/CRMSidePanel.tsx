@@ -10,7 +10,8 @@ import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 import type { Locale } from "date-fns";
 import Link from "next/link";
 import { useT } from "@/hooks/i18n/useT";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ChipDeEtiqueta } from "@/components/tags/ChipDeEtiqueta";
 import { Card } from "@/components/ui/card";
@@ -113,6 +114,17 @@ interface DesfechoDraft {
   revision: number;
   desfecho: string;
   salvando: boolean;
+}
+
+interface CrmSummary {
+  enrichment?: (ProspectEnrichment & { collected_at: string }) | null;
+  enrichment_error?: boolean;
+  leads: LeadRow[];
+  orders: OrderRow[];
+  activities: ActivityRow[];
+  demandas?: DemandaRow[];
+  fatos?: Array<{ id: string; headline: string; body: string }>;
+  historico?: Array<{ id: string; desfecho: string; fechada_em: string }>;
 }
 
 function EncerrarDemanda({ draft, onAbrir, onAlterar, onFechar, onPronto }: {
@@ -535,23 +547,49 @@ export function CRMSidePanel({ conversation }: Props) {
   }, [conversation, contactId, desfechoDraft]);
 
 
-  const [enrichment, setEnrichment] = useState<(ProspectEnrichment & { collected_at: string }) | null>(null);
-  const [enrichmentError, setEnrichmentError] = useState(false);
-  const [leads, setLeads] = useState<LeadRow[] | null>(null);
-  const [orders, setOrders] = useState<OrderRow[] | null>(null);
-  const [activities, setActivities] = useState<ActivityRow[] | null>(null);
-  const [demandas, setDemandas] = useState<DemandaRow[] | null>(null);
-  const [fatos, setFatos] = useState<Array<{ id: string; headline: string; body: string }>>([]);
-  const [historico, setHistorico] = useState<Array<{ id: string; desfecho: string; fechada_em: string }>>([]);
-  const [summaryContactId, setSummaryContactId] = useState<string | null>(null);
-  /**
-   * O TERCEIRO ESTADO. Antes existiam dois — carregando e "tem N itens" — e a
-   * falha era traduzida para lista vazia, virando "Sem leads.": uma afirmação
-   * sobre o NEGÓCIO feita em cima de um erro de leitura. Distinguir "não tem"
-   * de "não consegui ler" é a diferença entre informar e mentir.
-   */
-  const [erro, setErro] = useState(false);
-  const [tentativa, setTentativa] = useState(0);
+  // A ficha acompanha o contato e a revisão do atendimento. Voltar a uma
+  // ficha já lida usa o cache desta sessão; mudanças de comando/demanda e
+  // anonimização têm outra chave, sem exibir o resumo do contato anterior.
+  const summary = useQuery({
+    queryKey: ["crm-summary", conversation?.organization_id, contactId,
+      conversation?.id, contact?.is_anonymized, conversation?.assigned_to_user_id,
+      conversation?.bot_silenced_until, conversation?.service_revision,
+      conversation?.current_demanda_id],
+    enabled: !!contactId,
+    staleTime: 30_000,
+    retry: false, // O cliente HTTP já retenta leituras transitórias.
+    refetchOnWindowFocus: true,
+    queryFn: ({ signal }) => apiClient.get<{ data: CrmSummary }>(
+      `/api/v1/contacts/${contactId}/crm-summary`, { signal },
+    ).then((r) => r.data),
+  });
+  // Falha não vira lista vazia, inclusive se a revalidação do cache falhar.
+  const erro = summary.isError;
+  const dados = erro ? undefined : summary.data;
+  const enrichment = dados?.enrichment ?? null;
+  const enrichmentError = dados?.enrichment_error ?? false;
+  const leads = dados?.leads ?? null;
+  const orders = dados?.orders ?? null;
+  const activities = dados?.activities ?? null;
+  const demandas = dados ? dados.demandas ?? [] : null;
+  const fatos = dados?.fatos ?? [];
+  const historico = dados?.historico ?? [];
+  const sectionsLoading = !!contactId && summary.isPending;
+  const { refetch } = summary;
+  const recarregar = useCallback(() => { void refetch(); }, [refetch]);
+  const summaryScope = JSON.stringify([conversation?.organization_id, contactId, conversation?.id, contact?.is_anonymized]);
+  const comando = JSON.stringify([conversation?.assigned_to_user_id, conversation?.bot_silenced_until, conversation?.service_revision, conversation?.current_demanda_id]);
+  const anterior = useRef<{ scope: string; comando: string } | null>(null);
+  useEffect(() => {
+    const previo = anterior.current;
+    anterior.current = { scope: summaryScope, comando };
+    // Assumir e depois liberar pode voltar à mesma chave. Essa transição
+    // precisa de uma leitura nova mesmo quando o cache anterior ainda é recente.
+    // Uma chave ainda sem dados já iniciou a leitura e não deve ser duplicada.
+    if (previo?.scope === summaryScope && previo.comando !== comando && !summary.isFetching) {
+      void refetch();
+    }
+  }, [summaryScope, comando, summary.isFetching, refetch]);
 
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   const [leadDialogOpen, setLeadDialogOpen] = useState(false);
@@ -565,102 +603,8 @@ export function CRMSidePanel({ conversation }: Props) {
     }
   }, [leadDialogOpen, defaultPipeline.isError, t]);
 
-  useEffect(() => {
-    if (!contactId) {
-      setLeads(null);
-      setOrders(null);
-      setActivities(null);
-      setDemandas(null);
-      setFatos([]); setHistorico([]);
-      setLeadAtivoId(null);
-      return;
-    }
-    let cancelled = false;
-
-    setErro(false);
-
-    // Pela ROTA, não pelo cliente de navegador: o cookie de sessão é httpOnly,
-    // então o supabase-js do browser não vê a sessão e consultava como `anon`
-    // (medido: role=anon com gerente logado). Ver o cabeçalho da rota.
-    async function load() {
-      try {
-        const r = await apiClient.get<{
-          data: {
-            enrichment?: (ProspectEnrichment & { collected_at: string }) | null;
-            enrichment_error?: boolean;
-            leads: LeadRow[];
-            orders: OrderRow[];
-            activities: ActivityRow[];
-            demandas: DemandaRow[];
-            fatos?: Array<{ id: string; headline: string; body: string }>;
-            historico?: Array<{ id: string; desfecho: string; fechada_em: string }>;
-          };
-        }>(`/api/v1/contacts/${contactId}/crm-summary`);
-        if (cancelled) return;
-        setSummaryContactId(contactId);
-        setEnrichment(r.data.enrichment ?? null);
-        setEnrichmentError(r.data.enrichment_error ?? false);
-        setLeads(r.data.leads);
-        setOrders(r.data.orders);
-        setActivities(r.data.activities);
-        // `?? []` e não `?? null`: aqui a leitura DEU CERTO. Cair em `null`
-        // faria a lista vazia se disfarçar do terceiro estado e o painel
-        // mostraria esqueleto para sempre num contato sem demanda aberta —
-        // que é o caso saudável.
-        setDemandas(r.data.demandas ?? []);
-        setFatos(r.data.fatos ?? []); setHistorico(r.data.historico ?? []);
-      } catch {
-        if (cancelled) return;
-        // Falha NÃO vira lista vazia. Os dados ficam `null` e o painel diz que
-        // não conseguiu ler — nunca que não há.
-        setErro(true);
-        setLeads(null);
-        setOrders(null);
-        setActivities(null);
-        setDemandas(null);
-        setFatos([]); setHistorico([]);
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-    // AS DUAS DEPS NOVAS SÃO O REFETCH DA TROCA DE COMANDO.
-    //
-    // Este painel não usa react-query: ele busca num `useEffect` e guarda em
-    // `useState`, então `invalidateQueries` não o alcança — e os hooks de
-    // claim/transfer/release/pausar invalidam só as chaves de conversa. Resultado
-    // medido: as quatro atividades novas ("Assumiu a conversa" e irmãs) nasciam no
-    // banco e a seção "Atividade" ao lado NUNCA as mostrava, porque `contactId` não
-    // muda quando o dono muda e o painel fica montado o tempo todo.
-    //
-    // Depender do DADO que muda é mais honesto que um contador de invalidação:
-    // `assigned_to_user_id` cobre assumir/transferir/liberar e `bot_silenced_until`
-    // cobre pausar e devolver — que são exatamente os quatro gestos que geram linha.
-  }, [contactId, contact?.is_anonymized, tentativa, conversation?.assigned_to_user_id, conversation?.bot_silenced_until, conversation?.service_revision, conversation?.current_demanda_id]);
-
-  // Recarrega o resumo pelo MESMO caminho do "Tentar de novo": o efeito depende
-  // de `tentativa`, então a demanda recém-marcada volta do servidor em vez de
-  // ser apagada da lista no cliente. Sumir no otimismo esconderia uma escrita
-  // que falhou depois — e escrita que parece ter dado certo é o defeito que
-  // esta tela inteira combate.
-  const recarregar = useCallback(() => setTentativa((n) => n + 1), []);
-
   const tags = contact?.tags ?? [];
   const displayName = rotuloDoContato(contact, t);
-
-  // `erro` PRIMEIRO, e não é detalhe: as três listas voltam a `null` quando a
-  // leitura falha, e este derivado lê `null` como "ainda não chegou". Sem esta
-  // guarda o painel mostraria esqueleto para sempre e o estado de falha nunca
-  // apareceria — o mesmo colapso de significados que criou o defeito original,
-  // só que trocando "erro→vazio" por "erro→carregando".
-  const sectionsLoading = useMemo(
-    () =>
-      !erro &&
-      (summaryContactId !== contactId || (leads === null && orders === null && activities === null && demandas === null)),
-    [erro, summaryContactId, contactId, leads, orders, activities, demandas],
-  );
 
   if (!conversation) {
     return (
@@ -724,9 +668,9 @@ export function CRMSidePanel({ conversation }: Props) {
       </section>
 
       <LeadEnrichment
-        data={summaryContactId === contactId && !erro && !contact?.is_anonymized ? enrichment : null}
+        data={!erro && !contact?.is_anonymized ? enrichment : null}
         loading={sectionsLoading}
-        error={erro || (summaryContactId === contactId && enrichmentError)}
+        error={erro || enrichmentError}
         onRetry={recarregar}
       />
 
@@ -813,7 +757,7 @@ export function CRMSidePanel({ conversation }: Props) {
           <SemLista
             vazio="Nenhuma demanda aberta."
             erro={erro}
-            onTentarDeNovo={() => setTentativa((n) => n + 1)}
+            onTentarDeNovo={recarregar}
           />
         )}
       </section>
@@ -847,7 +791,7 @@ export function CRMSidePanel({ conversation }: Props) {
             onSalvo={recarregar}
           /></fieldset>
         ) : (
-          <SemLista vazio="Sem leads." erro={erro} onTentarDeNovo={() => setTentativa((n) => n + 1)} />
+          <SemLista vazio="Sem leads." erro={erro} onTentarDeNovo={recarregar} />
         )}
       </section>
 
@@ -879,7 +823,7 @@ export function CRMSidePanel({ conversation }: Props) {
             ))}
           </ul>
         ) : (
-          <SemLista vazio="Sem pedidos." erro={erro} onTentarDeNovo={() => setTentativa((n) => n + 1)} />
+          <SemLista vazio="Sem pedidos." erro={erro} onTentarDeNovo={recarregar} />
         )}
       </section>
 
@@ -920,7 +864,7 @@ export function CRMSidePanel({ conversation }: Props) {
             ))}
           </ul>
         ) : (
-          <SemLista vazio="Sem atividade." erro={erro} onTentarDeNovo={() => setTentativa((n) => n + 1)} />
+          <SemLista vazio="Sem atividade." erro={erro} onTentarDeNovo={recarregar} />
         )}
       </section>
 

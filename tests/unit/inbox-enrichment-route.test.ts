@@ -10,6 +10,8 @@ const state = vi.hoisted(() => ({
   candidate: null as unknown,
   filters: [] as unknown[][],
   admin: vi.fn(),
+  candidateGate: null as Promise<unknown> | null,
+  readTables: [] as string[],
 }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
@@ -20,10 +22,12 @@ vi.mock("@/lib/supabase/server", () => ({
       const q: Record<string, unknown> = {};
       for (const name of ["select", "eq", "order", "limit", "is", "not"]) q[name] = () => q;
       q.maybeSingle = async () => ({ data: state.contact, error: null });
-      q.then = (resolve: (v: unknown) => unknown) =>
-        Promise.resolve({ data: table === "contacts" ? state.contact : [], error: null }).then(
+      q.then = (resolve: (v: unknown) => unknown) => {
+        state.readTables.push(table);
+        return Promise.resolve({ data: table === "contacts" ? state.contact : [], error: null }).then(
           resolve,
         );
+      };
       return q;
     },
   }),
@@ -37,7 +41,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       state.filters.push(args);
       return q;
     };
-    q.maybeSingle = async () => ({ data: state.candidate, error: state.error });
+    q.maybeSingle = () => state.candidateGate ?? Promise.resolve({ data: state.candidate, error: state.error });
     return { from: () => q };
   },
 }));
@@ -68,8 +72,22 @@ beforeEach(() => {
   state.error = null;
   state.filters = [];
   state.admin.mockClear();
+  state.candidateGate = null;
+  state.readTables = [];
 });
 describe("enriquecimento autorizado no resumo CRM", () => {
+  it("inicia o resumo enquanto o enriquecimento ainda aguarda resposta", async () => {
+    let liberar!: (value: unknown) => void;
+    state.candidateGate = new Promise((resolve) => { liberar = resolve; });
+    const pending = run();
+    try {
+      await vi.waitFor(() => expect(state.readTables).toContain("crm_leads"));
+      expect(state.readTables).toContain("demandas");
+    } finally {
+      liberar({ data: state.candidate, error: null });
+      expect((await pending).status).toBe(200);
+    }
+  });
   it("filtra contato e organização autorizados e projeta apenas os campos públicos", async () => {
     const r = await run();
     const body = await r.json();

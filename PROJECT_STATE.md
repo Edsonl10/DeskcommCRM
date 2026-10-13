@@ -1,6 +1,7 @@
 # PROJECT_STATE
 
 ## Estado atual
+- Correção da espera no Inbox preparada no PR #3, branch `fix/inbox-carregamento` (13/10/2026), ainda sem deploy: cache de sessão para a ficha, consultas paralelas do resumo, cancelamento de leituras de conversas anteriores e fim das retentativas duplicadas entre cliente HTTP e React Query. Não muda schema nem os departamentos.
 - Interface atualizada em produção em 13/10/2026 pelo PR #4, código `c7c8f6c887c4d3a40e494d733741324cfc8c516b`. App saudável, fixado em `ghcr.io/edsonl10/deskcommcrm@sha256:3b9d24c22d48146cbcb292f3c1aff836e6fd03aceb637548d36aa4aeb177e477`. Worker e scheduler permanecem na versão anterior por esta mudança tocar somente a interface.
 - Release oficial `v1.78.0` integrada às melhorias do fork e instalada em 09/10/2026. Naquela atualização, app, worker e scheduler passaram a executar `ce7829f90d6eb7c9626e17c4093dc99574250617`, com imagens do fork fixadas por digest.
 - Preservados departamentos, membros Normal/Supervisor, transferência por departamento, participação na distribuição e visibilidade do supervisor.
@@ -25,6 +26,9 @@
 - Configurações locais de domínio/Caddy, credenciais e sessão do WhatsApp são preservadas no deploy.
 
 ## Validações e pendências
+- Correção do Inbox: 45 casos em seis arquivos relacionados passaram. Retirar os cinco arquivos corrigidos em cópia isolada fez os testes reprovarem nos dez casos previstos (10 falhas, 23 passes). Typecheck completo passou com heap de 8 GB; lint sem erros (avisos preexistentes), build e guardas de canal/papel/release passaram. Suíte completa local em Windows: 2079 arquivos passaram, 28 falharam (77 casos); não é um verde integral.
+- CI do PR #3 em `f0792fe`: E2E (inclusive a prova de reabertura da ficha), perf, imagens e invariants passaram. Verify teve uma falha em `conversao-pelo-canal.test.ts`: fixture de 06/10 vencida pela janela da Meta em 13/10. A mesma falha foi reproduzida com o código anterior do Inbox. A main corrigiu o relógio desse caso pelo PR #4; essa correção foi preservada ao incorporar `16fcd71`, sem duplicar o ajuste de data. Nova rodada do CI pendente.
+- Após incorporar a main, 72 casos em oito arquivos relacionados passaram; typecheck completo passou e lint dos arquivos alterados teve zero erros e dois avisos preexistentes. Métricas de infraestrutura ficam na consulta privada, fora da documentação pública de desenvolvimento.
 - Erro de mensagens corrigido em produção pela migration oficial 0168: `messages.reply_to_message_id` agora existe. Leitura de mensagens confirmada visualmente.
 - Backup verificado do banco e das sessões WhatsApp em `/opt/DeskcommCRM/backups`, prefixo `20261009-180722`; cópias protegidas de código, Caddy e configuração em `/opt/backups/crm-update-20261009`.
 - Typecheck e lint dos arquivos adaptados passaram. Testes de roteamento/transferência/idiomas passaram; baseline install e update passaram em Postgres isolado; guarda de migrations passou 109 casos em Linux.
@@ -35,4 +39,5 @@
 - Não usar a imagem oficial pura: ela não contém as melhorias de departamentos deste fork.
 
 ## Próximo passo
+- Concluir o verify do PR #3 após incorporar a main antes de integrar/publicar as imagens do fork. Não usar a atualização oficial pura para este fix.
 - Para futuras atualizações, mesclar a release oficial neste fork, preservar o baseline e as migrations exclusivas, validar, publicar imagens do fork e atualizar os pins por digest. O `update.sh` oficial sem adaptação usa imagens oficiais e não deve substituir as imagens personalizadas.

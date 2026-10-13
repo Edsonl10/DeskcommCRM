@@ -96,7 +96,7 @@ export async function GET(
   if (!contactScope) return fail("not_found", "Contato não encontrado.", 404, { requestId });
   // Candidates are worker-only. Authorize the contact through RLS first, then
   // scope this read to that exact contact and organization. Never expose raw data.
-  const enrichment = await (async () => {
+  const enrichmentPromise = (async () => {
     if (contactScope.is_anonymized) return { enrichment: null, enrichment_error: false };
     try {
       const result = await createAdminClient().from("prospecting_candidates")
@@ -113,7 +113,10 @@ export async function GET(
       return { enrichment: null, enrichment_error: true };
     }
   })();
-  const [leads, orders, activities, demandas, fatos, historico] = await Promise.all([
+  // Todas dependem apenas do contato já autorizado. O enriquecimento não
+  // precisa terminar para iniciar a leitura das demandas e do negócio.
+  const [enrichment, leads, orders, activities, demandas, fatos, historico] = await Promise.all([
+    enrichmentPromise,
     supabase
       .from("crm_leads")
       .select(LEAD_COLS)
