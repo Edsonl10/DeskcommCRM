@@ -461,6 +461,7 @@ Regra no banco: `tests/invariants/comando-cala-o-automatico.test.ts` (6 casos).
 
 | J11.10 | A conversa que o automático ESCALOU aparece na Fila | `status='pending'` sem dono entra na aba e é contada pelo badge | FAIL → PASS |
 | J11.11 | O número da fila é o MESMO para o cliente e para a equipe | `getQueuePosition` (o "você é o 5º" que o cliente ouve) e `getQueuePositions` (o "3º" da tela) contam os mesmos estados | FAIL → PASS |
+| J11.12 | Voltar ao contato já lido durante uma espera de rede | a ficha reaparece do cache sem esqueletos; troca de contato cancela leituras antigas; mudanças de comando recarregam o resumo | Unit/jsdom PASS em `inbox-demandas-abertas.test.tsx`, `inbox-enrichment-route.test.ts` e `inbox-cancela-leituras-obsoletas.test.tsx`; prova de tela acrescentada a `qa-l12-inbox.spec.ts`, ainda não executada localmente (sem Docker/Supabase de teste) |
 
 **O achado que esta jornada abriu, e como ele cresceu.** A primeira rodada
 registrou aqui "a conversa escalada não aparece em aba nenhuma" como pendência de

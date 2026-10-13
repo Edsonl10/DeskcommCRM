@@ -293,3 +293,72 @@ it("mostra enriquecimento do contato e esconde ao trocar para outra conversa", a
   view.mudarConversa({ ...conversation!, id: "cv-2", contacts: { ...conversation!.contacts!, id: "contact-2" } });
   expect(screen.queryByText("Empresa enriquecida")).toBeNull();
 });
+
+describe("carregamento da ficha lateral", () => {
+  it("Tentar de novo recupera a ficha após uma falha de leitura", async () => {
+    get.mockRejectedValue(new Error("500"));
+    renderPainel();
+    await screen.findAllByText("Não consegui ler estes dados.");
+    get.mockResolvedValue({ data: RESPOSTA });
+    await userEvent.click(screen.getAllByRole("button", { name: "Tentar de novo" })[0]!);
+    await screen.findByText("Negócio existente · Aberto");
+  });
+
+  it("assumir e liberar volta ao comando anterior com uma ficha atualizada", async () => {
+    get.mockResolvedValue({ data: RESPOSTA });
+    const view = renderPainel();
+    await screen.findByText("Negócio existente · Aberto");
+    get.mockResolvedValue({ data: { ...RESPOSTA, leads: [{ ...RESPOSTA.leads[0], title: "Negócio assumido" }] } });
+    view.mudarConversa({ ...conversation!, assigned_to_user_id: "user-1" });
+    await screen.findByText("Negócio assumido · Aberto");
+    get.mockResolvedValue({ data: { ...RESPOSTA, leads: [{ ...RESPOSTA.leads[0], title: "Negócio liberado" }] } });
+    view.mudarConversa(conversation);
+    await screen.findByText("Negócio liberado · Aberto");
+    expect(get.mock.calls.filter(([path]) => path.endsWith("/crm-summary"))).toHaveLength(3);
+  });
+
+  it("reabre uma ficha já carregada sem repetir a leitura nem mostrar esqueletos", async () => {
+    get.mockResolvedValue({ data: RESPOSTA });
+    const view = renderPainel();
+    await screen.findByText("Negócio existente · Aberto");
+    const outra = { ...conversation!, id: "cv-2", contacts: { ...conversation!.contacts!, id: "contact-2" } };
+    get.mockResolvedValue({ data: { ...RESPOSTA, leads: [{ ...RESPOSTA.leads[0], title: "Outro negócio" }] } });
+    view.mudarConversa(outra);
+    await screen.findByText("Outro negócio · Aberto");
+    get.mockImplementation(() => new Promise(() => {}));
+    view.mudarConversa(conversation);
+    expect(screen.getByText("Negócio existente · Aberto")).toBeTruthy();
+    expect(get.mock.calls.filter(([path]) => path === `/api/v1/contacts/${CONTACT}/crm-summary`)).toHaveLength(1);
+  });
+
+  it("cancela a leitura pendente quando o atendente troca de contato", async () => {
+    get.mockImplementation(() => new Promise(() => {}));
+    const view = renderPainel();
+    await waitFor(() => expect(get).toHaveBeenCalled());
+    const chamada = get.mock.calls.find(([path]) => path === `/api/v1/contacts/${CONTACT}/crm-summary`)!;
+    const signal = chamada[1]?.signal as AbortSignal | undefined;
+    expect(signal).toBeDefined();
+    view.mudarConversa({ ...conversation!, id: "cv-2", contacts: { ...conversation!.contacts!, id: "contact-2" } });
+    expect(signal!.aborted).toBe(true);
+  });
+
+  it("busca outra ficha ao mudar a organização, mesmo com o mesmo contato", async () => {
+    get.mockResolvedValue({ data: RESPOSTA });
+    const view = renderPainel();
+    await screen.findByText("Negócio existente · Aberto");
+    get.mockImplementation(() => new Promise(() => {}));
+    view.mudarConversa({ ...conversation!, organization_id: "org-2" });
+    expect(screen.queryByText("Negócio existente · Aberto")).toBeNull();
+    await waitFor(() => expect(get.mock.calls.filter(([path]) => path.endsWith("/crm-summary"))).toHaveLength(2));
+  });
+
+  it("a revisão do atendimento recarrega a ficha já presente no cache", async () => {
+    get.mockResolvedValue({ data: RESPOSTA });
+    const view = renderPainel();
+    await screen.findByText("Negócio existente · Aberto");
+    get.mockResolvedValue({ data: { ...RESPOSTA, leads: [{ ...RESPOSTA.leads[0], title: "Negócio atualizado" }] } });
+    view.mudarConversa({ ...conversation!, service_revision: 2 });
+    await screen.findByText("Negócio atualizado · Aberto");
+    expect(get.mock.calls.filter(([path]) => path.endsWith("/crm-summary"))).toHaveLength(2);
+  });
+});

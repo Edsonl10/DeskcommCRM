@@ -34,6 +34,7 @@ const SUFIXO = `${Date.now()}`.slice(-7);
 let c: Creds;
 let contatoId = "";
 let conversaId = "";
+let outroContatoId = "";
 let funilLongoId = "";
 let funilArquivadoId = "";
 
@@ -98,6 +99,20 @@ test.describe("Lote 12 — painel do contato no Inbox", () => {
       sent_via: "ai",
       body: "Oi, quero saber dos horários",
       sent_at: new Date().toISOString(),
+    });
+
+    outroContatoId = await insere("contacts", {
+      organization_id: c.org_id,
+      name: `Cliente Vizinho L12 ${SUFIXO}`,
+      phone_number: `+55118${SUFIXO}`,
+      tags: [],
+    });
+    await insere("conversations", {
+      organization_id: c.org_id,
+      contact_id: outroContatoId,
+      channel_session_id: canal,
+      status: "open",
+      last_message_at: new Date().toISOString(),
     });
 
     // ── Dois funis: um com NOME LONGO (a régua do line-clamp-2) e um ARQUIVADO
@@ -180,6 +195,38 @@ test.describe("Lote 12 — painel do contato no Inbox", () => {
       await admin.from("crm_pipelines").delete().eq("id", p);
     }
     await admin.from("contacts").delete().like("name", `%${SUFIXO}%`);
+  });
+
+  test("voltar ao contato mostra a ficha já lida mesmo com a próxima leitura bloqueada", async ({ page }) => {
+    await login(page, c.users.manager!.email, c.password);
+    await page.goto("/app/inbox");
+    await page.getByRole("tab", { name: /^Todas/ }).click();
+    await page.getByRole("textbox", { name: "Buscar conversas" }).fill(SUFIXO);
+    const principal = page.getByRole("button", { name: new RegExp(`Cliente L12 ${SUFIXO}`) });
+    const vizinho = page.getByRole("button", { name: new RegExp(`Cliente Vizinho L12 ${SUFIXO}`) });
+    const ficha = page.locator("aside").filter({ has: page.getByRole("heading", { name: "Contato", exact: true }) });
+    await principal.click();
+    await expect(ficha.getByText(`Proposta ${SUFIXO}`).first()).toBeVisible({ timeout: 60_000 });
+    await vizinho.click();
+    await expect(ficha.getByText(`Cliente Vizinho L12 ${SUFIXO}`, { exact: true })).toBeVisible();
+    await expect(ficha.getByText("Sem leads.", { exact: true })).toBeVisible({ timeout: 60_000 });
+    // Nenhuma resposta pode alimentar a ficha na volta: o conteúdo tem de vir
+    // da leitura anterior. Se o cache estiver vencido, a revalidação não o apaga.
+    let liberar!: () => void;
+    const bloqueio = new Promise<void>((resolve) => { liberar = resolve; });
+    await page.route(`**/api/v1/contacts/${contatoId}/crm-summary`, async (route) => {
+      await bloqueio;
+      await route.continue().catch(() => {});
+    });
+    try {
+      await principal.click();
+      await expect(ficha.getByText(`Proposta ${SUFIXO}`).first()).toBeVisible();
+      await expect(ficha.locator('[data-esqueleto="true"]')).toHaveCount(0);
+      await captura(page, "inbox-ficha-reaberta-do-cache");
+    } finally {
+      liberar();
+      await page.unrouteAll({ behavior: "wait" });
+    }
   });
 
   test("#909 + #944 — o botão e o diálogo têm o mesmo nome; os leads dizem Funil · Etapa e Ganho/Perdido", async ({

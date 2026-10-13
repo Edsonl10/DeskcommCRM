@@ -21,7 +21,7 @@ export function useMessagesRealtime(conversationId: string | null) {
     queryKey,
     enabled: !!conversationId,
     initialPageParam: undefined as string | undefined,
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam, signal }) => {
       if (!conversationId) {
         return { data: [], meta: { has_more: false, cursor: null } } as MessagesResponse;
       }
@@ -31,9 +31,10 @@ export function useMessagesRealtime(conversationId: string | null) {
       try {
         return await apiClient.get<MessagesResponse>(
           `/api/v1/conversations/${conversationId}/messages?${qs.toString()}`,
+          { signal },
         );
       } catch (err) {
-        showApiError(err);
+        if (!signal.aborted) showApiError(err);
         throw err;
       }
     },

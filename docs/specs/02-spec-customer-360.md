@@ -1622,6 +1622,27 @@ Cada migration é idempotente (`if not exists` onde possível) e tem rollback do
 
 ---
 
+## Carregamento da ficha no Inbox
+
+`CRMSidePanel` lê `/api/v1/contacts/[id]/crm-summary` pelo cliente HTTP autenticado.
+O cache é do `QueryClient` da sessão: organização, contato, conversa, anonimização
+e estado do atendimento compõem a chave. Uma ficha é recente por 30 segundos;
+ao revalidar uma ficha já lida, o conteúdo permanece visível até a resposta.
+Outro contato nunca recebe os dados da ficha anterior. Trocas de comando,
+revisão ou demanda e o botão de nova tentativa atualizam a leitura. A volta
+à aba também revalida dados vencidos. O `AuthProvider` recria o `QueryClient`
+ao mudar usuário, organização ou suporte.
+
+No servidor, a leitura do contato por RLS precede as consultas do resumo.
+Enriquecimento, leads, pedidos, atividades, demandas e notas começam em paralelo
+após essa autorização. O enriquecimento continua filtrado por organização e
+contato, sem tornar os dados brutos do prospect acessíveis ao navegador.
+
+Trocar de conversa cancela as leituras anteriores da ficha, mensagens, notas e
+passagens pelo `AbortSignal` do React Query. Cancelamento não é aviso de falha;
+falhas da leitura ainda ativa continuam sendo mostradas. Nenhum cache compartilhado
+de servidor ou alteração de permissões participa deste caminho.
+
 ## Anexos
 
 - `docs/research/reference-synthesis.md` — bundle herdado, especialmente §3 Data model.
