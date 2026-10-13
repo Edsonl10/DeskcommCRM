@@ -1,20 +1,22 @@
 # PROJECT_STATE
 
 ## Estado atual
-- Release oficial `v1.78.0` integrada às melhorias do fork e instalada em produção em 09/10/2026. App, worker e scheduler executam o código `ce7829f90d6eb7c9626e17c4093dc99574250617`, com imagens do fork fixadas por digest.
+- Interface atualizada em produção em 13/10/2026 pelo PR #4, código `c7c8f6c887c4d3a40e494d733741324cfc8c516b`. App saudável, fixado em `ghcr.io/edsonl10/deskcommcrm@sha256:3b9d24c22d48146cbcb292f3c1aff836e6fd03aceb637548d36aa4aeb177e477`. Worker e scheduler permanecem na versão anterior por esta mudança tocar somente a interface.
+- Release oficial `v1.78.0` integrada às melhorias do fork e instalada em 09/10/2026. Naquela atualização, app, worker e scheduler passaram a executar `ce7829f90d6eb7c9626e17c4093dc99574250617`, com imagens do fork fixadas por digest.
 - Preservados departamentos, membros Normal/Supervisor, transferência por departamento, participação na distribuição e visibilidade do supervisor.
 - Incorporadas as proteções locais de suporte e de autenticação da atribuição por departamento.
 - Mantidos os modos oficiais `round_robin`/`load` e o modo personalizado `least_loaded`.
 
-## Alteração em revisão — ações do atendimento (13/10/2026)
+## Ações do atendimento instaladas (13/10/2026)
 - Pedido aprovado: remover Arquivar, Marcar como pessoal e Liberar da interface do atendimento. Removida também a nova marcação pessoal na ficha de contato.
 - Mantida a recuperação de contatos pessoais anteriores e o acesso ao histórico arquivado. APIs e dados históricos permanecem compatíveis.
-- Alteração na branch `fix/simplificar-acoes-inbox`; ainda não instalada em produção.
+- PR #4 integrado e instalado. Conferência pelo site: Arquivar, Liberar e Marcar como pessoal ausentes da conversa; Fechar e Transferir visíveis. Na ficha, Editar visível e Marcar como pessoal ausente.
 - Validação local: 34 testes relacionados passaram; typecheck passou com Node limitado a 8 GB; lint dos arquivos funcionais alterados passou. Controle de regressão: restaurar o cabeçalho anterior fez falhar os quatro casos previstos.
-- Suíte completa tentada em Windows e interrompida após apresentar falhas em outros testes, incluindo scripts Linux; não considerada verde. E2E e build de produção ainda não provados neste ambiente.
-- Usuário autorizou envio, integração e instalação. PR aberto para revisão: https://github.com/Edsonl10/DeskcommCRM/pull/4. Build e verificações das imagens passaram; suíte completa identificou um teste de conversão com data fixa expirada (janela de sete dias). Relógio desse caso estabilizado e os 20 testes do arquivo passaram, sem mudar runtime.
+- Suíte completa local em Windows interrompida após falhas em outros testes, incluindo scripts Linux. No GitHub, `verify` completo, build e publicação AMD64 do commit instalado passaram. E2E e invariantes de banco ainda rodavam na última medição deste deploy; conferir os runs de `c7c8f6c` antes de afirmar resultado integral.
+- Teste preexistente de conversão com data fixa expirada estabilizado (janela de sete dias); 20 testes passaram, sem mudar runtime. Duas verificações E2E passaram a conferir o responsável e a ausência de Liberar.
 - Acesso ao terminal web da VPS confirmado pelo painel Hostinger. Backup do banco (5,3 MB, gzip conferido), sessões WhatsApp (1016 KB) e configurações em `/opt/backups/crm-ui-20261013-212957`.
-- Caddyfile tem ajustes locais e deve ser preservado. Para esta alteração só de interface, atualizar apenas APP_IMAGE por digest da imagem do fork; não substituir worker, scheduler, WhatsApp ou banco. Integração e deploy aguardam as validações restantes.
+- Somente APP_IMAGE mudou no .env (comparação conferida); Caddyfile preservado por SHA-256. Worker e scheduler seguem saudáveis e WhatsApp não foi reiniciado. Recibo e script de instalação/rollback no mesmo diretório do backup.
+- Checkout da VPS continua em `a47fec4` com Caddyfile local modificado; runtime do app vem da imagem `c7c8f6c` acima. Não sobrescrever esse Caddyfile nem usar update oficial que substitua os pins do fork.
 
 ## Decisões aprovadas
 - Atualizar pelo repositório oficial preservando as melhorias da instalação.
