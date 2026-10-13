@@ -65,7 +65,8 @@ export async function aplicarConvite(params: {
 
   // Org, papel e convidador vêm EXCLUSIVAMENTE do token assinado; o usuário,
   // de quem chamou. Nada aqui vem de body de requisição.
-  const { data: resultado, error } = await admin.rpc("fn_accept_team_invite", {
+  const { data: resultado, error } = await admin.rpc("fn_accept_inbox_invite", {
+    p_inbox_permissions: payload.inbox_permissions ?? { all: false, ai: false, closed: false },
     p_interface_settings: payload.interface_settings ?? { preset: "completa" },
     p_user: userId,
     p_org: payload.organization_id,

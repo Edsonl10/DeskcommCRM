@@ -281,7 +281,7 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
       return outcome;
     }
     case "requeue": {
-      if (action.attempts >= config.max_retries) await notice(orgId, conversationId, "no_eligible");
+      await notice(orgId, conversationId, "no_eligible");
       await requeueEvent(event, now, action.attempts, { reason: "no_eligible" }, action.nextAttemptAt);
       return "requeued_no_eligible";
     }

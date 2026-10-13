@@ -46,7 +46,7 @@ export const dynamic = "force-dynamic";
 
 /** O mesmo literal do handoff: `bot_silenced_until > now()` é sempre verdadeiro. */
 const SILENCIO_DURAVEL = "infinity";
-const MOTIVO = "Automático pausado pelo atendente";
+const MOTIVO = "IA pausada pelo atendente";
 
 interface RouteCtx {
   params: Promise<{ id: string }>;

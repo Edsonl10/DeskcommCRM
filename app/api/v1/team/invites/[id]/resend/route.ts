@@ -47,7 +47,7 @@ export async function POST(
   const { data: row, error: readErr } = await admin
     .from("team_invites")
     .select(
-      "id, organization_id, email, role, interface_settings, invited_by, inviter_name, email_dispatched, created_at, last_sent_at, resend_count, expires_at, accepted_at, revoked_at",
+      "id, organization_id, email, role, inbox_permissions, interface_settings, invited_by, inviter_name, email_dispatched, created_at, last_sent_at, resend_count, expires_at, accepted_at, revoked_at",
     )
     .eq("organization_id", activeOrg.orgId)
     .eq("id", id)

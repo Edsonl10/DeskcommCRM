@@ -1,3 +1,4 @@
+vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ cancelQueries: async () => {}, clear: () => {} }) }));
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ refresh: vi.fn(), realtime: vi.fn(), toast: vi.fn(), aviso: vi.fn(), recarregar: vi.fn() }));

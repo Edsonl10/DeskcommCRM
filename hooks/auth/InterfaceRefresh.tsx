@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { lerPermissoesInbox } from "@/lib/inbox/visoes";
 import { toast } from "sonner";
 import { useRealtimeChannel } from "@/hooks/realtime/useRealtimeChannel";
 import { lerInterface } from "@/lib/navigation/interface";
@@ -20,6 +22,7 @@ export function InterfaceRefresh({
 }) {
   const t = useT();
   const router = useRouter();
+  const qc = useQueryClient();
   const expected = JSON.stringify(lerInterface(org?.interface_settings).settings);
   const epoch = useRef(0);
   const inFlight = useRef(false);
@@ -63,7 +66,12 @@ export function InterfaceRefresh({
                 daSessao: result.data?.organization_name ?? result.data?.organization_id ?? null,
                 traduzir: t,
               });
-            } else if (result.data.signature !== expected) {
+            } else if (result.data.signature !== expected ||
+              (result.data.inbox_permissions !== undefined &&
+                (JSON.stringify(lerPermissoesInbox(result.data.inbox_permissions)) !== JSON.stringify(lerPermissoesInbox(org.inbox_permissions)) || result.data.inbox_role !== org.role))) {
+              // Cancelar primeiro impede que uma resposta antiga repovoe dados revogados.
+              await qc.cancelQueries();
+              qc.clear();
               router.refresh();
               toast.info(t("Sua navegação foi atualizada. Você pode continuar nesta tela."), {
                 id: "interface-updated",
@@ -82,7 +90,7 @@ export function InterfaceRefresh({
         pending.current = false;
       }
     }
-  }, [org, support, expected, router, t]);
+  }, [org, support, expected, router, qc, t]);
   useRealtimeChannel({
     name: `interface:${userId}:${org?.orgId}`,
     enabled: !!org && !support,

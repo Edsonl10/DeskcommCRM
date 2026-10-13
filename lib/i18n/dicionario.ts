@@ -37,6 +37,16 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "As permissões de conversas ficam no cadastro da Equipe, em Personalizar áreas visíveis.": { es: "Los permisos de conversaciones se configuran en Equipo, en Personalizar áreas visibles." },
+  "Visibilidade dos negócios no CRM": { es: "Visibilidad de los negocios en el CRM" },
+  "atendimento(s) aguardando direcionamento. Confira a disponibilidade da equipe ou transfira para um atendente.": { es: "atenciones pendientes de asignación. Revise la disponibilidad del equipo o transfiera a un agente." },
+  "Todos inclui as conversas da IA. Alterar o perfil visual não altera estas permissões.": { es: "Todos incluye las conversaciones de IA. Cambiar el perfil visual no altera estos permisos." },
+  "Estas opções autorizam consultar conversas da equipe. Ativos e Aguardando continuam pessoais. Gestores e administradores têm visão global.": { es: "Estas opciones autorizan consultar conversaciones del equipo. Activos y En espera siguen siendo personales. Gerentes y administradores tienen visión global." },
+  "Ver Fechadas de toda a equipe.": { es: "Ver Cerradas de todo el equipo." },
+  "Ver IA de toda a equipe.": { es: "Ver IA de todo el equipo." },
+  "Ver Todos — atendimentos em andamento de toda a equipe.": { es: "Ver Todos — atenciones en curso de todo el equipo." },
+  "Permissões do Inbox": { es: "Permisos del Inbox" },
+  "Ativos": { es: "Activos" },
   "Departamentos": { es: "Departamentos" },
   "Departamento": { es: "Departamento" },
   "Sem departamento (atribuição direta)": { es: "Sin departamento (asignación directa)" },
@@ -1058,8 +1068,8 @@ export const DICIONARIO: Traducoes = {
   },
   "Retomar automático": { es: "Reanudar automático" },
   "Pausar automático": { es: "Pausar automático" },
-  "Automático pausado. A versão publicada foi preservada e a assistência continua disponível.": {
-    es: "Automático pausado. La versión publicada se conservó y la asistencia sigue disponible.",
+  "IA pausada. A versão publicada foi preservada e a assistência continua disponível.": {
+    es: "IA pausada. La versión publicada se conservó y la asistencia sigue disponible.",
   },
   "O modo assistido prepara sugestões na conversa. Só a aprovação humana autoriza o envio.": {
     es: "El modo asistido prepara sugerencias en la conversación. Solo la aprobación humana autoriza el envío.",
@@ -1452,30 +1462,30 @@ export const DICIONARIO: Traducoes = {
   Transferir: { es: "Transferir" },
   Lembrar: { es: "Recordar" },
   Fechar: { es: "Cerrar" },
-  "Devolver ao automático": { es: "Devolver al automático" },
+
   Aberta: { es: "Abierta" },
   Fechada: { es: "Cerrada" },
   "Em atendimento": { es: "En atención" },
   "Aguardando atendente": { es: "Esperando asesor" },
-  "Automático atendendo": { es: "Automático atendiendo" },
+  "IA atendendo": { es: "Automático atendiendo" },
   "Sem atendente": { es: "Sin asesor" },
   Encerrada: { es: "Cerrada" },
-  "Automático pausado": { es: "Automático pausado" },
+
   // Os motivos do silêncio (lib/inbox/comando-da-conversa.ts). "Automático
   // pausado" sozinho respondia a três situações que pedem ações diferentes:
   // alguém assumiu, o cliente inteiro está travado, ou foi pausa explícita.
-  "Automático pausado — alguém assumiu": {
-    es: "Automático pausado — alguien la asumió",
+  "IA pausada — alguém assumiu": {
+    es: "IA pausada — alguien la asumió",
   },
-  "Automático pausado — atendimento pelo celular (#on religa)": {
-    es: "Automático pausado — atención desde el celular (#on lo reactiva)",
+  "IA pausada — atendimento pelo celular (#on religa)": {
+    es: "IA pausada — atención desde el celular (#on lo reactiva)",
   },
-  "Automático pausado para este cliente": {
-    es: "Automático pausado para este cliente",
+  "IA pausada para este cliente": {
+    es: "IA pausada para este cliente",
   },
   "Automático volta em instantes": { es: "El automático vuelve en unos instantes" },
   "Cliente pediu para não receber mensagens": { es: "El cliente pidió no recibir mensajes" },
-  "Pausar o automático": { es: "Pausar el automático" },
+  "Pausar a IA": { es: "Pausar el automático" },
   "Ver contato": { es: "Ver contacto" },
 
   // ─── Inbox: composer ───
@@ -3441,7 +3451,7 @@ export const DICIONARIO: Traducoes = {
   "Aprovar e ignorar viram registro — os dois. Quando você decidir a primeira, ela fica aqui.": {
     es: "Tanto aprobar como ignorar dejan un registro. Cuando tomes la primera decisión, aparecerá aquí.",
   },
-  "As conversas em andamento vão para a fila de atendimento humano — ninguém fica sem resposta, mas alguém precisa responder. Cada uma volta ao automático pelo botão \"Devolver ao automático\" no cabeçalho dela.": {
+  "As conversas em andamento vão para a fila de atendimento humano — ninguém fica sem resposta, mas alguém precisa responder. Cada uma volta ao automático pelo botão \"Devolver à IA\" no cabeçalho dela.": {
     es: "Las conversaciones en curso pasan a la fila de atención humana. Nadie se queda sin respuesta, pero alguien tiene que responder. Cada una vuelve al modo automático con el botón \"Devolver al automático\" de su encabezado.",
   },
   "Assuntos mais procurados": { es: "Temas más buscados" },

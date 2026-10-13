@@ -8,7 +8,7 @@
  * (`bot_silenced_until = 'infinity'`, `force_human = true`). Quinze minutos
  * depois a derivação entregou (`media_derived_status = 'ready'`) e nada
  * reavaliou — o motivo gravado seguia afirmando o que o próprio banco desmentia,
- * e a conversa só saía do silêncio pelo botão "Devolver ao automático".
+ * e a conversa só saía do silêncio pelo botão "Devolver à IA".
  *
  * A FATIA (do corpo da issue):
  *   1. o motivo gravado não pode seguir afirindo algo que o banco já desmentiu;

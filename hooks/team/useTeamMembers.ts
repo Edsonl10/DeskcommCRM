@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
 export interface TeamMember {
+  inbox_permissions?: import("@/lib/inbox/visoes").InboxPermissions;
   interface_settings?: InterfaceSettings;
   user_id: string;
   role: string;

@@ -5,6 +5,7 @@
  * `user_organizations.role` per project doctrine — keep this list in sync
  * with the DB constraint when adding/removing roles.
  */
+import { inboxPermissionsSchema } from "@/lib/inbox/visoes";
 import { z } from "zod";
 import { interfaceSettingsSchema, interfaceTemDestino } from "@/lib/navigation/interface";
 
@@ -18,6 +19,7 @@ export const inviteMemberSchema = z.object({
         .object({
           email: z.string().email(),
           role: z.enum(ROLES),
+          inbox_permissions: inboxPermissionsSchema.optional(),
           interface_settings: interfaceSettingsSchema.optional(),
         })
         .refine((v) => !v.interface_settings || interfaceTemDestino(v.interface_settings, v.role), {

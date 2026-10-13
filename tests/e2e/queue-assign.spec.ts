@@ -88,16 +88,8 @@ test.describe("G5-03 — fila com posição + atribuição", () => {
     await login(page, creds.users.agent!.email, creds.password);
     await page.goto("/app/inbox?filter=unassigned");
 
-    // (1) Na Fila: a conversa aparece com posição (Nº) + "Aguardando há X".
-    const queueItem = page.getByRole("button").filter({ hasText: q.contact_name });
-    await expect(queueItem).toBeVisible({ timeout: 15_000 });
-    await expect(queueItem.getByText(/^\d+º$/)).toBeVisible();
-    await expect(queueItem.getByText(/Aguardando/)).toBeVisible();
-    await page.screenshot({
-      path: path.join(EVIDENCE, "G5-03-queue.png"),
-      fullPage: true,
-    });
-
+    // Sem dono, um agente sem Todos não vê a fila geral.
+    await expect(page.getByRole("button").filter({ hasText: q.contact_name })).toHaveCount(0);
     // (2) Worker atribui (fn_conversation_assign reason='routing') ao próprio agent.
     const { error } = await admin.rpc("fn_conversation_assign", {
       p_organization_id: creds.org_id,
@@ -109,17 +101,13 @@ test.describe("G5-03 — fila com posição + atribuição", () => {
     });
     if (error) throw new Error(`fn_conversation_assign: ${error.message}`);
 
-    // (3) Some da Fila.
     await page.reload();
-    await page.goto("/app/inbox?filter=unassigned");
-    await expect(
-      page.getByRole("button").filter({ hasText: q.contact_name }),
-    ).toHaveCount(0, { timeout: 15_000 });
-
-    // (4) Aparece em "Minhas" do dono.
-    await page.getByRole("tab", { name: /Minhas/ }).click();
-    await expect(
-      page.getByRole("button").filter({ hasText: q.contact_name }),
-    ).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("tab", { name: /^Aguardando/ }).click();
+    const item = page.getByRole("button").filter({ hasText: q.contact_name });
+    await expect(item).toBeVisible({ timeout: 15000 });
+    await item.click();
+    await page.getByRole("button", { name: "Assumir", exact: true }).click();
+    await page.getByRole("tab", { name: /^Ativos/ }).click();
+    await expect(page.getByRole("button").filter({ hasText: q.contact_name })).toBeVisible({ timeout: 15000 });
   });
 });

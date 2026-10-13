@@ -1,4 +1,5 @@
 "use client";
+import { lerPermissoesInbox } from "@/lib/inbox/visoes";
 import { useT } from "@/hooks/i18n/useT";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -31,11 +32,12 @@ export function MemberInterfaceDialog({
 }) {
   const t = useT();
   const [settings, setSettings] = useState(lerInterface(member.interface_settings).settings);
+  const [permissions, setPermissions] = useState(lerPermissoesInbox(member.inbox_permissions));
   const qc = useQueryClient();
   const router = useRouter();
   const save = useMutation({
     mutationFn: () =>
-      apiClient.patch(`/api/v1/team/${member.user_id}/interface`, { interface_settings: settings }),
+      apiClient.patch(`/api/v1/team/${member.user_id}/interface`, { interface_settings: settings, inbox_permissions: permissions }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["team"] });
       router.refresh();
@@ -55,6 +57,8 @@ export function MemberInterfaceDialog({
           <p role="status">{t("A seleção anterior contém áreas que não existem mais. Confira e salve novamente.")}</p>
         )}
         <InterfaceEditor
+          inboxPermissions={permissions}
+          onInboxPermissionsChange={setPermissions}
           value={settings}
           onChange={setSettings}
           role={member.role as Role}

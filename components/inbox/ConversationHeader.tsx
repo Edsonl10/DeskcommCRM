@@ -57,7 +57,7 @@ interface Props {
 /**
  * O CHIP NOMEIA CICLO DE VIDA, NÃO COMANDO.
  *
- * Ele afirmava quem manda — "Automático atendendo", "Aguardando atendente" — a
+ * Ele afirmava quem manda — "IA atendendo", "Aguardando atendente" — a
  * 20px de um selo que responde a MESMA pergunta por outra fonte, e as duas se
  * contradiziam na tela: `conversations.status` não acompanha silêncio, trava de
  * contato nem atribuição, e o motor nunca o lê. Medido em 2026-08-30 num print
@@ -109,7 +109,8 @@ export function ConversationHeader({
   const rotuloCanal = rotuloDoCanalDaConversa(conversation.channel_sessions, t);
   const phone = c?.phone_number ? phoneForDisplay(c.phone_number) : null;
   const status = conversation.status;
-  const isOpen = status === "open" || conversation.assigned_to_user_id == null;
+  const podeOperar = activeOrg?.role === "manager" || activeOrg?.role === "admin" || conversation.assigned_to_user_id == null || conversation.assigned_to_user_id === user.id;
+  const isOpen = !["closed", "archived", "resolved"].includes(status) && (conversation.assigned_to_user_id == null || (conversation.assigned_to_user_id === user.id && !conversation.human_accepted_at));
 
   // Mantém a recuperação de contatos pessoais anteriores, sem oferecer novas marcações.
   const ehPessoal = c?.is_personal === true;
@@ -162,7 +163,7 @@ export function ConversationHeader({
    * PAUSAR só aparece quando pausar é um gesto DIFERENTE de assumir.
    *
    * Desde a 0173 "Assumir" já cala o automático (a RPC grava o silêncio). Numa
-   * conversa sem dono, portanto, "Assumir" e "Pausar o automático" teriam
+   * conversa sem dono, portanto, "Assumir" e "Pausar a IA" teriam
    * exatamente o mesmo efeito — dois botões para um ato é a confusão que esta
    * entrega existe para acabar, não para dobrar.
    *
@@ -356,7 +357,7 @@ export function ConversationHeader({
             }
             onClick={() => retomar.mutate({ conversation_id: conversation.id })}
           >
-            {retomar.isPending ? t("Devolvendo...") : t("Devolver ao automático")}
+            {retomar.isPending ? t("Devolvendo...") : t("Devolver à IA")}
           </Button>
         )}
         {podePausar && (
@@ -371,21 +372,21 @@ export function ConversationHeader({
             title={t("O atendimento automático para nesta conversa. O dono não muda.")}
             onClick={() => pausar.mutate({ conversation_id: conversation.id })}
           >
-            {pausar.isPending ? t("Pausando...") : t("Pausar o automático")}
+            {pausar.isPending ? t("Pausando...") : t("Pausar a IA")}
           </Button>
         )}
-        {!encerrada && (
+        {podeOperar && !encerrada && (
           <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
             {t("Transferir")}
           </Button>
         )}
-        {!encerrada && (
+        {podeOperar && !encerrada && (
           <SnoozeButton
             conversationId={conversation.id}
             snoozeUntil={conversation.snooze_until ?? null}
           />
         )}
-        {!encerrada && (
+        {podeOperar && !encerrada && (
           <Button
             size="sm"
             variant="outline"
@@ -395,7 +396,7 @@ export function ConversationHeader({
             {t("Fechar")}
           </Button>
         )}
-        {encerrada && <Button size="sm" variant="outline" disabled={reopen.isPending}
+        {podeOperar && encerrada && <Button size="sm" variant="outline" disabled={reopen.isPending}
           onClick={() => reopen.mutate({ conversation_id: conversation.id, expected_revision: conversation.service_revision })}>
           {t("Reabrir")}
         </Button>}

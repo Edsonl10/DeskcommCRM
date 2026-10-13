@@ -1,6 +1,7 @@
 /**
  * GET /api/v1/conversations — list inbox (handler em ./_handler.ts).
  */
+import { permissaoGlobalInbox } from "@/lib/inbox/visoes";
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 
@@ -40,6 +41,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const url = new URL(req.url);
   const qsParsed = listConversationsQuerySchema.safeParse({
+    view: url.searchParams.get("view") ?? undefined,
     status: url.searchParams.get("status") ?? undefined,
     exclude_finished: url.searchParams.get("exclude_finished") === "true" ? true : undefined,
     assigned_to: url.searchParams.get("assigned_to") ?? undefined,
@@ -87,6 +89,9 @@ export async function GET(req: NextRequest): Promise<Response> {
     });
   }
 
+  if (qsParsed.data.view === "all" && !permissaoGlobalInbox(activeOrg.role, activeOrg.inbox_permissions, "all")) {
+    return fail("forbidden", "Sem permissão para Todos.", 403, { requestId });
+  }
   try {
     const { conversations, cursor, has_more } = await listConversationsHandler(
       supabase,
@@ -95,6 +100,8 @@ export async function GET(req: NextRequest): Promise<Response> {
         actor: { type: "user", id: user.id },
         requestId,
         idioma: authUser?.idioma,
+        inbox_role: activeOrg.role,
+        inbox_permissions: activeOrg.inbox_permissions,
       },
       qsParsed.data,
     );

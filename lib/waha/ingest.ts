@@ -1468,7 +1468,7 @@ async function handleOutboundFromUserPhone(
   // como comando nem como "humano assumiu". O `jaRegistrada` acima NÃO basta: o
   // envio grava a linha ANTES de falar com o canal (`status='queued'`,
   // `external_id` NULL), e nessa janela o dedup não casa — o eco chega e esta
-  // função concluía "humano assumiu". A tela mostrava "Automático pausado", um
+  // função concluía "humano assumiu". A tela mostrava "IA pausada", um
   // estado legítimo que ninguém investiga. (issue #519, consertada no #521)
   //
   // As DUAS decisões que eram uma só se separam aqui, e em direções OPOSTAS de

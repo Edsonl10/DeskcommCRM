@@ -14,7 +14,7 @@
  *
  * `pause` ADIA o passo, e não grava `paused_handoff`. Esta checagem é uma
  * fotografia, e `paused_handoff` só sai por `ai.handoff_resolved`, que só o
- * "Devolver ao automático", a tool e o cron de devolução emitem. Liberar a
+ * "Devolver à IA", a tool e o cron de devolução emitem. Liberar a
  * conversa, o silêncio de 5 min da resposta pela tela vencendo sozinho e o fim
  * de uma pausa de chamada devolvem o comando à IA sem esse evento: a inscrição
  * ficaria pausada para sempre, segurando `idx_followup_enrollments_one_live`.

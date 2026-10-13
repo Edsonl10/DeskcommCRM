@@ -6,7 +6,7 @@ export interface FatosDoAgente {
   is_active?: boolean | null;
   // OBRIGATÓRIO de propósito. Enquanto era opcional, uma consulta que não
   // trouxesse a coluna entregava `undefined`, `!= null` dava falso, e um agente
-  // PAUSADO voltava a contar como no ar — a tela dizia "Automático atendendo"
+  // PAUSADO voltava a contar como no ar — a tela dizia "IA atendendo"
   // logo depois de o dono pausar. Foi o que aconteceu em dois lugares
   // (`/api/v1/ai/automatico-ativo` e `lib/ai/agents/org-tem-automatico.ts`), e
   // o TypeScript não podia acusar porque o campo era opcional. Obrigatório, a

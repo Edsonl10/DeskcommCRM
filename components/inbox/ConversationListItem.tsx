@@ -175,7 +175,7 @@ export function ConversationListItem({
    * Quem manda, pela MESMA regra do cabeçalho.
    *
    * `status === 'ai_handling'` era um proxy ruim e foi medido: o único escritor
-   * desse status em produção é o botão "Devolver ao automático", então o ícone de
+   * desse status em produção é o botão "Devolver à IA", então o ícone de
    * robô aparecia só em conversa que já tinha sido escalada E devolvida — nunca
    * na que o automático atendeu do começo ao fim, que é a maioria.
    */

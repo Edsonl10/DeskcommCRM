@@ -1,5 +1,11 @@
 # PROJECT_STATE
 
+## Em validação — Inbox por aceite e permissões individuais
+- Branch `feat/inbox-permissoes-equipe`: Ativos, Aguardando, IA, Todos e Fechadas; histórico arquivado incorporado sem exclusão.
+- Permissões `all`, `ai`, `closed` separadas do perfil visual, editáveis em Personalizar áreas visíveis na Equipe e nos convites. Gestores/admin têm visão global; supervisores sem concessão veem suas conversas.
+- Migration do fork 9003: aceite humano explícito, RLS por estado, proteção da atribuição e de alterações por quem recebeu apenas consulta, aceite de convite atômico e push alinhado à leitura.
+- Produção ainda não atualizada nesta mudança. Publicação autorizada pelo usuário; depende da validação, backup e preservação dos pins/configurações da instalação.
+
 ## Estado atual
 - Interface atualizada em produção em 13/10/2026 pelo PR #4, código `c7c8f6c887c4d3a40e494d733741324cfc8c516b`. App saudável, fixado em `ghcr.io/edsonl10/deskcommcrm@sha256:3b9d24c22d48146cbcb292f3c1aff836e6fd03aceb637548d36aa4aeb177e477`. Worker e scheduler permanecem na versão anterior por esta mudança tocar somente a interface.
 - Release oficial `v1.78.0` integrada às melhorias do fork e instalada em 09/10/2026. Naquela atualização, app, worker e scheduler passaram a executar `ce7829f90d6eb7c9626e17c4093dc99574250617`, com imagens do fork fixadas por digest.

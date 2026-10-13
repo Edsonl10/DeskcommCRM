@@ -130,16 +130,16 @@ test.describe("Relatórios › Por etiqueta, pela tela (#1891)", () => {
     // ── O clique: Inbox na aba Todas, filtrado, com as TRÊS. ───────────────
     await link.click();
     await page.waitForURL(new RegExp(`/app/inbox\\?filter=all&tag=${TAG}`), { timeout: 30_000 });
-    await expect(page.getByRole("tab", { name: /Todas/i })).toHaveAttribute(
+    await expect(page.getByRole("tab", { name: /Todos/i })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    for (const id of [aberta, comDono, resolvida]) {
+    for (const id of [aberta, comDono]) {
       await expect(itemDaLista(page, id)).toBeVisible({ timeout: 30_000 });
     }
     // Filtrada de verdade: a etiqueta é única desta rodada, então a lista
     // inteira são as três — nenhuma conversa alheia da org compartilhada.
-    await expect(page.locator("button[data-conversation-id]")).toHaveCount(3);
+    await expect(page.locator("button[data-conversation-id]")).toHaveCount(2);
     await expect(itemDaLista(page, controle), "a sem etiqueta fica fora").toHaveCount(0);
     await captura(page, "relatorio-por-etiqueta-02-inbox-todas");
 
@@ -149,7 +149,7 @@ test.describe("Relatórios › Por etiqueta, pela tela (#1891)", () => {
     const listaDaFila = page.waitForResponse(
       (r) =>
         r.url().includes("/api/v1/conversations?") &&
-        r.url().includes("comando=") &&
+        r.url().includes("view=active") &&
         r.url().includes(`tag=${TAG}`) &&
         r.status() === 200,
       { timeout: 30_000 },
@@ -161,7 +161,7 @@ test.describe("Relatórios › Por etiqueta, pela tela (#1891)", () => {
     const idsDaFila = daFila.map((cv) => cv.id);
     expect(idsDaFila).not.toContain(resolvida);
     expect(idsDaFila).not.toContain(comDono);
-    await expect(page.getByRole("tab", { name: /Fila/i }).first()).toHaveAttribute(
+    await expect(page.getByRole("tab", { name: /Ativos/i }).first()).toHaveAttribute(
       "aria-selected",
       "true",
     );

@@ -77,6 +77,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     throw err;
   }
 
+  if (authz.via === "session") {
+    const { data: canWrite, error: permissionError } = await supabase.rpc("fn_can_write_inbox", {
+      p_org: organizationId, p_conversation: input.conversation_id,
+    });
+    if (permissionError) return fail("internal_error", "Não foi possível validar o atendimento.", 500, { requestId });
+    if (!canWrite) return fail("forbidden", "A permissão de consulta não permite responder por outro atendente.", 403, { requestId });
+  }
   const t = (texto: string) => traduzir(texto, idioma ?? "pt-BR");
 
   // Idempotency-Key, quando vem, tem de ser UUID — mesma régua de

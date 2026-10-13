@@ -9,6 +9,7 @@ export interface TeamInvite {
   organization_id: string;
   email: string;
   role: string;
+  inbox_permissions?: import("@/lib/inbox/visoes").InboxPermissions;
   interface_settings: InterfaceSettings;
   invited_by: string | null;
   inviter_name: string | null;

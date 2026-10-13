@@ -1,3 +1,4 @@
+import { lerPermissoesInbox, type InboxPermissions } from "@/lib/inbox/visoes";
 import {
   interfaceSettingsSchema,
   INTERFACE_COMPLETA,
@@ -14,6 +15,7 @@ import { marcaDaSaida } from "@/lib/branding/saida";
 
 /** Link sempre existe, inclusive quando a instalação não configurou e-mail. */
 export async function issueInvite(input: {
+  inboxPermissions?: InboxPermissions;
   interfaceSettings?: InterfaceSettings;
   email: string;
   role: "viewer" | "agent" | "manager" | "admin";
@@ -44,6 +46,7 @@ export async function issueInvite(input: {
     iat,
     invited_by: input.inviterId,
     interface_settings: interfaceSettings,
+    inbox_permissions: lerPermissoesInbox(input.inboxPermissions),
   });
   const acceptUrl = `${env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/team/accept-invite/${token}`;
   let dispatched = false;

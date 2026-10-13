@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * disponível no sistema"). Quinze minutos depois a derivação entregou o texto
  * (`media_derived_status = 'ready'`) e NADA reavaliou: o motivo gravado seguiu
  * afirmando algo que o próprio banco desmentia, e a conversa só saía do
- * silêncio pelo botão "Devolver ao automático".
+ * silêncio pelo botão "Devolver à IA".
  *
  * Estes casos cobrem os dois pontos do corpo da issue:
  *
@@ -147,7 +147,7 @@ vi.mock("@/lib/agent-engine/edge/llm/credentials", () => ({
   }),
 }));
 
-/** A MESMA função que o botão "Devolver ao automático" usa — é ela que tem de ser chamada. */
+/** A MESMA função que o botão "Devolver à IA" usa — é ela que tem de ser chamada. */
 vi.mock("@/lib/escalacao/retomada", () => ({
   devolverAtendimentoAoAgente: devolverMock,
 }));
@@ -232,7 +232,7 @@ describe("a derivação que conclui depois do handoff (#2210)", () => {
     expect(r.status).toBe("ok");
     expect(
       devolverMock,
-      "a conversa seguia silenciada até alguém clicar em 'Devolver ao automático'",
+      "a conversa seguia silenciada até alguém clicar em 'Devolver à IA'",
     ).toHaveBeenCalledTimes(1);
     expect(devolverMock.mock.calls[0]![0]).toMatchObject({ organizationId: "org1" });
     expect(devolverMock.mock.calls[0]![1]).toMatchObject({ conversationId: "conv1" });

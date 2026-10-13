@@ -72,6 +72,8 @@ export type Actor =
   | { type: "webhook_source"; id: string; textoEscritoPelaIA?: true };
 
 export interface HandlerCtx {
+  inbox_role?: import("@/lib/auth/types").Role;
+  inbox_permissions?: import("@/lib/inbox/visoes").InboxPermissions;
   prospectingDelivery?: ProspectingDelivery;
   agentOperation?: AgentOperationContext;
   meetingDelivery?: MeetingDeliveryContext;

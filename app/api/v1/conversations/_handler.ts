@@ -1,3 +1,4 @@
+import { aplicarVisaoInbox } from "@/lib/inbox/visoes";
 import { createAdminClient } from "@/lib/supabase/admin";
 /**
  * Core handlers para /api/v1/conversations.
@@ -92,6 +93,8 @@ const SELECT_COLS = `
   snooze_until, created_at, updated_at,
   bot_silenced_until, last_handoff_at, last_handoff_reason,
   comando_da_conversa,
+  inbox_state,
+  human_accepted_at,
   contacts:contact_id (id, display_name, name, phone_number, is_anonymized, tags, is_blocked, is_personal, avatar_storage_path, force_human),
   channel_sessions:channel_session_id (phone_number, display_name, provider, social_platform:metadata->>social_platform)
 `;
@@ -189,7 +192,7 @@ export async function listConversationsHandler(
   // a ordenação por tempo de espera sumiria **sem nenhum sintoma na tela**: a
   // lista continuaria populada, só que ordenada por atividade recente, e quem
   // espera desde ontem afundaria embaixo de quem escreveu agora.
-  const isQueue = ehAFila(q);
+  const isQueue = q.view === "waiting" || ehAFila(q);
   // A régua da Fila não se escreve aqui: vem de `ORDEM_DA_ESPERA`, a mesma que
   // numera a posição da linha na tela e o número que o cliente ouve. Enquanto
   // cada lugar tinha a sua cópia, trocar uma só fazia a lista ordenar por uma
@@ -219,6 +222,7 @@ export async function listConversationsHandler(
   // e o SQL resultante é equivalente). É o que deixa a aba Fila pedir os dois
   // estados de espera numa consulta só, em vez de filtrar em memória o que a
   // página já truncou.
+  if (q.view && ctx.actor.type === "user") query = aplicarVisaoInbox(query, q.view, ctx.actor.id, ctx.inbox_role ?? "viewer", ctx.inbox_permissions);
   if (q.status && q.status.length > 0) query = query.in("status", q.status);
   // O filtro de QUEM MANDA (migration 0203). Vai no banco, e não em memória, para
   // o cursor de paginação continuar valendo: filtrar depois de paginar devolveria
@@ -311,123 +315,7 @@ export async function listConversationsHandler(
     query = query.eq("assigned_to_user_id", q.assigned_to);
   }
 
-  if (q.search) {
-    // ─── O TERMO NÃO PODE QUEBRAR A SINTAXE DO `.or()` ────────────────────
-    //
-    // Dois escapes diferentes, para dois parsers diferentes, e eles NÃO se
-    // substituem:
-    //
-    //   `%` e `_` são curingas do `ilike` (Postgres) — escapados com `\`.
-    //   `,` `(` `)` são a GRAMÁTICA do `or=` (PostgREST) — e para eles o
-    //   PostgREST não oferece escape nenhum dentro de um valor sem aspas.
-    //
-    // Medido contra o PostgREST v14.10 do stack local deste repo, buscando um
-    // contato que existe:
-    //
-    //   or=(display_name.ilike.*DIAG, 178*,…)   → HTTP 400 PGRST100
-    //                                             "failed to parse logic tree"
-    //   or=(display_name.ilike.*DIAG* 178*,…)   → 200, 3 resultados
-    //
-    // Ou seja: um cliente cadastrado como "Sobrenome, Nome" — que é como meia
-    // agenda de CRM é digitada — DERRUBA a busca do Inbox, não devolve lista
-    // vazia. E a vírgula não precisa estar no banco: basta o atendente digitá-la.
-    //
-    // AS DUAS SAÍDAS ÓBVIAS FORAM MEDIDAS E AS DUAS FALHAM:
-    //
-    //   aspas duplas no valor .... `ilike."*IAG*"` → 0 resultados contra
-    //                              `ilike.*IAG*` → 3. Dentro das aspas o `*`
-    //                              deixa de ser curinga; consertaria a sintaxe
-    //                              e mataria a busca.
-    //   barra invertida .......... `ilike.*I\,AG*` → HTTP 400. O PostgREST não
-    //                              tem escape para a vírgula fora de aspas.
-    //
-    // O que sobra, e é o que está aqui: trocar o metacaractere pelo PRÓPRIO
-    // curinga. "Silva, João" vira `*Silva* João*`, que casa "Silva, João" no
-    // banco — o `%` cobre a vírgula. A busca fica ligeiramente mais larga, e
-    // essa direção é a certa: o custo é achar um vizinho a mais; o custo do
-    // outro lado é a tela em branco com 400.
-    //
-    // O controle que impede o degenerado está no teste: termo inexistente
-    // continua devolvendo ZERO. Sem ele, "troque tudo por `*`" passaria.
-    // Duas normalizações, em ordem, com responsabilidades diferentes:
-    //   normalizarTermoDeBusca → como a PESSOA digitou (espaço duplo, vírgula e
-    //                            ponto e vírgula viram o mesmo curinga)
-    //   termoSeguroParaOr      → a GRAMÁTICA do `or=` do PostgREST (não mexer)
-    //
-    // A ordem importa e a composição é segura: `termoSeguroParaOr` escapa `%` e
-    // `_` e troca `,()` por `*`, mas NÃO escapa `*` — então o curinga posto pela
-    // primeira chega inteiro ao banco. O telefone também sobrevive: `somenteDigitos`
-    // descarta tudo que não é dígito, inclusive o curinga.
-    const s = termoSeguroParaOr(normalizarTermoDeBusca(q.search));
-
-    // ─── A BUSCA ALCANÇA O CONTATO, NÃO SÓ A ÚLTIMA MENSAGEM ──────────────
-    //
-    // Aqui havia só o `ilike` em `last_message_preview`. Para um atendente,
-    // achar a conversa pelo NOME do cliente é o caso mais comum — bem mais que
-    // lembrar um trecho literal de mensagem —, e com milhares de contatos
-    // importados a única saída era rolar a lista. (issue #341)
-    //
-    // Dois passos, e não um `!inner` no embed do contato: transformar o embed
-    // em inner mudaria a semântica da LISTA inteira (conversa sem contato
-    // sumiria da caixa). A consulta curta abaixo devolve ids e o predicado os
-    // soma ao casamento por conteúdo, que continua valendo.
-    const somenteDigitos = s.replace(/\D/g, "");
-    // 4 dígitos é o piso: "12" casaria metade da base e devolveria a lista
-    // inteira embaralhada — pior que não achar, porque PARECE que funcionou.
-    const pareceTelefone = somenteDigitos.length >= 4;
-
-    const camposDoContato = [
-      `display_name.ilike.*${s}*`,
-      `name.ilike.*${s}*`,
-      ...(pareceTelefone ? [`phone_number.ilike.*${somenteDigitos}*`] : []),
-    ].join(",");
-
-    const { data: contatos } = await supabase
-      .from("contacts")
-      .select("id")
-      // Service role bypassa RLS: o filtro de organização é manual e obrigatório.
-      .eq("organization_id", ctx.organization_id)
-      // Anonimizar é direito do titular. Voltar a encontrá-lo pelo nome antigo
-      // criaria um vazamento onde não havia.
-      .eq("is_anonymized", false)
-      // Pessoal não é achado pela busca (spec 21, etapa 7 — critério 2): nem por
-      // nome, nem por telefone. A prévia segue pelo `.not` da query principal.
-      .eq("is_personal", false)
-      .or(camposDoContato)
-      // Teto obrigatório: a lista de ids viaja na URL do PostgREST, e uma busca
-      // por "a" sem limite estoura a requisição.
-      //
-      // ⚠️ 200 ERA ACIMA DO MURO, e o comentário acima descrevia o perigo certo
-      // com o número errado. Medido com o `postgrest-js` real e as `SELECT_COLS`
-      // deste arquivo:
-      //
-      //     ids=  1 →   892 B      ids=186 →  8.098 B
-      //     ids=100 → 4.753 B      ids=200 →  8.653 B   ← acima de 8.192
-      //
-      // Kong 2.8.1 — o gateway que a Supabase põe na frente do PostgREST, e o
-      // mesmo que o stack local deste repo sobe — devolve `414 URI too long` a
-      // partir de ~187 ids. E o `error` desta consulta vira `500 internal_error`
-      // no handler, então o Inbox PARA: buscar "ana" ou "silva" numa base de
-      // milhares de contatos devolvia a tela quebrada, não uma lista pobre.
-      //
-      // O teto agora é de BYTES, não de linhas, porque é byte que estoura. O
-      // número de ids que cabe é consequência, e continua certo se as colunas
-      // ou o formato do id mudarem.
-      .limit(TETO_DE_CONTATOS_NA_BUSCA);
-
-    const ids = idsQueCabemNaURL(
-      (contatos ?? []).map((c) => (c as { id: string }).id),
-    );
-    if (ids.length > 0) {
-      query = query.or(
-        `last_message_preview.ilike.*${s}*,contact_id.in.(${ids.join(",")})`,
-      );
-    } else {
-      // Sem ids casados, um `contact_id.in.()` vazio é SQL inválido no
-      // PostgREST — a busca por conteúdo segue sozinha, como antes.
-      query = query.ilike("last_message_preview", `%${s}%`);
-    }
-  }
+  query = aplicarBuscaDeConversas(query, await filtroDeBuscaDeConversas(supabase, ctx.organization_id, q.search));
 
   if (q.cursor) {
     const c = decodeCursor(q.cursor);
@@ -664,4 +552,131 @@ export async function markConversationReadHandler(
     );
   }
   return data as unknown as Conversation;
+}
+
+/** A busca é compartilhada entre página e contador, antes da paginação. */
+export async function filtroDeBuscaDeConversas(supabase: SB, organizationId: string, search?: string): Promise<{ or?: string; ilike?: string }> {
+  if (search) {
+    // ─── O TERMO NÃO PODE QUEBRAR A SINTAXE DO `.or()` ────────────────────
+    //
+    // Dois escapes diferentes, para dois parsers diferentes, e eles NÃO se
+    // substituem:
+    //
+    //   `%` e `_` são curingas do `ilike` (Postgres) — escapados com `\`.
+    //   `,` `(` `)` são a GRAMÁTICA do `or=` (PostgREST) — e para eles o
+    //   PostgREST não oferece escape nenhum dentro de um valor sem aspas.
+    //
+    // Medido contra o PostgREST v14.10 do stack local deste repo, buscando um
+    // contato que existe:
+    //
+    //   or=(display_name.ilike.*DIAG, 178*,…)   → HTTP 400 PGRST100
+    //                                             "failed to parse logic tree"
+    //   or=(display_name.ilike.*DIAG* 178*,…)   → 200, 3 resultados
+    //
+    // Ou seja: um cliente cadastrado como "Sobrenome, Nome" — que é como meia
+    // agenda de CRM é digitada — DERRUBA a busca do Inbox, não devolve lista
+    // vazia. E a vírgula não precisa estar no banco: basta o atendente digitá-la.
+    //
+    // AS DUAS SAÍDAS ÓBVIAS FORAM MEDIDAS E AS DUAS FALHAM:
+    //
+    //   aspas duplas no valor .... `ilike."*IAG*"` → 0 resultados contra
+    //                              `ilike.*IAG*` → 3. Dentro das aspas o `*`
+    //                              deixa de ser curinga; consertaria a sintaxe
+    //                              e mataria a busca.
+    //   barra invertida .......... `ilike.*I\,AG*` → HTTP 400. O PostgREST não
+    //                              tem escape para a vírgula fora de aspas.
+    //
+    // O que sobra, e é o que está aqui: trocar o metacaractere pelo PRÓPRIO
+    // curinga. "Silva, João" vira `*Silva* João*`, que casa "Silva, João" no
+    // banco — o `%` cobre a vírgula. A busca fica ligeiramente mais larga, e
+    // essa direção é a certa: o custo é achar um vizinho a mais; o custo do
+    // outro lado é a tela em branco com 400.
+    //
+    // O controle que impede o degenerado está no teste: termo inexistente
+    // continua devolvendo ZERO. Sem ele, "troque tudo por `*`" passaria.
+    // Duas normalizações, em ordem, com responsabilidades diferentes:
+    //   normalizarTermoDeBusca → como a PESSOA digitou (espaço duplo, vírgula e
+    //                            ponto e vírgula viram o mesmo curinga)
+    //   termoSeguroParaOr      → a GRAMÁTICA do `or=` do PostgREST (não mexer)
+    //
+    // A ordem importa e a composição é segura: `termoSeguroParaOr` escapa `%` e
+    // `_` e troca `,()` por `*`, mas NÃO escapa `*` — então o curinga posto pela
+    // primeira chega inteiro ao banco. O telefone também sobrevive: `somenteDigitos`
+    // descarta tudo que não é dígito, inclusive o curinga.
+    const s = termoSeguroParaOr(normalizarTermoDeBusca(search));
+
+    // ─── A BUSCA ALCANÇA O CONTATO, NÃO SÓ A ÚLTIMA MENSAGEM ──────────────
+    //
+    // Aqui havia só o `ilike` em `last_message_preview`. Para um atendente,
+    // achar a conversa pelo NOME do cliente é o caso mais comum — bem mais que
+    // lembrar um trecho literal de mensagem —, e com milhares de contatos
+    // importados a única saída era rolar a lista. (issue #341)
+    //
+    // Dois passos, e não um `!inner` no embed do contato: transformar o embed
+    // em inner mudaria a semântica da LISTA inteira (conversa sem contato
+    // sumiria da caixa). A consulta curta abaixo devolve ids e o predicado os
+    // soma ao casamento por conteúdo, que continua valendo.
+    const somenteDigitos = s.replace(/\D/g, "");
+    // 4 dígitos é o piso: "12" casaria metade da base e devolveria a lista
+    // inteira embaralhada — pior que não achar, porque PARECE que funcionou.
+    const pareceTelefone = somenteDigitos.length >= 4;
+
+    const camposDoContato = [
+      `display_name.ilike.*${s}*`,
+      `name.ilike.*${s}*`,
+      ...(pareceTelefone ? [`phone_number.ilike.*${somenteDigitos}*`] : []),
+    ].join(",");
+
+    const { data: contatos } = await supabase
+      .from("contacts")
+      .select("id")
+      // Service role bypassa RLS: o filtro de organização é manual e obrigatório.
+      .eq("organization_id", organizationId)
+      // Anonimizar é direito do titular. Voltar a encontrá-lo pelo nome antigo
+      // criaria um vazamento onde não havia.
+      .eq("is_anonymized", false)
+      // Pessoal não é achado pela busca (spec 21, etapa 7 — critério 2): nem por
+      // nome, nem por telefone. A prévia segue pelo `.not` da query principal.
+      .eq("is_personal", false)
+      .or(camposDoContato)
+      // Teto obrigatório: a lista de ids viaja na URL do PostgREST, e uma busca
+      // por "a" sem limite estoura a requisição.
+      //
+      // ⚠️ 200 ERA ACIMA DO MURO, e o comentário acima descrevia o perigo certo
+      // com o número errado. Medido com o `postgrest-js` real e as `SELECT_COLS`
+      // deste arquivo:
+      //
+      //     ids=  1 →   892 B      ids=186 →  8.098 B
+      //     ids=100 → 4.753 B      ids=200 →  8.653 B   ← acima de 8.192
+      //
+      // Kong 2.8.1 — o gateway que a Supabase põe na frente do PostgREST, e o
+      // mesmo que o stack local deste repo sobe — devolve `414 URI too long` a
+      // partir de ~187 ids. E o `error` desta consulta vira `500 internal_error`
+      // no handler, então o Inbox PARA: buscar "ana" ou "silva" numa base de
+      // milhares de contatos devolvia a tela quebrada, não uma lista pobre.
+      //
+      // O teto agora é de BYTES, não de linhas, porque é byte que estoura. O
+      // número de ids que cabe é consequência, e continua certo se as colunas
+      // ou o formato do id mudarem.
+      .limit(TETO_DE_CONTATOS_NA_BUSCA);
+
+    const ids = idsQueCabemNaURL(
+      (contatos ?? []).map((c) => (c as { id: string }).id),
+    );
+    if (ids.length > 0) {
+      return { or: `last_message_preview.ilike.*${s}*,contact_id.in.(${ids.join(",")})` };
+    } else {
+      // Sem ids casados, um `contact_id.in.()` vazio é SQL inválido no
+      // PostgREST — a busca por conteúdo segue sozinha, como antes.
+      return { ilike: `%${s}%` };
+    }
+  }
+
+  return {};
+}
+
+export function aplicarBuscaDeConversas<Q extends { or: (filter: string) => Q; ilike: (column: string, pattern: string) => Q }>(query: Q, filter: {or?: string; ilike?: string}): Q {
+  if (filter.or) return query.or(filter.or);
+  if (filter.ilike) return query.ilike("last_message_preview", filter.ilike);
+  return query;
 }

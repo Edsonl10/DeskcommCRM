@@ -1,4 +1,5 @@
 "use client";
+import { lerPermissoesInbox, type InboxPermissions } from "@/lib/inbox/visoes";
 import { useT } from "@/hooks/i18n/useT";
 import { useId } from "react";
 import type { Role } from "@/lib/auth/types";
@@ -16,12 +17,16 @@ export function InterfaceEditor({
   value,
   onChange,
   role,
+  inboxPermissions,
+  onInboxPermissionsChange,
   disabled = false,
 }: {
   value: InterfaceSettings;
   onChange: (value: InterfaceSettings) => void;
   role: Role;
   disabled?: boolean;
+  inboxPermissions?: InboxPermissions;
+  onInboxPermissionsChange?: (value: InboxPermissions) => void;
 }) {
   const t = useT();
   const id = useId();
@@ -86,6 +91,25 @@ export function InterfaceEditor({
               </fieldset>
             );
           })}
+          {onInboxPermissionsChange && (
+            <fieldset className="space-y-2 border-t pt-3">
+              <legend className="text-sm font-medium">{t("Permissões do Inbox")}</legend>
+              <p className="text-xs text-muted-foreground">{t("Estas opções autorizam consultar conversas da equipe. Ativos e Aguardando continuam pessoais. Gestores e administradores têm visão global.")}</p>
+              {([
+                ["all", t("Ver Todos — atendimentos em andamento de toda a equipe.")],
+                ["ai", t("Ver IA de toda a equipe.")],
+                ["closed", t("Ver Fechadas de toda a equipe.")],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" disabled={role === "manager" || role === "admin"}
+                    checked={role === "manager" || role === "admin" || lerPermissoesInbox(inboxPermissions)[key]}
+                    onChange={(e) => onInboxPermissionsChange({ ...lerPermissoesInbox(inboxPermissions), [key]: e.target.checked })} />
+                  {label}
+                </label>
+              ))}
+              <p className="text-xs text-muted-foreground">{t("Todos inclui as conversas da IA. Alterar o perfil visual não altera estas permissões.")}</p>
+            </fieldset>
+          )}
         </div>
       </details>
       {!interfaceTemDestino(value, role) || value.destinos?.length === 0 ? (

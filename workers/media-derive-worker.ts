@@ -422,7 +422,7 @@ export async function deriveMessageMedia(row: EventRow): Promise<HandlerResult> 
     // passado a conversa para humano por "não há transcrição de texto", é aqui
     // que a falha transitória deixa de ser permanente: a reação corrige o
     // motivo gravado (o banco já o desmentiu), devolve pela MESMA função do
-    // botão "Devolver ao automático" e reenfileira o turno tardio.
+    // botão "Devolver à IA" e reenfileira o turno tardio.
     await reagirAConclusaoDeDerivacao(admin, {
       organizationId: msg.organization_id,
       conversationId: msg.conversation_id,

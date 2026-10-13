@@ -3,7 +3,7 @@
  *
  * ## Por que uma rota só para isto
  *
- * O selo de comando do Inbox dizia "Automático atendendo" em toda conversa sem
+ * O selo de comando do Inbox dizia "IA atendendo" em toda conversa sem
  * dono e sem trava — **sem saber se existe algum automático**. Numa instalação
  * que ainda não configurou agente nenhum (o estado de todo primeiro deploy), a
  * tela afirmava que o robô estava cuidando de conversas que ninguém estava
