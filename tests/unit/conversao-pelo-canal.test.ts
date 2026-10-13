@@ -17,7 +17,7 @@
  * pergunta pela capacidade `reportConversion` do adapter. O provider concreto
  * aparece aqui só porque é ele quem implementa a capacidade hoje.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 import { conversaoDeEtapaMetaHandler } from "@/lib/conversoes/etapa-meta.handler";
@@ -394,9 +394,14 @@ const entrouNaEtapa: EventRow = {
 
 describe("o evento de ETAPA da Meta também sai pelo canal", () => {
   beforeEach(() => {
+    // A fixture de 06/10 deve ficar dentro da janela de aceitação da Meta.
+    // O relógio real fez este caso começar a reprovar em 13/10, sem mudar código.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T12:00:00Z"));
     gravados.length = 0;
     tabelasLidas.length = 0;
   });
+  afterEach(() => { vi.useRealTimers(); });
 
   it("sem conexão direta e com a chave ligada: sai pelo canal com o nome padrão, o instante da etapa e sem valor", async () => {
     vi.mocked(createAdminClient).mockReturnValue(
