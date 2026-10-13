@@ -12,7 +12,7 @@
 - Alteração na branch `fix/simplificar-acoes-inbox`; ainda não instalada em produção.
 - Validação local: 34 testes relacionados passaram; typecheck passou com Node limitado a 8 GB; lint dos arquivos funcionais alterados passou. Controle de regressão: restaurar o cabeçalho anterior fez falhar os quatro casos previstos.
 - Suíte completa tentada em Windows e interrompida após apresentar falhas em outros testes, incluindo scripts Linux; não considerada verde. E2E e build de produção ainda não provados neste ambiente.
-- Envio da branch bloqueado pela revisão automática de aprovação, aguardando autorização explícita do usuário para publicar em `Edsonl10/DeskcommCRM`. Conferir CI/revisão antes da publicação das imagens e do deploy.
+- Usuário autorizou o envio ao GitHub. Branch publicada em `Edsonl10/DeskcommCRM`; revisão em rascunho: https://github.com/Edsonl10/DeskcommCRM/pull/4. Conferir CI, build e E2E antes de integrar, publicar imagens e fazer deploy.
 
 ## Decisões aprovadas
 - Atualizar pelo repositório oficial preservando as melhorias da instalação.
