@@ -11,7 +11,7 @@
 - Mantida a recuperação de contatos pessoais anteriores e o acesso ao histórico arquivado. APIs e dados históricos permanecem compatíveis.
 - Alteração na branch `fix/simplificar-acoes-inbox`; ainda não instalada em produção.
 - Validação local: 34 testes relacionados passaram; typecheck passou com Node limitado a 8 GB; lint dos arquivos funcionais alterados passou. Controle de regressão: restaurar o cabeçalho anterior fez falhar os quatro casos previstos.
-- Suíte completa executada em Windows apresenta falhas em outros testes, incluindo scripts Linux; não considerada verde. E2E e build de produção ainda não provados neste ambiente.
+- Suíte completa tentada em Windows e interrompida após apresentar falhas em outros testes, incluindo scripts Linux; não considerada verde. E2E e build de produção ainda não provados neste ambiente.
 - Envio da branch bloqueado pela revisão automática de aprovação, aguardando autorização explícita do usuário para publicar em `Edsonl10/DeskcommCRM`. Conferir CI/revisão antes da publicação das imagens e do deploy.
 
 ## Decisões aprovadas
