@@ -329,6 +329,8 @@ export const orgAtivaSemPortao = cache(async (authUser: AuthUser): Promise<Activ
       orgId: authUser.support.organization_id,
       name: authUser.support.name,
       role: authUser.support.access_mode === "full" ? "admin" : "viewer",
+      // Espelha a leitura global já autorizada pelo acompanhamento ativo.
+      inbox_permissions: { all: true, ai: true, closed: true },
       timezone: orgDoSuporte?.timezone ?? null,
       currency: orgDoSuporte?.currency ?? null,
       country: orgDoSuporte?.country ?? null,

@@ -139,7 +139,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     countView("active"), countView("waiting"), countView("ai"),
     allowedAll ? countView("all") : Promise.resolve({ count: 0, error: null }),
     countView("closed"),
-    allowedAll ? countExact().eq("inbox_state", "unassigned") : Promise.resolve({ count: 0, error: null }),
+    allowedAll ? aplicarBuscaDeConversas(countExact().eq("inbox_state", "unassigned"), busca) : Promise.resolve({ count: 0, error: null }),
   ]);
   const firstErr = active.error ?? waiting.error ?? ai.error ?? all.error ?? closed.error ?? needsAssignment.error;
   if (firstErr) return fail("internal_error", firstErr.message, 500, { requestId });

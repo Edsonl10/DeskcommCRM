@@ -43,7 +43,7 @@ export interface ConviteDeTime {
   organization_id: string;
   email: string;
   role: Role;
-  inbox_permissions?: import("@/lib/inbox/visoes").InboxPermissions;
+  inbox_permissions?: InboxPermissions;
   interface_settings: InterfaceSettings;
   invited_by: string | null;
   inviter_name: string | null;

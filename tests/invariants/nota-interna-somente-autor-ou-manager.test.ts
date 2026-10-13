@@ -30,7 +30,7 @@
  * os casos "agent que vê a conversa NÃO edita/apaga nota de colega" ficam
  * VERMELHOS: devolvem 1 em vez de 0.
  */
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   GOV_AGENT_A,
@@ -55,6 +55,7 @@ const SONDA_FORJADA = "d0d0d0d0-0503-4000-8000-000000000004";
 
 beforeAll(() => {
   seedGov();
+  sql(`update public.user_organizations set inbox_permissions='{"all":true,"ai":false,"closed":false}' where organization_id='${GOV_ORG}' and user_id in ('${GOV_AGENT_A}','${GOV_AGENT_B}');`);
   sql(`
     delete from public.conversation_notes where id in ('${NOTA_DE_B}', '${SONDA_UPDATE}', '${SONDA_DELETE}', '${SONDA_FORJADA}');
     insert into public.conversation_notes
@@ -152,3 +153,4 @@ describe("0509 — edita e apaga nota só o autor ou manager+", () => {
     ).toBe(1);
   });
 });
+afterAll(() => { sql(`update public.user_organizations set inbox_permissions='{"all":false,"ai":false,"closed":false}' where organization_id='${GOV_ORG}' and user_id in ('${GOV_AGENT_A}','${GOV_AGENT_B}');`); });

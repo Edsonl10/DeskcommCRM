@@ -88,6 +88,9 @@ async function semear(): Promise<void> {
 
   // Escalada: o silêncio sem fim e ninguém dono é o que põe a conversa
   // esperando uma PESSOA — a Fila (`comandosDaFila`), com ou sem automático.
+  const { data: people } = await admin.auth.admin.listUsers();
+  const owner = people.users.find(person => person.email === lerCreds().users.admin!.email)?.id;
+  if (!owner) throw new Error("Administrador da fixture não encontrado");
   const agora = new Date().toISOString();
   const { data: conv, error: eConv } = await admin
     .from("conversations")
@@ -96,7 +99,8 @@ async function semear(): Promise<void> {
       contact_id: (ct as { id: string }).id,
       channel_session_id: SESSAO,
       status: "open",
-      assigned_to_user_id: null,
+      assigned_to_user_id: owner,
+      assignee_kind: "user",
       bot_silenced_until: "infinity",
       last_inbound_at: agora,
       last_message_at: agora,
@@ -276,13 +280,13 @@ test.describe("contadores do menu", () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await loginComoAdmin(page, lerCreds());
 
-    await page.goto("/app/inbox");
+    await page.goto("/app/inbox?filter=waiting");
     await expect(page.getByText(CONTATO).first()).toBeVisible({ timeout: ESPERA });
 
     // O número da aba Fila entra no nome acessível ("Fila 3"); sem número, a aba
     // é só "Fila".
-    const abaFila = page.getByRole("tab", { name: /^Fila/ }).first();
-    await expect(abaFila).toHaveText(/^Fila\s*\d+$/, { timeout: ESPERA });
+    const abaFila = page.getByRole("tab", { name: /^Aguardando/ }).first();
+    await expect(abaFila).toHaveText(/^Aguardando\s*\d+$/, { timeout: ESPERA });
     const naAba = Number((await abaFila.textContent())!.replace(/\D/g, ""));
     expect(naAba, "a conversa escalada semeada está na Fila").toBeGreaterThan(0);
 

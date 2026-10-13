@@ -23,8 +23,10 @@ async function customize(page: Page, email: string, only?: string) {
   await dialog.getByLabel("Perfil de interface").selectOption("simplificada");
   if (only) {
     await dialog.getByText("Personalizar áreas visíveis", { exact: false }).click();
-    for (const checkbox of await dialog.getByRole("checkbox").all())
+    for (const checkbox of await dialog.getByRole("checkbox").all()) {
+      if ((await checkbox.getAttribute("name"))?.startsWith("inbox-permission-")) continue;
       if (await checkbox.isChecked()) await checkbox.uncheck();
+    }
     await dialog.getByRole("checkbox", { name: only, exact: true }).check();
   }
   await dialog.getByRole("button", { name: "Salvar interface" }).click();
@@ -95,6 +97,25 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
     await member.goto("/app/settings/profile");
     await member.getByLabel("Nome completo").fill("Rascunho não salvo");
     await login(other, emails[2]!);
+    // Concessão e revogação reais no mesmo editor de áreas, sem mudar papel.
+    await page.getByRole("button", { name: `Interface de ${emails[1]}`, exact: true }).click();
+    let permissionsDialog = page.getByRole("dialog");
+    await permissionsDialog.getByText("Personalizar áreas visíveis", { exact: false }).click();
+    await expect(permissionsDialog.getByLabel("Ver IA de toda a equipe.")).not.toBeChecked();
+    await expect(permissionsDialog.getByLabel("Ver Fechadas de toda a equipe.")).not.toBeChecked();
+    await permissionsDialog.getByLabel("Ver Todos — atendimentos em andamento de toda a equipe.").check();
+    await permissionsDialog.getByRole("button", { name: "Salvar interface" }).click();
+    await member.goto("/app/inbox?filter=all");
+    await expect(member.getByRole("tab", { name: /^Todos/ })).toBeVisible();
+    await page.getByRole("button", { name: `Interface de ${emails[1]}`, exact: true }).click();
+    permissionsDialog = page.getByRole("dialog");
+    await permissionsDialog.getByText("Personalizar áreas visíveis", { exact: false }).click();
+    await permissionsDialog.getByLabel("Ver Todos — atendimentos em andamento de toda a equipe.").uncheck();
+    await permissionsDialog.getByRole("button", { name: "Salvar interface" }).click();
+    await expect(member.getByRole("tab", { name: /^Todos/ })).toHaveCount(0, { timeout: 15000 });
+    await expect(member.getByRole("tab", { name: /^Ativos/ })).toHaveAttribute("aria-selected", "true");
+    await member.goto("/app/settings/profile");
+    await member.getByLabel("Nome completo").fill("Rascunho não salvo");
     await expect(nav(member).getByRole("link", { name: "Radar", exact: true })).toBeVisible();
     const framesBefore = realtime.length;
     await customize(page, emails[1]!);
@@ -147,6 +168,7 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
     for (const checkbox of await page.getByRole("checkbox").all())
       if (await checkbox.isChecked()) await checkbox.uncheck();
     await page.getByRole("checkbox", { name: "Tarefas", exact: true }).check();
+    await page.getByLabel("Ver Fechadas de toda a equipe.").check();
     await page.getByRole("button", { name: "Enviar convites" }).click();
     const link = await page.locator("code").innerText();
     expect(link).toContain("/team/accept-invite/");
@@ -162,7 +184,7 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
     await guest.screenshot({ path: `${evidence}/interface-convite-aceito.png` });
     const persisted = await db
       .from("user_organizations")
-      .select("interface_settings")
+      .select("interface_settings, inbox_permissions")
       .eq("organization_id", orgs[0])
       .eq("user_id", users[3])
       .single();
@@ -170,6 +192,7 @@ test("interface por membro atualiza ao vivo, preserva formulário e convite apli
       preset: "simplificada",
       destinos: ["/app/tasks"],
     });
+    expect(persisted.data?.inbox_permissions).toEqual({all:false,ai:false,closed:true});
     await page.goto("/app/team");
     await customize(page, emails[3]!, "Produtos");
     await guest.goto(link);

@@ -1,3 +1,4 @@
+import { roleAtLeast } from "@/lib/auth/types";
 import { aplicarVisaoInbox } from "@/lib/inbox/visoes";
 import { createAdminClient } from "@/lib/supabase/admin";
 /**
@@ -449,6 +450,9 @@ export async function patchConversationHandler(
 
   if (input.status !== undefined) {
     const observed = await getConversationHandler(supabase, ctx, conversationId);
+    if (ctx.actor.type === "user" && observed.assigned_to_user_id && observed.assigned_to_user_id !== ctx.actor.id && !roleAtLeast(ctx.inbox_role, "manager")) {
+      throw new ApiError(403, "forbidden", undefined, ctx.requestId, "A permissão de consulta não permite alterar outro atendimento.");
+    }
     const { error: statusError } = await createAdminClient().rpc("fn_service_status", {
       p_org: ctx.organization_id, p_conversation: conversationId, p_status: input.status,
       p_expected: input.expected_revision ?? observed.service_revision,

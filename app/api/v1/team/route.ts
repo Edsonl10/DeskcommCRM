@@ -1,3 +1,4 @@
+import type { InboxPermissions } from "@/lib/inbox/visoes";
 import type { InterfaceSettings } from "@/lib/navigation/interface";
 /**
  * GET /api/v1/team — list members of the active organization.
@@ -19,7 +20,7 @@ import { isServiceRoleConfigured } from "@/lib/audit";
 export const dynamic = "force-dynamic";
 
 interface MembershipRow {
-  inbox_permissions?: import("@/lib/inbox/visoes").InboxPermissions;
+  inbox_permissions?: InboxPermissions;
   interface_settings?: InterfaceSettings;
   user_id: string;
   role: string;

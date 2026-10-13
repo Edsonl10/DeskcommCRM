@@ -260,7 +260,7 @@ test.describe("J20.18 — resposta manual pelo celular pausa a IA (sem apagar a 
       // ---------------------------------------------------------------------
       // (5) A tela DIZ que uma pessoa assumiu, e oferece a volta.
       // ---------------------------------------------------------------------
-      await login(page, creds.users.agent!.email);
+      await login(page, creds.users.manager!.email);
       await page.goto(`${APP_URL}/app/inbox/${conversationId}`);
       await expect(
         page.getByTestId("badge-atendimento-humano"),

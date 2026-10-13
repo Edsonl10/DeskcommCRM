@@ -6,7 +6,8 @@ import {
   GOV_CONV_CLAIM,
   seedGov,
   tableExists,
-  writeCountAs,
+  countAs,
+  GOV_ORG,
 } from "./gov-helpers";
 
 /**
@@ -24,19 +25,15 @@ describe("eixo 3 — transferência", () => {
   it("claim atômico: UPDATE condicional atribui 1x; segundo claim concorrente perde (0 rows)", () => {
     // Spec 04 §9: claim = UPDATE ... where assigned_to_user_id is null (o
     // perdedor recebe 0 rows e a rota devolve 409).
-    const first = writeCountAs(
+    const first = countAs(
       GOV_AGENT_A,
-      `update public.conversations
-         set assigned_to_user_id = '${GOV_AGENT_A}', assigned_at = now(), status = 'claimed'
-         where id = '${GOV_CONV_CLAIM}' and assigned_to_user_id is null`,
+      `select count(*) from public.fn_conversation_assign('${GOV_ORG}','${GOV_CONV_CLAIM}','${GOV_AGENT_A}','claim',null,true);`,
     );
     expect(first).toBe(1);
 
-    const second = writeCountAs(
+    const second = countAs(
       GOV_AGENT_B,
-      `update public.conversations
-         set assigned_to_user_id = '${GOV_AGENT_B}', assigned_at = now(), status = 'claimed'
-         where id = '${GOV_CONV_CLAIM}' and assigned_to_user_id is null`,
+      `select count(*) from public.fn_conversation_assign('${GOV_ORG}','${GOV_CONV_CLAIM}','${GOV_AGENT_B}','claim',null,true);`,
     );
     expect(second).toBe(0);
   });

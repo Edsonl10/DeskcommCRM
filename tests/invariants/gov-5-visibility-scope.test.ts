@@ -104,13 +104,13 @@ describe("eixo 5 — escopo de visualização", () => {
     ).toBe(0);
   });
 
-  it("agent vê a fila não-atribuída no default 'own_and_unassigned' (G1-06a)", () => {
+  it("agent sem permissão Todos não vê a fila geral, mesmo no modo legado", () => {
     expect(
       countAs(
         GOV_AGENT_A,
         `select count(*) from public.conversations where id = '${GOV_CONV_UNASSIGNED}';`,
       ),
-    ).toBe(1);
+    ).toBe(0);
   });
 
   it("agent NÃO vê a fila não-atribuída quando visibility_mode='own'", () => {

@@ -1,4 +1,6 @@
 "use client";
+import type { InboxView } from "@/lib/inbox/visoes";
+
 import { hashKey, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useRealtimeChannel } from "@/hooks/realtime/useRealtimeChannel";
@@ -82,7 +84,7 @@ export type StatusDeConversa =
   | "archived";
 
 export interface ConversationsFilters {
-  view?: import("@/lib/inbox/visoes").InboxView;
+  view?: InboxView;
   /** Um status ou vários — a aba Fila precisa de dois (open + pending). */
   status?: StatusDeConversa | readonly StatusDeConversa[];
   /** Esconde fechadas/arquivadas — ver `exclude_finished` no schema da rota. */

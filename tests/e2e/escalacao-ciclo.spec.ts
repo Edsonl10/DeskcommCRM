@@ -171,6 +171,11 @@ test.describe("IA 360 W3 — o agente para, a pessoa continua, o agente retoma s
     page,
   }) => {
     const e = creds.escalacao;
+    const { error: routingError } = await admin.rpc("fn_conversation_assign", {
+      p_organization_id: creds.org_id, p_conversation_id: e.conversation_id,
+      p_to_user_id: creds.users.agent!.id, p_reason: "routing",
+    });
+    if (routingError) throw routingError;
     await login(page, creds.users.agent!.email, creds.password);
 
     // ---------------------------------------------------------------------

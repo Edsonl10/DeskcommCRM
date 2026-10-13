@@ -118,7 +118,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
   const requestedTab = parseFilterParam(searchParams.get("filter"));
   const tab = requestedTab === "all" && activeOrg && !permissaoGlobalInbox(activeOrg.role, activeOrg.inbox_permissions, "all") ? "active" : requestedTab;
   useEffect(() => {
-    if (searchParams.get("filter") !== tab) {
+    if (searchParams.get("filter") && searchParams.get("filter") !== tab) {
       const params = new URLSearchParams(searchParams);
       params.set("filter", tab);
       router.replace(pathname + "?" + params, { scroll: false });
@@ -290,9 +290,9 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
   // aí `inList` já a tem no primeiro render.
   const needsFetch = !!selectedId && !inList;
   const single = useConversation(selectedId, needsFetch);
-  const selectedConversation: ConversationWithContact | null = inList ?? single.data ?? null;
   const selectionNotFound =
-    needsFetch && !single.isPending && !single.data && isNotFound(single.error);
+    needsFetch && !single.isPending && isNotFound(single.error);
+  const selectedConversation: ConversationWithContact | null = selectionNotFound ? null : inList ?? single.data ?? null;
 
   const colunas = colunasDoCelular(Boolean(selectedId));
 

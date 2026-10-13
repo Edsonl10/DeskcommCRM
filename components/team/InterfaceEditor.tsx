@@ -101,7 +101,7 @@ export function InterfaceEditor({
                 ["closed", t("Ver Fechadas de toda a equipe.")],
               ] as const).map(([key, label]) => (
                 <label key={key} className="flex items-start gap-2 text-sm">
-                  <input type="checkbox" disabled={role === "manager" || role === "admin"}
+                  <input type="checkbox" name={`inbox-permission-${key}`} disabled={role === "manager" || role === "admin"}
                     checked={role === "manager" || role === "admin" || lerPermissoesInbox(inboxPermissions)[key]}
                     onChange={(e) => onInboxPermissionsChange({ ...lerPermissoesInbox(inboxPermissions), [key]: e.target.checked })} />
                   {label}

@@ -1,4 +1,5 @@
 "use client";
+import { comandoDaVisaoInbox } from "@/lib/inbox/visoes";
 
 import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 
@@ -179,7 +180,7 @@ export function ConversationListItem({
    * robô aparecia só em conversa que já tinha sido escalada E devolvida — nunca
    * na que o automático atendeu do começo ao fim, que é a maioria.
    */
-  const { comando } = comandoDaConversa({
+  const { comando: comandoLegado } = comandoDaConversa({
     status: conversation.status,
     assigned_to_user_id: conversation.assigned_to_user_id,
     assigned_to_user_name: conversation.assigned_to_user_name ?? null,
@@ -191,6 +192,7 @@ export function ConversationListItem({
     is_group: conversation.is_group ?? false,
     automaticoDaOrg,
   });
+  const comando = comandoDaVisaoInbox(conversation.inbox_state, comandoLegado);
   const isAi = comando.quem === "automatico";
   const dot = COR_DO_COMANDO[comando.quem] ?? COR_DO_COMANDO.ninguem;
   // A cor sozinha não se explica: quem não decorou a tabela perguntava o que

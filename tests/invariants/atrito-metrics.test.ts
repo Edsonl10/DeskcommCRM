@@ -115,6 +115,7 @@ beforeAll(() => {
       values ('${CONV_RESPONDIDA}', '${GOV_ORG}', '${CONTATO_RESP}', '${GOV_SESSION}', 'open',
               '2026-03-21T10:00:00Z', '2026-03-22T10:00:00Z');
 
+    update public.conversations set assigned_to_user_id='${GOV_AGENT_A}', assignee_kind='user' where id in ('${CONV}','${CONV_RESPONDIDA}');
     -- DUAS demandas encerradas na janela. followup_attempts 4 e 0 → média 2, máx 4.
     insert into public.agent_cases
       (id, organization_id, conversation_id, status, title, summary, blocker,

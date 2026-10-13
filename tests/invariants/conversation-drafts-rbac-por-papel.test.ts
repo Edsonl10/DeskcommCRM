@@ -21,7 +21,7 @@
  * `visibility_mode` padrão (`own_and_unassigned`). Atribuí-la a outra pessoa
  * deixa os controles positivos do `agent` vermelhos por ACERTO.
  */
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   GOV_ADMIN,
@@ -58,6 +58,7 @@ function consumir(id: string, por: string): string {
 
 beforeAll(() => {
   seedGov();
+  sql(`update public.user_organizations set inbox_permissions='{"all":true,"ai":false,"closed":false}' where organization_id='${GOV_ORG}' and user_id in ('${GOV_AGENT_A}','${GOV_AGENT_B}');`);
   sql(`
     insert into public.conversation_drafts (id, organization_id, conversation_id, body, source, expires_at) values
       ('${LIDO}',    '${GOV_ORG}', '${GOV_CONV_UNASSIGNED}', 'a', 'erp', now() + interval '1 hour'),
@@ -118,3 +119,5 @@ describe("0419 — conversation_drafts: papel por operação", () => {
     expect(sql(contar(CORPO))).toBe("1");
   });
 });
+
+afterAll(() => { sql(`update public.user_organizations set inbox_permissions='{"all":false,"ai":false,"closed":false}' where organization_id='${GOV_ORG}' and user_id in ('${GOV_AGENT_A}','${GOV_AGENT_B}');`); });

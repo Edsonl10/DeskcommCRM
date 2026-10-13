@@ -82,7 +82,7 @@ describe("push de mensagem recebida: só a quem pode ver a conversa", () => {
 
   it("conversa sem dono em own_and_unassigned: os dois agents e o manager; vínculo revogado nunca", () => {
     expect(inscricoesQueVeem(GOV_ORG, GOV_CONV_UNASSIGNED).sort()).toEqual(
-      [SUB.a, SUB.b, SUB.manager].sort(),
+      [SUB.manager],
     );
   });
 
@@ -114,7 +114,7 @@ describe("push de mensagem recebida: só a quem pode ver a conversa", () => {
   });
 
   it("grupo sem dono em own_and_unassigned: os dois agents e o manager", () => {
-    expect(inscricoesQueVeem(GOV_ORG, GRUPO_SEM_DONO).sort()).toEqual([SUB.a, SUB.b, SUB.manager].sort());
+    expect(inscricoesQueVeem(GOV_ORG, GRUPO_SEM_DONO).sort()).toEqual([SUB.manager]);
   });
 
   // Daqui para baixo muda o visibility_mode do GOV_ORG (cada arquivo tem banco
@@ -132,7 +132,7 @@ describe("push de mensagem recebida: só a quem pode ver a conversa", () => {
 
   it("conversa de outro agent em 'all': todos os membros ativos; vínculo revogado nunca", () => {
     definirModo("all");
-    expect(inscricoesQueVeem(GOV_ORG, GOV_CONV_AGENT_B).sort()).toEqual([SUB.a, SUB.b, SUB.manager].sort());
+    expect(inscricoesQueVeem(GOV_ORG, GOV_CONV_AGENT_B).sort()).toEqual([SUB.b, SUB.manager].sort());
   });
 });
 

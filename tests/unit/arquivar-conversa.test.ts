@@ -96,6 +96,7 @@ function makeSupabaseStub(state: StubState) {
     from: () => chain,
     rpc: async (fn: string, args: Record<string, unknown>) => {
       state.rpcCalls.push({ fn, args });
+      if (fn === "fn_can_write_inbox") return { data: true, error: null };
       return { data: null, error: null };
     },
   };

@@ -1,19 +1,35 @@
 -- manifest: Separa aceite humano de distribuição, unifica as visões do Inbox e protege a leitura global por permissão individual no vínculo da equipe.
 alter table public.user_organizations add column if not exists inbox_permissions jsonb not null default '{"all":false,"ai":false,"closed":false}'::jsonb;
 alter table public.team_invites add column if not exists inbox_permissions jsonb not null default '{"all":false,"ai":false,"closed":false}'::jsonb;
-alter table public.conversations add column if not exists human_accepted_at timestamptz;
-
--- Reaplicação não transforma uma distribuição/transferência em aceite.
-update public.conversations c set human_accepted_at = e.created_at
+-- O backfill acontece uma vez: novas respostas sem aceite continuam respeitando a configuração.
+do $inbox_backfill$
+begin
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='conversations' and column_name='human_accepted_at') then
+    alter table public.conversations add column human_accepted_at timestamptz;
+    update public.conversations c set human_accepted_at = e.created_at
 from public.conversation_assignment_events e
 where c.human_accepted_at is null and c.assigned_to_user_id = e.to_user_id
   and c.id = e.conversation_id and c.organization_id = e.organization_id
   and e.reason = 'claim' and e.created_at >= coalesce(c.service_started_at, c.created_at)
   and e.created_at >= coalesce(c.assigned_at, c.created_at)
+  and e.created_at >= coalesce(c.last_handoff_at, c.created_at)
   and c.status not in ('closed','archived','resolved')
   and not exists (select 1 from public.conversation_assignment_events later
     where later.organization_id = c.organization_id and later.conversation_id = c.id
       and later.created_at > e.created_at);
+    -- Resposta comprovadamente enviada pelo responsável após a atribuição atual.
+    update public.conversations c set human_accepted_at = (
+      select min(m.sent_at) from public.messages m
+      where m.organization_id = c.organization_id and m.conversation_id = c.id
+        and m.direction = 'outbound' and m.status in ('sent','delivered','read')
+        and m.sent_by_user_id = c.assigned_to_user_id
+        and (m.service_revision is null or m.service_revision = c.service_revision)
+        and m.sent_at >= greatest(coalesce(c.service_started_at,c.created_at),coalesce(c.assigned_at,c.created_at))
+        and m.sent_at >= coalesce(c.last_handoff_at,c.created_at)
+    ) where c.human_accepted_at is null and c.assigned_to_user_id is not null
+      and c.status not in ('closed','archived','resolved');
+  end if;
+end $inbox_backfill$;
 
 create or replace function public.fn_guard_inbox_permissions() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
@@ -53,7 +69,7 @@ language sql stable security definer set search_path = public, pg_temp as $$
         and a.published_version_id is not null and a.paused_at is null and a.archived_at is null)
       then 'ai'
     when $1.assigned_to_user_id is null then 'unassigned'
-    when $1.human_accepted_at is not null then 'active'
+    when $1.human_accepted_at >= greatest(coalesce($1.assigned_at,$1.created_at),coalesce($1.service_started_at,$1.created_at),coalesce($1.last_handoff_at,$1.created_at)) then 'active'
     else 'waiting'
   end;
 $$;
@@ -65,7 +81,7 @@ language sql stable security definer set search_path = public, pg_temp as $$
   select public.fn_is_platform_admin() or exists (
     select 1 from public.user_organizations m
     where m.organization_id = $1.organization_id and m.user_id = auth.uid()
-      and m.revoked_at is null and m.accepted_at is not null
+      and m.revoked_at is null and m.organization_id in (select public.fn_user_org_ids())
       and (m.role in ('manager','admin') or $1.assigned_to_user_id = auth.uid()
         or case when public.inbox_state($1) = 'closed' then m.inbox_permissions->'closed' = 'true'::jsonb
           when public.inbox_state($1) = 'ai' then m.inbox_permissions->'ai' = 'true'::jsonb or m.inbox_permissions->'all' = 'true'::jsonb
@@ -75,34 +91,44 @@ $$;
 revoke all on function public.fn_can_read_inbox(public.conversations) from public, anon;
 grant execute on function public.fn_can_read_inbox(public.conversations) to authenticated, service_role;
 
--- O helper legado não concede leitura por ausência de dono ou visibility_mode.
--- Nas policies filhas, o EXISTS em conversations impõe também o estado da linha.
-create or replace function public.fn_can_view_conversation(p_org uuid, p_assigned_to_user_id uuid)
-returns boolean language sql stable security definer set search_path = public, pg_temp as $$
-  select public.fn_is_platform_admin() or exists (
-    select 1 from public.user_organizations m where m.organization_id = p_org and m.user_id = auth.uid()
-      and m.revoked_at is null and m.accepted_at is not null
-      and (m.role in ('manager','admin') or p_assigned_to_user_id = auth.uid()
-        or m.inbox_permissions->'all' = 'true'::jsonb or m.inbox_permissions->'ai' = 'true'::jsonb
-        or m.inbox_permissions->'closed' = 'true'::jsonb)
-  );
-$$;
-revoke all on function public.fn_can_view_conversation(uuid,uuid) from public, anon;
-grant execute on function public.fn_can_view_conversation(uuid,uuid) to authenticated, service_role;
+-- Agenda e CRM mantêm o helper legado; as policies de conversa usam a régua específica abaixo.
 drop policy if exists conversations_select on public.conversations;
 drop policy if exists conversations_department_supervisor_select on public.conversations;
 create policy conversations_select on public.conversations for select to authenticated
 using (public.fn_can_read_inbox(conversations));
 
+
+-- As tabelas filhas conservam seus papéis/autoria e recebem a leitura exata da conversa.
+do $inbox_policies$
+declare p record; q text; w text; statement text;
+begin
+  for p in select * from pg_policies where schemaname = 'public'
+    and (qual like '%fn_can_view_conversation%' or with_check like '%fn_can_view_conversation%') loop
+    q := regexp_replace(p.qual, '(public\.)?fn_can_view_conversation\(([a-z_][a-z_0-9]*)\.organization_id,\s*\2\.assigned_to_user_id\)', 'public.fn_can_read_inbox(\2)', 'g');
+    w := regexp_replace(p.with_check, '(public\.)?fn_can_view_conversation\(([a-z_][a-z_0-9]*)\.organization_id,\s*\2\.assigned_to_user_id\)', 'public.fn_can_read_inbox(\2)', 'g');
+    statement := format('alter policy %I on public.%I', p.policyname, p.tablename);
+    if q is not null then statement := statement || ' using (' || q || ')'; end if;
+    if w is not null then statement := statement || ' with check (' || w || ')'; end if;
+    execute statement;
+  end loop;
+end $inbox_policies$;
+
 -- Invalida aceite quando muda o dono, episódio ou comando; uma RPC claim grava o novo.
 create or replace function public.fn_reset_human_acceptance() returns trigger
 language plpgsql set search_path = public, pg_temp as $$
 begin
+  if tg_op = 'INSERT' then
+    if current_user = 'authenticated' and new.human_accepted_at is not null then
+      raise exception 'acceptance_requires_claim' using errcode = '42501';
+    end if;
+    return new;
+  end if;
   if current_user = 'authenticated' and new.human_accepted_at is distinct from old.human_accepted_at then
     raise exception 'acceptance_requires_claim' using errcode = '42501';
   end if;
   if new.assigned_to_user_id is distinct from old.assigned_to_user_id
      or new.service_revision is distinct from old.service_revision
+     or new.last_handoff_at is distinct from old.last_handoff_at
      or new.status in ('closed','archived','resolved')
      or (old.bot_silenced_until is not null and new.bot_silenced_until is null) then
     new.human_accepted_at := null;
@@ -111,24 +137,35 @@ begin
 end $$;
 revoke all on function public.fn_reset_human_acceptance() from public, anon, authenticated;
 drop trigger if exists trg_reset_human_acceptance on public.conversations;
-create trigger trg_reset_human_acceptance before update on public.conversations
+create trigger trg_reset_human_acceptance before insert or update on public.conversations
 for each row execute function public.fn_reset_human_acceptance();
 
+drop function if exists public.fn_accept_inbox_invite(uuid,uuid,text,uuid,timestamptz,timestamptz,jsonb,jsonb);
 create or replace function public.fn_accept_inbox_invite(
-  p_user uuid, p_org uuid, p_role text, p_invited_by uuid,
+  p_invite_id uuid, p_user uuid, p_org uuid, p_role text, p_invited_by uuid,
   p_issued_at timestamptz, p_invited_at timestamptz, p_interface_settings jsonb, p_inbox_permissions jsonb
 ) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
-declare result jsonb;
+declare result jsonb; invitation public.team_invites%rowtype;
 begin
+  select * into invitation from public.team_invites where id = p_invite_id and organization_id = p_org for update;
+  if found then
+    if invitation.revoked_at is not null or invitation.expires_at <= now() then
+      raise exception 'invite_revoked_or_expired' using errcode='42501';
+    end if;
+    -- A linha vigente prevalece sobre um token antigo de reenvio do mesmo convite.
+    p_inbox_permissions := invitation.inbox_permissions;
+  end if;
   result := public.fn_accept_team_invite(p_user,p_org,p_role,p_invited_by,p_issued_at,p_invited_at,p_interface_settings);
   if (result->>'changed')::boolean then
     update public.user_organizations set inbox_permissions = p_inbox_permissions
       where id = (result->>'id')::uuid and organization_id = p_org and user_id = p_user;
   end if;
+  update public.team_invites set accepted_at = now(), accepted_by = p_user
+    where id = p_invite_id and organization_id = p_org and accepted_at is null and revoked_at is null;
   return result;
-end $$;
-revoke all on function public.fn_accept_inbox_invite(uuid,uuid,text,uuid,timestamptz,timestamptz,jsonb,jsonb) from public, anon, authenticated;
-grant execute on function public.fn_accept_inbox_invite(uuid,uuid,text,uuid,timestamptz,timestamptz,jsonb,jsonb) to service_role;
+end $;
+revoke all on function public.fn_accept_inbox_invite(uuid,uuid,uuid,text,uuid,timestamptz,timestamptz,jsonb,jsonb) from public, anon, authenticated;
+grant execute on function public.fn_accept_inbox_invite(uuid,uuid,uuid,text,uuid,timestamptz,timestamptz,jsonb,jsonb) to service_role;
 
 create or replace function public.fn_conversation_assign(
   p_organization_id uuid,
@@ -145,6 +182,7 @@ declare
   v_from uuid;
   v_conv public.conversations%rowtype;
 begin
+  if not public.fn_support_write_allowed(p_organization_id) then raise exception 'support_readonly' using errcode='42501'; end if;
   if auth.uid() is not null
      and not public.fn_role_at_least(p_organization_id, 'agent') then
     raise exception 'caller_not_authorized_for_org'
@@ -163,13 +201,14 @@ begin
     from public.conversations
    where id = p_conversation_id
      and organization_id = p_organization_id
-   for update;
+   for no key update;
 
   if not found then
     return;
   end if;
 
-  if p_enforce_expected and v_from is distinct from p_expected_assignee then
+  if p_enforce_expected and v_from is distinct from p_expected_assignee
+     and not (p_reason = 'claim' and v_from is not null and v_from = p_to_user_id) then
     return;
   end if;
 
@@ -227,6 +266,7 @@ create or replace function public.fn_conversation_assign_department(
 ) returns setof public.conversations language plpgsql security definer set search_path = public as $$
 declare v_from uuid; v_conv public.conversations%rowtype;
 begin
+  if not public.fn_support_write_allowed(p_organization_id) then raise exception 'support_readonly' using errcode='42501'; end if;
   if auth.uid() is null or not public.fn_role_at_least(p_organization_id, 'agent') then raise exception 'caller_not_authorized_for_org'; end if;
   if not exists (select 1 from public.departments where id = p_department_id and organization_id = p_organization_id and is_active) then raise exception 'department_not_found_or_inactive'; end if;
   if p_to_user_id is not null and not exists (select 1 from public.department_members where organization_id = p_organization_id and department_id = p_department_id and user_id = p_to_user_id) then raise exception 'assignee_not_member_of_department'; end if;
@@ -247,7 +287,8 @@ returns boolean language sql stable security definer set search_path = public, p
   select public.fn_is_platform_admin_full() or exists (
     select 1 from public.conversations c join public.user_organizations m on m.organization_id = c.organization_id
     where c.organization_id = p_org and c.id = p_conversation and m.user_id = auth.uid()
-      and m.revoked_at is null and m.accepted_at is not null and m.role in ('agent','manager','admin')
+      and m.revoked_at is null and m.role in ('agent','manager','admin')
+      and public.fn_can_read_inbox(c)
       and (m.role in ('manager','admin') or c.assigned_to_user_id is null or c.assigned_to_user_id = auth.uid())
   );
 $$;
@@ -321,7 +362,7 @@ grant execute on function public.fn_push_inscricoes_que_veem_a_conversa(uuid, uu
 
 do $$ declare r record; begin
   for r in select tablename from pg_tables where schemaname = 'public'
-    and tablename in ('messages','conversation_notes','conversation_assignment_events','ai_reply_drafts','conversation_handoffs') loop
+    and tablename in ('messages','conversation_notes','conversation_assignment_events','ai_reply_drafts','conversation_handoffs','conversation_drafts','passagens_de_atendimento') loop
     execute format('drop policy if exists inbox_conversation_read on public.%I',r.tablename);
     execute format('create policy inbox_conversation_read on public.%I as restrictive for select to authenticated using (exists (select 1 from public.conversations c where c.id = conversation_id and c.organization_id = %I.organization_id))',r.tablename,r.tablename);
   end loop;

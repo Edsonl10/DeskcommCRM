@@ -128,7 +128,7 @@ test("suporte mantém identidade, opera B e encerra sem misturar A; readonly/exp
   await insert("user_organizations",{organization_id:orgs[0],user_id:actor,role:"admin",accepted_at:new Date().toISOString()});
   const pa=await db.from("platform_admins").insert({user_id:actor,granted_by:actor,scope:"full",mfa_required:false,reason:"E2E local support"});if(pa.error)throw pa.error;
   await login(page,email);await acknowledgeKnownAction(page,"/login");
-  const sameTab=await page.context().newPage();await sameTab.goto("/app/inbox");
+  const sameTab=await page.context().newPage();await sameTab.goto("/app/inbox?filter=all");
   await expect(sameTab.getByTestId("tenant-switcher")).toContainText(`Suporte A ${suffix}`);
   second=await browser.newContext();observeRequests(second);const other=await second.newPage();observeAuth(other);await login(other,email);await acknowledgeKnownAction(other,"/login");
   await start(page,orgs[1]!);

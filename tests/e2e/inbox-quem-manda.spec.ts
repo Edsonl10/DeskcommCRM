@@ -320,6 +320,11 @@ test.describe("Inbox — quem manda nesta conversa", () => {
     if (escalada.error) throw new Error(`escalar: ${escalada.error.message}`);
     expect((escalada.data as { status: string } | null)?.status).toBe("pending");
 
+    const { error: routingError } = await admin.rpc("fn_conversation_assign", {
+      p_organization_id: creds.org_id, p_conversation_id: conversaId,
+      p_to_user_id: creds.users.agent!.id, p_reason: "routing",
+    });
+    if (routingError) throw routingError;
     await login(page, creds.users.agent!.email, creds.password);
     await page.goto("/app/inbox?filter=unassigned");
 
@@ -335,7 +340,7 @@ test.describe("Inbox — quem manda nesta conversa", () => {
 
     // Abrindo, a tela diz que ninguém está no comando — nem pessoa, nem automático.
     await naFila.click();
-    await expect(page.getByTestId("comando-da-conversa")).toContainText(/sem respons/i, {
+    await expect(page.getByTestId("comando-da-conversa")).toContainText(/responsável|atendente/i, {
       timeout: 30_000,
     });
   });

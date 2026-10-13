@@ -77,13 +77,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     throw err;
   }
 
-  if (authz.via === "session") {
-    const { data: canWrite, error: permissionError } = await supabase.rpc("fn_can_write_inbox", {
-      p_org: organizationId, p_conversation: input.conversation_id,
-    });
-    if (permissionError) return fail("internal_error", "Não foi possível validar o atendimento.", 500, { requestId });
-    if (!canWrite) return fail("forbidden", "A permissão de consulta não permite responder por outro atendente.", 403, { requestId });
-  }
   const t = (texto: string) => traduzir(texto, idioma ?? "pt-BR");
 
   // Idempotency-Key, quando vem, tem de ser UUID — mesma régua de
@@ -198,6 +191,14 @@ export async function POST(req: NextRequest): Promise<Response> {
    * de validar o corpo, como dava antes de existir chave nenhuma.
    */
   const enviar = async (): Promise<Message> => {
+    if (authz.via === "session") {
+      const { data: canWrite, error: permissionError } = await supabase.rpc("fn_can_write_inbox", {
+        p_org: organizationId, p_conversation: input.conversation_id,
+      });
+      if (permissionError) throw new ApiError(500, "internal_error", undefined, requestId, "Não foi possível validar o atendimento.");
+      if (!canWrite) throw new ApiError(403, "forbidden", undefined, requestId, "A permissão de consulta não permite responder por outro atendente.");
+    }
+
     // Por token, esta rota é a mesma porta de escrita do MCP — e leva o mesmo
     // teto por token e agregado por organização (`lib/mcp/rate-limit.ts`, #1491).
     // Pela sessão do navegador não há teto: quem digita é uma pessoa.

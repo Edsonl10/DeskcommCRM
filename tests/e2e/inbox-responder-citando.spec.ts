@@ -123,6 +123,10 @@ async function conversaComMensagem(nome: string, texto: string): Promise<string>
     sent_at: new Date().toISOString(),
     external_id: `citacao-${SUFIXO}-${randomUUID()}`,
   });
+  const { error: acceptedError } = await db.rpc("fn_conversation_assign", {
+    p_organization_id: orgId, p_conversation_id: conversa, p_to_user_id: creds.users.agent!.id, p_reason: "claim",
+  });
+  if (acceptedError) throw acceptedError;
   contatos.push(contato);
   conversas.push(conversa);
   return conversa;

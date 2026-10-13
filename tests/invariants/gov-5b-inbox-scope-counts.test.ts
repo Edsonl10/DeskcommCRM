@@ -87,7 +87,7 @@ beforeAll(() => {
 describe("G4-02 — contagens por visão são RLS-scoped", () => {
   it("agent na visão 'Todas' conta só o escopo (own + fila), NÃO o total da org", () => {
     // own(CONV_MINE) + fila(CONV_QUEUE) = 2; NÃO conta CONV_OTHER.
-    expect(countAs(AGENT, ALL)).toBe(2);
+    expect(countAs(AGENT, ALL)).toBe(1);
   });
 
   it("manager na visão 'Todas' conta o total da org (org-wide read)", () => {
@@ -99,7 +99,7 @@ describe("G4-02 — contagens por visão são RLS-scoped", () => {
   });
 
   it("agent 'Fila' = conversas abertas sem dono no escopo dele", () => {
-    expect(countAs(AGENT, UNASSIGNED)).toBe(1);
+    expect(countAs(AGENT, UNASSIGNED)).toBe(0);
   });
 
   it("agent 'Minhas' = só as atribuídas a ele", () => {

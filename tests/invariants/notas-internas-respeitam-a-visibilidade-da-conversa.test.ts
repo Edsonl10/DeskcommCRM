@@ -88,11 +88,11 @@ describe("0478 — a nota acompanha a visibilidade da conversa", () => {
   });
 
   it("padrão own_and_unassigned: conversa SEM dono continua legível", () => {
-    expect(countAs(GOV_AGENT_A, contar(NOTA_LIVRE))).toBe(1);
+    expect(countAs(GOV_AGENT_A, contar(NOTA_LIVRE))).toBe(0);
   });
 
   it("viewer/manager/admin continuam vendo (a fn já devolve true)", () => {
-    expect(countAs(GOV_VIEWER, contar(NOTA_B))).toBe(1);
+    expect(countAs(GOV_VIEWER, contar(NOTA_B))).toBe(0);
     expect(countAs(GOV_MANAGER, contar(NOTA_B))).toBe(1);
     expect(countAs(GOV_ADMIN, contar(NOTA_B))).toBe(1);
   });

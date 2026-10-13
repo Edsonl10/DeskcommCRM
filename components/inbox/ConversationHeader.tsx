@@ -1,4 +1,5 @@
 "use client";
+import { comandoDaVisaoInbox } from "@/lib/inbox/visoes";
 import { useState, type RefObject } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import Link from "next/link";
@@ -75,9 +76,9 @@ const STATUS_LABEL: Record<string, string> = {
   pending: "Aberta",
   claimed: "Aberta",
   ai_handling: "Aberta",
-  resolved: "Resolvida",
+  resolved: "Fechada",
   closed: "Fechada",
-  archived: "Arquivada",
+  archived: "Fechada",
 };
 
 export function ConversationHeader({
@@ -110,7 +111,7 @@ export function ConversationHeader({
   const phone = c?.phone_number ? phoneForDisplay(c.phone_number) : null;
   const status = conversation.status;
   const podeOperar = activeOrg?.role === "manager" || activeOrg?.role === "admin" || conversation.assigned_to_user_id == null || conversation.assigned_to_user_id === user.id;
-  const isOpen = !["closed", "archived", "resolved"].includes(status) && (conversation.assigned_to_user_id == null || (conversation.assigned_to_user_id === user.id && !conversation.human_accepted_at));
+  const isOpen = !["closed", "archived", "resolved"].includes(status) && (conversation.assigned_to_user_id == null || (conversation.assigned_to_user_id === user.id && (conversation.inbox_state === "waiting" || !conversation.human_accepted_at)));
 
   // Mantém a recuperação de contatos pessoais anteriores, sem oferecer novas marcações.
   const ehPessoal = c?.is_personal === true;
@@ -129,7 +130,7 @@ export function ConversationHeader({
    * leituras divergiram em primeiro lugar. A regra mora em `lib/inbox`,
    * espelhando os gates que o MOTOR lê, e esta tela só a consome.
    */
-  const { comando, automaticoAtivo, travaVigente, motivo } = comandoDaConversa({
+  const { comando: comandoLegado, automaticoAtivo, travaVigente, motivo } = comandoDaConversa({
     status,
     assigned_to_user_id: conversation.assigned_to_user_id,
     assigned_to_user_name: conversation.assigned_to_user_name ?? null,
@@ -142,6 +143,7 @@ export function ConversationHeader({
     automaticoDaOrg: automaticoDaOrg.data,
   });
 
+  const comando = comandoDaVisaoInbox(conversation.inbox_state, comandoLegado);
   const encerrada = status === "closed" || status === "archived" || status === "resolved";
   /**
    * A VOLTA aparece sempre que há algo a devolver — inclusive em conversa
@@ -196,7 +198,7 @@ export function ConversationHeader({
           <ChannelLogo channel={conversation.channel_sessions} size={20} />
           <h2 className="min-w-0 truncate text-sm font-semibold" title={displayName}>{displayName}</h2>
           <Badge variant="outline" className="h-4 shrink-0 px-1.5 text-[10px]">
-            {t(STATUS_LABEL[status] ?? status)}
+            {conversation.inbox_state === "waiting" ? t("Aguardando") : t(STATUS_LABEL[status] ?? status)}
           </Badge>
           {/* Ao lado do estado, não escondido num painel: a pergunta "dá para
               escrever agora?" se faz ANTES de digitar, não depois de receber um
@@ -238,10 +240,12 @@ export function ConversationHeader({
             por texto, faria a mesma pergunta ter três respostas diferentes na
             mesma tela. Cor não sobrevive ao daltonismo nem ao teste do metro. */}
         <div className="mt-1 flex items-center gap-2" data-testid="comando-da-conversa">
-          {comando.quem === "humano" ? (
+          {conversation.inbox_state === "waiting" && conversation.assigned_to_user_id ? (
+            <OwnerBadge ownerKind="user" ownerName={conversation.assigned_to_user_name ?? t("Atendente")} />
+          ) : comando.quem === "humano" ? (
             <OwnerBadge ownerKind="user" ownerName={comando.nome ?? t("Atendente")} />
           ) : comando.quem === "automatico" ? (
-            <OwnerBadge ownerKind="ai" ownerName={t("Automático")} />
+            <OwnerBadge ownerKind="ai" ownerName={t("IA")} />
           ) : (
             // `ninguem`, `aguardando` e `encerrada` sem dono caem aqui: o disco
             // TRACEJADO do OwnerBadge, que é como o funil já desenha "ninguém".
@@ -299,13 +303,13 @@ export function ConversationHeader({
             do composer (lib/inbox/motivo-do-envio-bloqueado.ts); encerrada só
             desabilita, sem texto, como o composer faz. `supportReadonly` fica
             de fora: ele mora no `user`, que este componente não recebe. */}
-        <VideoCallButton
+        {podeOperar && <VideoCallButton
           conversationId={conversation.id}
           provider={conversation.channel_sessions?.provider ?? null}
           lastInboundAt={conversation.last_inbound_at}
           bloqueio={motivoDoContato(c, t)}
           encerrada={status === "closed"}
-        />
+        />}
         {isOpen && (
           <Button
             size="sm"
@@ -338,7 +342,7 @@ export function ConversationHeader({
 
             O `data-testid` do lado de VOLTA é o mesmo de antes: `escalacao-ciclo`
             o clica, e rótulo/testid visível é contrato. */}
-        {podeDevolver && (
+        {podeOperar && podeDevolver && (
           <Button
             size="sm"
             variant="outline"
@@ -360,7 +364,7 @@ export function ConversationHeader({
             {retomar.isPending ? t("Devolvendo...") : t("Devolver à IA")}
           </Button>
         )}
-        {podePausar && (
+        {podeOperar && podePausar && (
           <Button
             size="sm"
             variant="outline"

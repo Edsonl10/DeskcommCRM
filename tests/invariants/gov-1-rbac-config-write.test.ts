@@ -2,6 +2,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import {
   GOV_AGENT_A,
+  GOV_AGENT_B,
+  GOV_CONV_AGENT_B,
   GOV_CONV_UNASSIGNED,
   GOV_MANAGER,
   GOV_PIPELINE,
@@ -51,8 +53,8 @@ describe("eixo 1 — RBAC de escrita em config (migration 0030)", () => {
 
   it("agent continua escrevendo em conversations (controle positivo do write agent+)", () => {
     const updated = writeCountAs(
-      GOV_AGENT_A,
-      `update public.conversations set status = status where id = '${GOV_CONV_UNASSIGNED}'`,
+      GOV_AGENT_B,
+      `update public.conversations set status = status where id = '${GOV_CONV_AGENT_B}'`,
     );
     expect(updated).toBe(1);
   });
@@ -78,7 +80,7 @@ describe("eixo 1 — RBAC de escrita em config (migration 0030)", () => {
           userId,
           `select count(*) from public.conversations where id = '${GOV_CONV_UNASSIGNED}';`,
         ),
-      ).toBe(1);
+      ).toBe(0);
     }
   });
 });

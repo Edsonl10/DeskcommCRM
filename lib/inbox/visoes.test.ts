@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { aplicarVisaoInbox, INBOX_VIEWS, lerPermissoesInbox, normalizarVisaoInbox, permissaoGlobalInbox } from "./visoes";
+import { aplicarVisaoInbox, comandoDaVisaoInbox, INBOX_VIEWS, lerPermissoesInbox, normalizarVisaoInbox, permissaoGlobalInbox } from "./visoes";
 
 describe("visões do Inbox e autorização individual", () => {
+  it("um responsável indicado não troca a apresentação de IA ou de espera por atendimento ativo", () => {
+    const legacy = {quem:"humano" as const, userId:"pessoa", nome:"Pessoa"};
+    expect(comandoDaVisaoInbox("ai",legacy)).toEqual({quem:"automatico"});
+    expect(comandoDaVisaoInbox("waiting",legacy)).toEqual({quem:"aguardando"});
+    expect(comandoDaVisaoInbox("closed",legacy)).toEqual(legacy);
+  });
   it("ordena as cinco abas e preserva os links antigos", () => {
     expect(INBOX_VIEWS.map(v => v.label)).toEqual(["Ativos", "Aguardando", "IA", "Todos", "Fechadas"]);
     expect([null, "mine", "unassigned", "archived"].map(normalizarVisaoInbox)).toEqual(["active", "active", "waiting", "closed"]);

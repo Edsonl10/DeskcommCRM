@@ -106,7 +106,7 @@ describe("POST /messages após resposta humana, com o ajuste LIGADO", () => {
     const { POST } = await import("@/app/api/v1/messages/route");
     const response = await POST(req());
     expect(response.status).toBe(201);
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalledWith("fn_conversation_assign", expect.anything());
   });
 });
 
@@ -131,7 +131,7 @@ describe("POST /messages após resposta humana, com o ajuste DESLIGADO", () => {
     expect(from).toHaveBeenCalledWith("organizations");
     expect(erro).not.toHaveBeenCalled();
     erro.mockRestore();
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalledWith("fn_conversation_assign", expect.anything());
     expect(audit).not.toHaveBeenCalled();
     expect(registrarTrocaDeComando).not.toHaveBeenCalled();
   });

@@ -8,10 +8,10 @@ beforeAll(() => {
     insert into public.organizations(id,slug,legal_name,display_name) values('${org}','inbox-9003','Inbox','Inbox');
     insert into public.user_organizations(user_id,organization_id,role,accepted_at) values ('${eu}','${org}','agent',now()),('${outro}','${org}','agent',now()),('${gestor}','${org}','manager',now());
     insert into public.channel_sessions(id,organization_id,waha_session_name,webhook_secret_encrypted) values('${canal}','${org}','inbox9003','\\x00'::bytea);
-    insert into public.contacts(id,organization_id,display_name,force_human) values('${contato}','${org}','Pessoa sintética',true);
+    insert into public.contacts(id,organization_id,display_name,force_human) values('${contato}','${org}','Pessoa sintética',true),('${id(9)}','${org}','Pessoa do histórico',true);
     insert into public.conversations(id,organization_id,contact_id,channel_session_id,status,assigned_to_user_id) values
       ('${conversa}','${org}','${contato}','${canal}','claimed','${outro}'),
-      ('${fechada}','${org}','${contato}','${canal}','archived','${outro}');`);
+      ('${fechada}','${org}','${id(9)}','${canal}','archived','${outro}');`);
 });
 const count = (who: string) => countAs(who, `select count(*) from public.conversations where organization_id='${org}';`);
 describe("Inbox: segurança real e aceite", () => {
@@ -30,7 +30,7 @@ describe("Inbox: segurança real e aceite", () => {
   it("distribuir não assume; claim assume; transferir e reabrir não reutilizam aceite", () => {
     sql(`select public.fn_conversation_assign('${org}','${conversa}','${eu}','routing');`);
     expect(lastLine(sql(`select public.inbox_state(c) from public.conversations c where id='${conversa}';`))).toBe("waiting");
-    sql(`select public.fn_conversation_assign('${org}','${conversa}','${eu}','claim');`);
+    sql(`select public.fn_conversation_assign('${org}','${conversa}','${eu}','claim',null,true);`);
     expect(lastLine(sql(`select public.inbox_state(c) from public.conversations c where id='${conversa}';`))).toBe("active");
     sql(`select public.fn_conversation_assign('${org}','${conversa}','${outro}','transfer');`);
     expect(lastLine(sql(`select human_accepted_at is null from public.conversations where id='${conversa}';`))).toBe("t");
@@ -38,6 +38,26 @@ describe("Inbox: segurança real e aceite", () => {
     expect(lastLine(sql(`select human_accepted_at is null from public.conversations where id='${conversa}';`))).toBe("t");
   });
   it("não permite conceder a própria permissão pelo banco", () => {
-    expect(() => sql(`set role authenticated; select set_config('request.jwt.claims','{"sub":"${eu}"}',false); update public.user_organizations set inbox_permissions='{"all":true,"ai":true,"closed":true}' where user_id='${eu}' and organization_id='${org}';`)).toThrow();
+    try { sql(`set role authenticated; select set_config('request.jwt.claims','{"sub":"${eu}"}',false); update public.user_organizations set inbox_permissions='{"all":true,"ai":true,"closed":true}' where user_id='${eu}' and organization_id='${org}';`); } catch { /* RLS ou trigger recusam; o fato é a permissão não mudar. */ }
+    expect(lastLine(sql(`select inbox_permissions->>'all' from public.user_organizations where user_id='${eu}' and organization_id='${org}';`))).toBe("false");
+  });
+  it("IA prevalece sobre indicação de responsável e Todos também pode lê-la", () => {
+    sql(`insert into public.contacts(id,organization_id,display_name) values('${id(14)}','${org}','Pessoa da IA');
+      insert into public.ai_agents(id,organization_id,name,system_prompt) values('${id(15)}','${org}','IA de teste','system');
+      insert into public.ai_agent_versions(id,organization_id,agent_id,version_number,system_prompt,provider,model,channel_session_id,status)
+        values('${id(16)}','${org}','${id(15)}',1,'system','anthropic','claude-sonnet-4-6','${canal}','published');
+      update public.ai_agents set published_version_id='${id(16)}' where id='${id(15)}';
+      insert into public.conversations(id,organization_id,contact_id,channel_session_id,status,assigned_to_user_id)
+        values('${id(17)}','${org}','${id(14)}','${canal}','claimed','${outro}');
+      update public.user_organizations set inbox_permissions='{"all":false,"ai":true,"closed":false}' where user_id='${eu}' and organization_id='${org}';
+      insert into public.conversation_notes(organization_id,conversation_id,body,created_by_name) values('${org}','${id(17)}','Nota sintética','seed');`);
+    expect(lastLine(sql(`select public.inbox_state(c) from public.conversations c where id='${id(17)}';`))).toBe("ai");
+    expect(countAs(eu,`select count(*) from public.conversations where id='${id(17)}';`)).toBe(1);
+    expect(countAs(eu,`select count(*) from public.conversation_notes where conversation_id='${id(17)}';`)).toBe(1);
+    sql(`update public.user_organizations set inbox_permissions='{"all":true,"ai":false,"closed":false}' where user_id='${eu}' and organization_id='${org}';`);
+    expect(countAs(eu,`select count(*) from public.conversations where id='${id(17)}';`)).toBe(1);
+    expect(lastLine(sql(`set role authenticated; select set_config('request.jwt.claims','{"sub":"${eu}"}',false); select public.fn_can_write_inbox('${org}','${id(17)}');`))).toBe("f");
+    sql(`update public.user_organizations set inbox_permissions='{"all":false,"ai":false,"closed":false}' where user_id='${eu}' and organization_id='${org}';`);
+    expect(countAs(eu,`select count(*) from public.conversation_notes where conversation_id='${id(17)}';`)).toBe(0);
   });
 });

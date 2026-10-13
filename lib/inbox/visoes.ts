@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { roleAtLeast, type Role } from "@/lib/auth/types";
+import type { Comando } from "@/lib/inbox/comando-da-conversa";
 
 /** Autorização por vínculo; nunca é inferida do perfil visual. */
 export const inboxPermissionsSchema = z.object({
@@ -14,6 +15,12 @@ export function lerPermissoesInbox(value: unknown): InboxPermissions {
   return parsed.success ? parsed.data : { ...SEM_PERMISSOES_INBOX };
 }
 export type InboxView = "active" | "waiting" | "ai" | "all" | "closed";
+/** O estado calculado prevalece na apresentação; o comando legado continua compatível. */
+export function comandoDaVisaoInbox(state: string | undefined, legacy: Comando): Comando {
+  if (state === "ai") return { quem: "automatico" };
+  if (state === "waiting" || state === "unassigned") return { quem: "aguardando" };
+  return legacy;
+}
 export const INBOX_VIEWS: { value: InboxView; label: string }[] = [
   { value: "active", label: "Ativos" },
   { value: "waiting", label: "Aguardando" },

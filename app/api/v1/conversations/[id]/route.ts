@@ -139,6 +139,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
         actor: { type: "user", id: user.id },
         requestId,
         idioma: user.idioma,
+        inbox_role: activeOrg.role,
       },
       id,
       input,
