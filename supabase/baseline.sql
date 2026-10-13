@@ -48782,7 +48782,7 @@ begin
   update public.team_invites set accepted_at = now(), accepted_by = p_user
     where id = p_invite_id and organization_id = p_org and accepted_at is null and revoked_at is null;
   return result;
-end $;
+end $$;
 revoke all on function public.fn_accept_inbox_invite(uuid,uuid,uuid,text,uuid,timestamptz,timestamptz,jsonb,jsonb) from public, anon, authenticated;
 grant execute on function public.fn_accept_inbox_invite(uuid,uuid,uuid,text,uuid,timestamptz,timestamptz,jsonb,jsonb) to service_role;
 
