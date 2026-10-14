@@ -25,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/preparar-node
+        timeout-minutes: 5
       # Retorno rápido para a reserva do setor; não substitui a matriz completa.
       - name: Entrada, reserva, concorrência e regras do setor em PostgreSQL 17
         run: pnpm test:db tests/invariants/department-routing.test.ts
