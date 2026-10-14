@@ -169,7 +169,7 @@ create table if not exists attendant_availability (
   organization_id   uuid not null references organizations(id) on delete cascade,
   user_id           uuid not null references auth.users(id) on delete cascade,
   is_available      boolean not null default false,
-  capacity          integer not null default 5 check (capacity > 0), -- ajustável por atendente, nunca constante no código
+  capacity          integer not null default 5 check (capacity >= 0), -- 0 = sem limite; ajustável por atendente
   schedule          jsonb not null default '{}', -- tz-aware: {"timezone":"America/Sao_Paulo","windows":[{"dow":1,"start":"08:00","end":"18:00"}]}
   last_heartbeat_at timestamptz,                 -- AT-08: auto-offline após 15min sem heartbeat (worker)
   updated_at        timestamptz not null default now(),
@@ -320,7 +320,7 @@ a migration `20260716120000_0030_config_rls_role_policies.sql` aplica
 - **Modos no MVP** (decisão G1-06b): `manual` (só claim/atribuição humana) e
   `round_robin` (rodízio entre elegíveis). `load` (menor carga) fica pós-MVP —
   `settings.routing` é jsonb, entra sem quebrar contrato. Elegível =
-  disponível ∧ dentro do horário ∧ abaixo da capacidade.
+  disponível ∧ dentro do horário ∧ (sem limite ou abaixo da capacidade).
 - **Default por org**: `mode = 'manual'` — round-robin é opt-in (derivado de
   G1-06b: o dono escolheu os modos, não o default; manual é o comportamento
   atual e conservador).

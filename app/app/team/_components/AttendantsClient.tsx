@@ -12,7 +12,7 @@ import {
   useUpdateRouting,
   type AttendantAvailability,
 } from "@/hooks/team/useAttendants";
-import { estaDePlantao } from "@/lib/routing/eligibility";
+import { estaDePlantao, isAtCapacity } from "@/lib/routing/eligibility";
 import {
   ROUTING_MODES,
   type RoutingConfig,
@@ -632,26 +632,53 @@ export function AttendantsClient({ canManage, organizationTimezone }: Props) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className={load >= capacity ? "font-medium text-destructive" : ""}>
+                      <span className={isAtCapacity(load, capacity) ? "font-medium text-destructive" : ""}>
                         {load}
                       </span>
                     </TableCell>
                     <TableCell>
                       {canManage ? (
-                        <Input
-                          type="number"
-                          min={1}
-                          max={1000}
-                          defaultValue={capacity}
-                          className="h-8 w-20"
-                          aria-label={`Capacidade de ${a.name}`}
-                          onBlur={(e) => {
-                            const next = Number(e.target.value);
-                            if (Number.isInteger(next) && next >= 1 && next !== capacity) {
-                              patch.mutate({ userId: a.userId, patch: { capacity: next } });
-                            }
-                          }}
-                        />
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              id={`sem-limite-${a.userId}`}
+                              checked={capacity === 0}
+                              disabled={patch.isPending}
+                              aria-label={`${t("Sem limite")} — ${a.name}`}
+                              onCheckedChange={(semLimite) =>
+                                patch.mutate({
+                                  userId: a.userId,
+                                  patch: { capacity: semLimite ? 0 : 5 },
+                                })
+                              }
+                            />
+                            <Label
+                              htmlFor={`sem-limite-${a.userId}`}
+                              className="text-xs whitespace-nowrap"
+                            >
+                              {t("Sem limite")}
+                            </Label>
+                          </div>
+                          {capacity > 0 ? (
+                            <Input
+                              key={capacity}
+                              type="number"
+                              min={1}
+                              max={1000}
+                              defaultValue={capacity}
+                              className="h-8 w-20"
+                              aria-label={`Capacidade de ${a.name}`}
+                              onBlur={(e) => {
+                                const next = Number(e.target.value);
+                                if (Number.isInteger(next) && next >= 1 && next !== capacity) {
+                                  patch.mutate({ userId: a.userId, patch: { capacity: next } });
+                                }
+                              }}
+                            />
+                          ) : null}
+                        </div>
+                      ) : capacity === 0 ? (
+                        t("Sem limite")
                       ) : (
                         capacity
                       )}

@@ -1,5 +1,13 @@
 # PROJECT_STATE
 
+## Preparado — atendimento sem limite de quantidade
+- Pedido de 14/10/2026: retirar o limite de conversas dos atendentes.
+- Capacidade zero significa Sem limite na tela Equipe → Atendimento, no carregador de elegíveis e na reserva atômica do banco. Disponibilidade, jornada, responsáveis por canal e limites positivos continuam vigentes.
+- Migration exclusiva 9004 e apêndice idempotente no baseline preservam os valores existentes; a ativação na organização deve ocorrer depois de app e worker compatíveis.
+- Esta alteração trata do limite por quantidade. As regras de disponibilidade, jornada, responsáveis por canal e vínculo de departamento seguem independentes.
+- Revisão funcional `531d984` validada pelos checks públicos do PR #11: verify, invariantes PostgreSQL 15/17, E2E, build e imagens. A evidência fictícia está em `evidence/comunidade-360/atendimento-sem-limite.png`.
+- Próximo passo: aprovação de instalação, integração e publicação das imagens, backup validado, atualização compatível do banco/app/worker/scheduler e ativação de Sem limite pela tela.
+
 ## Em produção — legibilidade global e seleção no modo escuro
 - Pedido de 14/10/2026: clarear os textos cinza, aumentar fontes maiores em 10% e menores em 15% em todo o sistema, e substituir a seleção branca da Inbox escura por transparência discreta.
 - Implementação: escala global `--text-*` (+15% até 14px, +10% nos tamanhos maiores), utilitários arbitrários e fontes dos gráficos. Raiz em 16px; textos secundários escuros `#b9b6ab`/`#9d998e`; fundo selecionado semântico a 12% de opacidade no escuro, com espelho claro e indicador lateral.

@@ -37,6 +37,7 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "Sem limite": { es: "Sin límite" },
   "As permissões de conversas ficam no cadastro da Equipe, em Personalizar áreas visíveis.": { es: "Los permisos de conversaciones se configuran en Equipo, en Personalizar áreas visibles." },
   "Visibilidade dos negócios no CRM": { es: "Visibilidad de los negocios en el CRM" },
   "atendimento(s) aguardando direcionamento. Confira a disponibilidade da equipe ou transfira para um atendente.": { es: "atenciones pendientes de asignación. Revise la disponibilidad del equipo o transfiera a un agente." },

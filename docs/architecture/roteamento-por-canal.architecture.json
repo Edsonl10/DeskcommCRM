@@ -48,7 +48,7 @@
       "lane": "app",
       "col": 2,
       "type": "service",
-      "label": "Escopo do canal; carga global e rodízio local"
+      "label": "Escopo do canal; carga global, limite opcional e rodízio local"
     },
     {
       "id": "claim",

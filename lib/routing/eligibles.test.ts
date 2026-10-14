@@ -29,6 +29,15 @@ function fixture(over: Record<string, unknown> = {}) {
 const scope = { kind: "conversation_channel", channelSessionId: "channel" } as const;
 const now = new Date("2026-09-06T15:00:00Z");
 describe("elegibilidade com origem explícita", () => {
+  it("sem limite mantém a carga para o rodízio e permite receber acima do antigo teto", async () => {
+    const { db } = fixture({
+      attendant_availability: [{ user_id: "ana", capacity: 0, schedule: {} }],
+      conversations: Array.from({ length: 25 }, () => ({ assigned_to_user_id: "ana" })),
+    });
+    expect(await loadEligibleAttendants(db, "org", now, scope)).toMatchObject([
+      { userId: "ana", currentLoad: 25 },
+    ]);
+  });
   it("política vazia não cai no conjunto legado", async () => {
     const { db } = fixture({ channel_routing_policies: { id: "policy" } });
     expect(await loadEligibleAttendants(db, "org", now, scope)).toEqual([]);
