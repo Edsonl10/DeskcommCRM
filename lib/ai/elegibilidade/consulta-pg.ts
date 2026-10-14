@@ -36,7 +36,7 @@ export async function decidirElegibilidadeDaConversa(
     `select
        cs.metadata                  as channel_metadata,
        ct.force_human               as force_human,
-       cv.assignee_kind             as assignee_kind,
+       case when cv.human_accepted_at is null then null else cv.assignee_kind end as assignee_kind,
        cv.bot_silenced_until        as bot_silenced_until,
        ct.ai_authorized_at          as ai_authorized_at,
        ct.phone_number              as phone_number,

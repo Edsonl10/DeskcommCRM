@@ -770,7 +770,7 @@ async function buildContext(input: BuildContextInput): Promise<GuardDecision> {
   const { data: conv, error: convErr } = await admin
     .from("conversations")
     .select(
-      "id, organization_id, contact_id, channel_session_id, last_inbound_at, bot_silenced_until, last_handoff_at, assignee_kind, contacts:contact_id(id, name, display_name, locale, is_blocked, is_personal, force_human)",
+      "id, organization_id, contact_id, channel_session_id, last_inbound_at, bot_silenced_until, last_handoff_at, assignee_kind, human_accepted_at, contacts:contact_id(id, name, display_name, locale, is_blocked, is_personal, force_human)",
     )
     .eq("id", input.conversationId)
     .eq("organization_id", input.organizationId)
@@ -788,6 +788,7 @@ async function buildContext(input: BuildContextInput): Promise<GuardDecision> {
     bot_silenced_until: string | null;
     last_handoff_at: string | null;
     assignee_kind: string | null;
+    human_accepted_at: string | null;
     contacts: {
       id: string;
       name: string | null;
@@ -806,7 +807,7 @@ async function buildContext(input: BuildContextInput): Promise<GuardDecision> {
   if (c.contacts.force_human) return skip("force_human");
   // G3-02 — assignee de 1ª classe: humano atendendo (kind='user') veta o bot
   // deterministicamente, mesma família de guard de force_human/bot_silenced_until.
-  if (c.assignee_kind === "user") return skip("assigned_to_human");
+  if (c.assignee_kind === "user" && c.human_accepted_at !== null) return skip("assigned_to_human");
 
   // GATE DE ELEGIBILIDADE (opt-in por canal — `metadata.ai_gate = 'allowlist'`).
   // Este worker é o caminho PRÉ-ENGINE: responde as orgs sem versão de agente

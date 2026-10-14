@@ -65,8 +65,18 @@ language sql stable security definer set search_path = public, pg_temp as $$
       coalesce((select ct.force_human from public.contacts ct where ct.id = $1.contact_id and ct.organization_id = $1.organization_id),false),
       coalesce((select ct.is_blocked from public.contacts ct where ct.id = $1.contact_id and ct.organization_id = $1.organization_id),false),
       now(), coalesce($1.is_group,false)) = 'automatico'
-      and exists (select 1 from public.ai_agents a where a.organization_id = $1.organization_id
-        and a.published_version_id is not null and a.paused_at is null and a.archived_at is null)
+      and exists (select 1 from public.ai_agents a
+        join public.ai_agent_versions v on v.id = a.published_version_id and v.organization_id = a.organization_id
+        where a.organization_id = $1.organization_id and v.status = 'published'
+          and a.operation_mode = 'automatic' and a.paused_at is null and a.archived_at is null
+          and (v.channel_session_id = $1.channel_session_id or a.id = $1.active_ai_agent_id
+            or exists (select 1 from public.ai_routers r where r.organization_id = a.organization_id
+              and r.channel_session_id = $1.channel_session_id and r.is_active
+              and (r.fallback_agent_id = a.id or exists (select 1 from public.ai_router_members m
+                where m.organization_id = r.organization_id and m.router_id = r.id and m.agent_id = a.id)))
+            or exists (select 1 from public.campaign_recipients cr join public.campaigns ca
+              on ca.id = cr.campaign_id and ca.organization_id = cr.organization_id
+              where cr.organization_id = a.organization_id and cr.conversation_id = $1.id and ca.agent_id = a.id)))
       then 'ai'
     when $1.assigned_to_user_id is null then 'unassigned'
     when $1.human_accepted_at >= greatest(coalesce($1.assigned_at,$1.created_at),coalesce($1.service_started_at,$1.created_at),coalesce($1.last_handoff_at,$1.created_at)) then 'active'

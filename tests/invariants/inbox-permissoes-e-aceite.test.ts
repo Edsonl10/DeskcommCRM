@@ -1,5 +1,10 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import pg from "pg";
+import { decidirElegibilidadeDaConversa } from "@/lib/ai/elegibilidade/consulta-pg";
 import { countAs, sql, lastLine } from "./gov-helpers";
+
+const pool = new pg.Pool({ connectionString: `postgresql://postgres:postgres@127.0.0.1:${Number(process.env.TEST_DB_PORT ?? 54329)}/postgres`, max: 1 });
+afterAll(async () => { await pool.end(); });
 
 const id = (n: number) => `90030000-0000-4000-8000-${String(n).padStart(12,"0")}`;
 const org=id(1), eu=id(2), outro=id(3), gestor=id(4), canal=id(5), contato=id(6), conversa=id(7), fechada=id(8);
@@ -52,6 +57,15 @@ describe("Inbox: segurança real e aceite", () => {
       update public.user_organizations set inbox_permissions='{"all":false,"ai":true,"closed":false}' where user_id='${eu}' and organization_id='${org}';
       insert into public.conversation_notes(organization_id,conversation_id,body,created_by_name) values('${org}','${id(17)}','Nota sintética','seed');`);
     expect(lastLine(sql(`select public.inbox_state(c) from public.conversations c where id='${id(17)}';`))).toBe("ai");
+    sql(`update public.ai_agents set operation_mode='assisted' where id='${id(15)}';`);
+    expect(lastLine(sql(`select public.inbox_state(c) from public.conversations c where id='${id(17)}';`))).toBe("waiting");
+    sql(`update public.ai_agents set operation_mode='automatic', paused_at=now() where id='${id(15)}';`);
+    expect(lastLine(sql(`select public.inbox_state(c) from public.conversations c where id='${id(17)}';`))).toBe("waiting");
+    sql(`update public.ai_agents set paused_at=null where id='${id(15)}';
+      insert into public.channel_sessions(id,organization_id,waha_session_name,webhook_secret_encrypted) values('${id(18)}','${org}','inbox9003-outro','\\x00'::bytea);
+      update public.conversations set channel_session_id='${id(18)}' where id='${id(17)}';`);
+    expect(lastLine(sql(`select public.inbox_state(c) from public.conversations c where id='${id(17)}';`))).toBe("waiting");
+    sql(`update public.conversations set channel_session_id='${canal}' where id='${id(17)}';`);
     expect(countAs(eu,`select count(*) from public.conversations where id='${id(17)}';`)).toBe(1);
     expect(countAs(eu,`select count(*) from public.conversation_notes where conversation_id='${id(17)}';`)).toBe(1);
     sql(`update public.user_organizations set inbox_permissions='{"all":true,"ai":false,"closed":false}' where user_id='${eu}' and organization_id='${org}';`);
@@ -59,5 +73,19 @@ describe("Inbox: segurança real e aceite", () => {
     expect(lastLine(sql(`set role authenticated; select set_config('request.jwt.claims','{"sub":"${eu}"}',false); select public.fn_can_write_inbox('${org}','${id(17)}');`))).toBe("f");
     sql(`update public.user_organizations set inbox_permissions='{"all":false,"ai":false,"closed":false}' where user_id='${eu}' and organization_id='${org}';`);
     expect(countAs(eu,`select count(*) from public.conversation_notes where conversation_id='${id(17)}';`)).toBe(0);
+    sql(`update public.contacts set force_human=true where id='${id(14)}';`);
+    expect(lastLine(sql(`select public.inbox_state(c) from public.conversations c where id='${id(17)}';`))).toBe("waiting");
+    sql(`select public.fn_conversation_assign('${org}','${id(17)}','${outro}','claim');`);
+    expect(lastLine(sql(`select public.inbox_state(c) from public.conversations c where id='${id(17)}';`))).toBe("active");
+    sql(`update public.contacts set force_human=false where id='${id(14)}';
+      update public.conversations set bot_silenced_until=null where id='${id(17)}';`);
+    expect(lastLine(sql(`select human_accepted_at is null from public.conversations where id='${id(17)}';`))).toBe("t");
+    expect(lastLine(sql(`select public.inbox_state(c) from public.conversations c where id='${id(17)}';`))).toBe("ai");
+  });
+  it("o motor mantém a IA elegível após indicação sem aceite e veta após Assumir", async () => {
+    const entrada = { organizationId: org, conversationId: id(17), agora: new Date(), ttlMs: 21 * 86400000 };
+    expect(await decidirElegibilidadeDaConversa(pool, entrada)).toMatchObject({ permite: true });
+    sql(`select public.fn_conversation_assign('${org}','${id(17)}','${outro}','claim');`);
+    expect(await decidirElegibilidadeDaConversa(pool, entrada)).toMatchObject({ permite: false, motivo: "conversa_silenciada" });
   });
 });
