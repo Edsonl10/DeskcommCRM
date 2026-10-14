@@ -29,7 +29,7 @@ beforeAll(async () => {
     await q("insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3)",[user,`${user}@invariant.test`,JSON.stringify({full_name:user === ana ? "Ana" : "Bruno"})]);
     await q("insert into user_organizations(organization_id,user_id,role,accepted_at) values($1,$2,'agent',now())",[org,user]);
   }
-  await q("insert into channel_sessions(id,organization_id,waha_session_name,status) values($1,$2,$3,'STOPPED')",[channel,org,`dept-${channel}`]);
+  await q("insert into channel_sessions(id,organization_id,waha_session_name,status,webhook_secret_encrypted) values($1,$2,$3,'STOPPED',decode('00','hex'))",[channel,org,`dept-${channel}`]);
   await q("insert into departments(id,organization_id,name,distribution_method,is_default) values($1,$2,'Comercial de teste','round_robin',true),($3,$2,'Outro setor','least_loaded',false)",[department,org,otherDepartment]);
 });
 afterAll(async () => { await q("delete from organizations where id=$1",[org]); await q("delete from auth.users where id=any($1)",[[ana,bruno,outsider]]); await pool.end(); });
