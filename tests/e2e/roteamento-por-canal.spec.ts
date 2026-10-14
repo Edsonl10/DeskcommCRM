@@ -359,7 +359,12 @@ test("configura responsáveis por canal e o cron distribui sem misturar números
     await page.getByRole("tab", { name: "Atendimento", exact: true }).click();
     const semLimite = page.getByRole("switch", { name: "Sem limite — Ana Canal Norte", exact: true });
     await expect(semLimite).toBeVisible();
-    await semLimite.check();
+    const gravado = page.waitForResponse((response) =>
+      response.request().method() === "PATCH" &&
+      response.url().endsWith(`/api/v1/attendants/availability/${ana.id}`),
+    );
+    await semLimite.click();
+    expect((await gravado).status()).toBe(200);
     await expect(semLimite).toBeChecked();
     await expect(page.getByRole("spinbutton", { name: "Capacidade de Ana Canal Norte", exact: true })).toHaveCount(0);
     await page.reload();
