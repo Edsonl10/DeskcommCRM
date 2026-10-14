@@ -207,7 +207,6 @@ test.describe("filtro por marcador, pela tela", () => {
     await login(page, c.users.manager!.email, c.password);
     await abreConversa(page, a.conversa);
     await page.getByRole("tab", { name: /^Todos/ }).click();
-    await page.getByRole("tab", { name: /^Todas/ }).click();
 
     // 1. Caixa da CONVERSA, pelo editor da conversa.
     await marcar(page, "Adicionar tag à conversa", `/conversations/${a.conversa}`, tagDaConversa);
@@ -379,7 +378,6 @@ test.describe("filtro por marcador, pela tela", () => {
     await login(page, c.users.manager!.email, c.password);
     await abreConversa(page, a.conversa);
     await page.getByRole("tab", { name: /^Todos/ }).click();
-    await page.getByRole("tab", { name: /^Todas/ }).click();
 
     // 1. Caixa da CONVERSA, pelo editor da conversa.
     await marcar(page, "Adicionar tag à conversa", `/conversations/${a.conversa}`, tagDaConversa);

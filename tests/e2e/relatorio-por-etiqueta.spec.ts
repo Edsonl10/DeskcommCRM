@@ -160,12 +160,12 @@ test.describe("Relatórios › Por etiqueta, pela tela (#1891)", () => {
     const { data: daFila } = (await (await listaDaFila).json()) as { data: Array<{ id: string }> };
     const idsDaFila = daFila.map((cv) => cv.id);
     expect(idsDaFila).not.toContain(resolvida);
-    expect(idsDaFila).not.toContain(comDono);
+    expect(idsDaFila).toEqual([comDono]);
     await expect(page.getByRole("tab", { name: /Ativos/i }).first()).toHaveAttribute(
       "aria-selected",
       "true",
     );
     await expect(itemDaLista(page, resolvida), "a Fila esconde a resolvida").toHaveCount(0);
-    await expect(itemDaLista(page, comDono), "a Fila esconde a que tem dono").toHaveCount(0);
+    await expect(itemDaLista(page, comDono), "Ativos mostra o atendimento aceito pelo gestor logado").toBeVisible();
   });
 });

@@ -22,6 +22,7 @@
  *   - trigger Postgres nunca faz HTTP.
  */
 import { serviceForEvent } from "@/lib/atendimento/origem";
+import { temAceiteHumano } from "@/lib/inbox/aceite";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { EventRow } from "@/lib/event-log/dispatcher";
@@ -46,6 +47,7 @@ export interface PointerDeRetorno {
 }
 
 export interface EstadoDaConversaDeRetorno {
+  human_accepted_at?: string | null;
   is_group: boolean;
   is_blocked: boolean;
   force_human: boolean;
@@ -136,7 +138,7 @@ function vazio(): GatilhoRetornoSummary {
 
 export function humanoNoComando(estado: EstadoDaConversaDeRetorno, agora: Date): boolean {
   if (estado.force_human) return true;
-  if (estado.assignee_kind === "user") return true;
+  if (temAceiteHumano(estado)) return true;
   const ate = estado.bot_silenced_until;
   if (!ate) return false;
   if (ate === "infinity") return true;
@@ -308,7 +310,7 @@ export function createSupabaseGatilhoRetornoDb(admin: SupabaseClient): GatilhoRe
     async carregaEstadoDaConversa(orgId, conversationId, contactId) {
       const { data: conv, error: convErr } = await admin
         .from("conversations")
-        .select("is_group, assignee_kind, bot_silenced_until")
+        .select("is_group, assignee_kind, human_accepted_at, bot_silenced_until")
         .eq("organization_id", orgId)
         .eq("id", conversationId)
         .maybeSingle();
@@ -326,6 +328,7 @@ export function createSupabaseGatilhoRetornoDb(admin: SupabaseClient): GatilhoRe
         is_blocked: Boolean((contato as { is_blocked?: boolean } | null)?.is_blocked),
         force_human: Boolean((contato as { force_human?: boolean } | null)?.force_human),
         assignee_kind: (conv as { assignee_kind: string | null }).assignee_kind,
+        human_accepted_at: (conv as { human_accepted_at?: string | null }).human_accepted_at,
         bot_silenced_until: (conv as { bot_silenced_until: string | null }).bot_silenced_until,
         tags: Array.isArray((contato as { tags?: string[] } | null)?.tags)
           ? ((contato as { tags: string[] }).tags as string[])

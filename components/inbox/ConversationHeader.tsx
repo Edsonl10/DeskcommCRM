@@ -132,7 +132,7 @@ export function ConversationHeader({
    */
   const { comando: comandoLegado, automaticoAtivo, travaVigente, motivo } = comandoDaConversa({
     status,
-    assigned_to_user_id: conversation.assigned_to_user_id,
+    assigned_to_user_id: conversation.inbox_state === "waiting" ? null : conversation.assigned_to_user_id,
     assigned_to_user_name: conversation.assigned_to_user_name ?? null,
     assignee_kind: conversation.assignee_kind ?? null,
     bot_silenced_until: conversation.bot_silenced_until ?? null,

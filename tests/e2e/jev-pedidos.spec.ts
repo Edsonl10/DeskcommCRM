@@ -641,12 +641,15 @@ test.describe("Jev — os pedidos do cliente, pela tela", () => {
       const item = page.getByTestId("inbox-item").filter({ hasText: TITULO_DO_AVISO_DE_PARAR });
       await item.getByRole("link", { name: "Abrir a conversa" }).click();
       await expect(page).toHaveURL(new RegExp(`/app/inbox(/|\\?id=)${quemSai}`), { timeout: 30_000 });
+      const aceite = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === `/api/v1/conversations/${quemSai}/claim`);
       await page.getByRole("button", { name: "Assumir", exact: true }).click();
+      expect((await aceite).status()).toBe(200);
       await expect(page.getByTestId("comando-da-conversa").getByLabel(/^Responsável:/)).toBeVisible({ timeout: 30_000 });
       await expect(page.getByRole("button", { name: "Liberar", exact: true })).toHaveCount(0);
       // Controle: assumiu de verdade — é o passo 1 do aviso.
-      const { data: conv } = await admin.from("conversations").select("assigned_to_user_id").eq("id", quemSai).single();
+      const { data: conv } = await admin.from("conversations").select("assigned_to_user_id, human_accepted_at").eq("id", quemSai).single();
       expect((conv as { assigned_to_user_id: string | null }).assigned_to_user_id).not.toBeNull();
+      expect(conv?.human_accepted_at).not.toBeNull();
 
       await page.goto("/app/ai/inbox");
       await expect(page.getByTestId("inbox-item").filter({ hasText: TITULO_DO_AVISO_DE_PARAR })).toHaveCount(1, {

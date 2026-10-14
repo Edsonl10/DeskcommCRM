@@ -349,10 +349,11 @@ test.describe("Inbox — quem manda nesta conversa", () => {
     const abaFila = page.getByRole("tab", { name: /Aguardando/i }).first();
     await expect(abaFila).toContainText(/[1-9]/, { timeout: 30_000 });
 
-    // Abrindo, a tela diz que ninguém está no comando — nem pessoa, nem automático.
+    // O responsável está indicado, mas ainda precisa aceitar o atendimento.
     await naFila.click();
-    await expect(page.getByTestId("comando-da-conversa")).toContainText(/responsável|atendente/i, {
+    await expect(page.getByTestId("comando-da-conversa")).toContainText("E2E Agent", {
       timeout: 30_000,
     });
+    await expect(page.getByTestId("badge-atendimento-humano")).not.toContainText(/assumiu/i);
   });
 });

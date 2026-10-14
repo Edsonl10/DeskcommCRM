@@ -311,7 +311,7 @@ test.describe("contadores do menu", () => {
     await expect(abaFila).toBeVisible({ timeout: ESPERA });
     const depois = naAba - 1;
     if (depois === 0) {
-      await expect(abaFila).toHaveText(/^Fila$/, { timeout: ESPERA });
+      await expect(abaFila).toHaveText(/^Aguardando$/, { timeout: ESPERA });
       await expect(seloDaFila, "zero não desenha nada").toHaveCount(0, { timeout: ESPERA });
     } else {
       await expect(abaFila).toHaveText(new RegExp(`^Fila\\s*${depois}$`), { timeout: ESPERA });

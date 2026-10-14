@@ -271,7 +271,7 @@ test.describe("IA 360 W3 — o agente para, a pessoa continua, o agente retoma s
             "soltar só o silêncio deixa o agente morto: force_human veta todo envio e o turno é NO-OP",
         },
       )
-      .toEqual({ silenciada: null, dono: null, kind: "ai", forcado: false });
+      .toEqual({ silenciada: null, dono: creds.users.agent!.id, kind: null, forcado: false });
 
     await expect(page.getByTestId("badge-atendimento-humano")).toHaveCount(0, { timeout: 20_000 });
     await captura(page, "04-devolvido-ao-automatico");

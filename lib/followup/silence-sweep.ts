@@ -1,4 +1,5 @@
 import { protecaoAgendaSupabase } from "@/lib/agenda/protecao-followup";
+import { temAceiteHumano } from "@/lib/inbox/aceite";
 import { assertServiceBoundarySupabase } from "@/lib/atendimento/origem";
 import { StaleServiceBoundaryError, parseServiceBoundary, assertCurrentServiceBoundary, type ServiceBoundary } from "@/lib/atendimento/fronteira";
 /**
@@ -439,7 +440,7 @@ export function createSupabaseSilenceSweepDb(admin: SupabaseClient): SilenceSwee
       const { data, error } = await admin
         .from("conversations")
         .select(
-          "id, service_revision, current_demanda_id, demandas!conversations_current_demanda_id_fkey(revision,fechada_em), status, assignee_kind, bot_silenced_until, messages!messages_conversation_id_fkey(organization_id,contact_id,conversation_id,service_revision,demanda_id,demanda_revision,sent_at), contact_id, last_inbound_at, contacts:contact_id(tags, is_blocked, ai_authorized_at, phone_number, force_human), sessao:channel_session_id(metadata), organizations:organization_id(status)",
+          "id, service_revision, current_demanda_id, demandas!conversations_current_demanda_id_fkey(revision,fechada_em), status, assignee_kind, human_accepted_at, bot_silenced_until, messages!messages_conversation_id_fkey(organization_id,contact_id,conversation_id,service_revision,demanda_id,demanda_revision,sent_at), contact_id, last_inbound_at, contacts:contact_id(tags, is_blocked, ai_authorized_at, phone_number, force_human), sessao:channel_session_id(metadata), organizations:organization_id(status)",
         )
         .eq("organization_id", orgId).eq("demandas.organization_id", orgId)
         .eq("contacts.organization_id", orgId).eq("sessao.organization_id", orgId)
@@ -455,6 +456,7 @@ export function createSupabaseSilenceSweepDb(admin: SupabaseClient): SilenceSwee
         id: string; service_revision: number; current_demanda_id: string | null; demandas: { revision: number; fechada_em: string | null } | null;
         status: string; messages: Array<ServiceBoundary & { sent_at: string }>;
         assignee_kind?: string | null; bot_silenced_until?: string | null;
+        human_accepted_at?: string | null;
         contact_id: string;
         last_inbound_at: string;
         contacts: ContactEmbed;
@@ -513,8 +515,9 @@ export function createSupabaseSilenceSweepDb(admin: SupabaseClient): SilenceSwee
             // Os três vetos que valem sempre no atendimento (`decidirElegibilidade`),
             // lidos à parte: quem decide se barram o fluxo é a política de handoff dele.
             pessoaNoComando:
-              row.assignee_kind === "user" ||
+              temAceiteHumano(row) ||
               row.contacts?.force_human === true ||
+              row.bot_silenced_until === "infinity" ||
               (row.bot_silenced_until != null && Date.parse(row.bot_silenced_until) > agora.getTime()),
           });
         }

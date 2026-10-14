@@ -42,6 +42,8 @@
  *   ou `assigned_to_user_id` preenchido.
  */
 
+import { temAceiteHumano } from "@/lib/inbox/aceite";
+
 /** Piso e teto do prazo, em minutos. Abaixo de 5 a IA volta no meio da digitação. */
 export const PRAZO_MIN_MINUTOS = 5;
 export const PRAZO_MAX_MINUTOS = 24 * 60;
@@ -50,6 +52,7 @@ export const PRAZO_MAX_MINUTOS = 24 * 60;
 const STATUS_DEVOLVIVEIS = new Set(["open", "pending", "claimed", "ai_handling"]);
 
 export interface ConversaEmHandoff {
+  human_accepted_at?: string | null;
   id: string;
   organization_id: string;
   channel_session_id: string | null;
@@ -78,8 +81,7 @@ export function lerPrazoDeDevolucaoMinutos(settings: unknown): number | null {
 
 /** A conversa está com uma pessoa de forma durável (não é a pausa do celular). */
 export function estaComHumanoDuravel(c: ConversaEmHandoff): boolean {
-  if (c.assigned_to_user_id !== null) return true;
-  if (c.assignee_kind === "user") return true;
+  if (temAceiteHumano(c)) return true;
   return c.bot_silenced_until === "infinity";
 }
 

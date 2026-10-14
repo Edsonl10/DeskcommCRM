@@ -22,6 +22,7 @@
  * nova, baseline ainda não aplicado) — exatamente quando NÃO se quer a IA solta.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { temAceiteHumano } from "@/lib/inbox/aceite";
 
 import {
   decidirElegibilidade,
@@ -74,7 +75,7 @@ export async function decidirElegibilidadeDaConversaViaSupabase(
       aiTestPhoneNumbers: row.channel_sessions?.metadata?.["ai_test_phone_numbers"] ?? null,
       contactPhoneNumber: row.contacts?.phone_number ?? null,
       forceHuman: row.contacts?.force_human ?? false,
-      assigneeKind: row.human_accepted_at === null ? null : row.assignee_kind,
+      assigneeKind: temAceiteHumano(row) ? row.assignee_kind : null,
       botSilencedUntil: row.bot_silenced_until,
       aiAuthorizedAt: row.contacts?.ai_authorized_at ?? null,
       agora: input.agora,

@@ -137,6 +137,7 @@ test("suporte mantém identidade, opera B e encerra sem misturar A; readonly/exp
   await expect(sameTab.locator("[data-conversation-id]").getByText(`Contato B ${suffix}`,{exact:true})).toBeVisible({timeout:20000});
   await expect(sameTab.locator("[data-conversation-id]").getByText(`Contato A ${suffix}`,{exact:true})).toHaveCount(0);
   await page.goto("/onboarding");await page.waitForURL("**/app/inbox");
+  await page.getByRole("tab",{name:/^Todos/}).click();
   await expect(page.getByRole("alert").filter({hasText:/edição permitida/i})).toContainText(`Suporte B ${suffix}`);
   await expect(page.locator("[data-conversation-id]").getByText(`Contato B ${suffix}`,{exact:true})).toBeVisible({timeout:20000});
   await expect(page.locator("[data-conversation-id]").getByText(`Contato A ${suffix}`,{exact:true})).toHaveCount(0);
@@ -200,6 +201,7 @@ test("suporte mantém identidade, opera B e encerra sem misturar A; readonly/exp
   await start(page,orgs[1]!,true);
   await expect(sameTab.getByTestId("tenant-switcher")).toContainText(`Suporte B ${suffix}`);
   await page.goto("/onboarding");await page.waitForURL("**/app/inbox");
+  await page.getByRole("tab",{name:/^Todos/}).click();
   const writes:string[]=[];page.on("request",request=>{if(request.method()!=="GET"&&/mark-read|availability|messages/.test(request.url()))writes.push(request.url());});
   await page.locator(`[data-conversation-id="${convs[1]}"]`).click();
   await expect(page.getByRole("alert").filter({hasText:/somente leitura/i})).toBeVisible();

@@ -5,6 +5,7 @@ import type { EnabledFollowupAgent, FollowupGateDb } from "./agent-followup-gate
 import {
   EVENTO_DE_RETORNO,
   aplicaGatilhoDeRetorno,
+  humanoNoComando,
   type EstadoDaConversaDeRetorno,
   type GatilhoRetornoDb,
   type PointerDeRetorno,
@@ -21,6 +22,12 @@ const ENROLLMENT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 const AGORA = new Date("2026-09-20T12:00:00.000Z");
 const CLOCK = () => AGORA;
+
+it("indicação sem aceite não bloqueia o retorno; passagem formal ainda bloqueia", () => {
+  const estado = { is_group: false, is_blocked: false, force_human: false, assignee_kind: "user", human_accepted_at: null, bot_silenced_until: null, tags: [] };
+  expect(humanoNoComando(estado, AGORA)).toBe(false);
+  expect(humanoNoComando({ ...estado, bot_silenced_until: "infinity" }, AGORA)).toBe(true);
+});
 
 interface Registro {
   enrollments: unknown[];

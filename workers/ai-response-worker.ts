@@ -1,4 +1,5 @@
 import { recordLegacyNotice } from "@/lib/ai/agents/legacy-notice";
+import { temAceiteHumano } from "@/lib/inbox/aceite";
 import { serviceFromMessage } from "@/lib/atendimento/origem-mensagem";
 import { assertServiceBoundarySupabase } from "@/lib/atendimento/origem";
 import type { ServiceBoundary } from "@/lib/atendimento/fronteira";
@@ -807,7 +808,7 @@ async function buildContext(input: BuildContextInput): Promise<GuardDecision> {
   if (c.contacts.force_human) return skip("force_human");
   // G3-02 — assignee de 1ª classe: humano atendendo (kind='user') veta o bot
   // deterministicamente, mesma família de guard de force_human/bot_silenced_until.
-  if (c.assignee_kind === "user" && c.human_accepted_at !== null) return skip("assigned_to_human");
+  if (temAceiteHumano(c)) return skip("assigned_to_human");
 
   // GATE DE ELEGIBILIDADE (opt-in por canal — `metadata.ai_gate = 'allowlist'`).
   // Este worker é o caminho PRÉ-ENGINE: responde as orgs sem versão de agente
