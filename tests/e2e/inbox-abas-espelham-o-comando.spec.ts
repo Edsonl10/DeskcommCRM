@@ -147,24 +147,32 @@ test.describe("Inbox: as abas perguntam quem manda", () => {
   });
 
   test("Ativos abre por padrão; direcionamento aguarda aceite; IA permanece separada", async ({ page }) => {
+    // A conversa aberta continua no painel ao trocar a aba. A prova é sobre
+    // as linhas da lista, não sobre o título desse painel.
+    const esperando = page.locator("[data-conversation-id]").filter({ hasText: ESPERANDO });
+    const robo = page.locator("[data-conversation-id]").filter({ hasText: ROBO });
     await loginComoAdmin(page, lerCreds());
     await page.goto("/app/inbox");
     await expect(page.getByRole("tab", { name: /^Ativos/ })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("tab", { name: /Arquivadas/ })).toHaveCount(0);
+    await expect(esperando).toHaveCount(0);
+    await expect(robo).toHaveCount(0);
     await page.getByRole("tab", { name: /^Aguardando/ }).click();
-    await expect(page.getByText(ESPERANDO).first()).toBeVisible({ timeout: 30000 });
+    await expect(esperando).toBeVisible({ timeout: 30000 });
     const temIA = await orgTemAutomaticoNoAr(orgId);
-    if (temIA) await expect(page.getByText(ROBO)).toHaveCount(0);
-    await page.getByText(ESPERANDO).first().click();
+    if (temIA) await expect(robo).toHaveCount(0);
+    await esperando.click();
+    const aceite = page.waitForResponse(response => response.request().method() === "POST" && /\/claim(?:\?|$)/.test(response.url()));
     await page.getByRole("button", { name: "Assumir", exact: true }).click();
+    expect((await aceite).status()).toBe(200);
     await page.getByRole("tab", { name: /^Ativos/ }).click();
-    await expect(page.getByText(ESPERANDO).first()).toBeVisible({ timeout: 15000 });
+    await expect(esperando).toBeVisible({ timeout: 15000 });
     await page.getByRole("tab", { name: /^IA/ }).click();
-    if (temIA) await expect(page.getByText(ROBO).first()).toBeVisible({ timeout: 15000 });
-    else await expect(page.getByText(ROBO)).toHaveCount(0);
-    await expect(page.getByText(ESPERANDO).first()).not.toBeVisible();
+    if (temIA) await expect(robo).toBeVisible({ timeout: 15000 });
+    else await expect(robo).toHaveCount(0);
+    await expect(esperando).toHaveCount(0);
     await page.getByRole("tab", { name: /^Todos/ }).click();
-    await expect(page.getByText(ROBO).first()).toBeVisible({ timeout: 15000 });
+    await expect(robo).toBeVisible({ timeout: 15000 });
     await page.screenshot({ path: "evidence/inbox-aceite-abas.png", fullPage: true });
   });
 });
