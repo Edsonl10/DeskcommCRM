@@ -875,18 +875,6 @@ export const NAV_CATALOG = [
     section: "Sua empresa",
   },
   {
-    // A porta que faltava (issue #144): rodízio de atendimento e restrição de
-    // visibilidade existiam inteiros no backend e não tinham NENHUMA tela — só
-    // dava para ligar com UPDATE à mão no banco.
-    href: "/app/settings/atendimento",
-    label: "Distribuição de atendimento",
-    description: "Quem recebe cada cliente novo, e o que cada atendente enxerga.",
-    icon: "UsersThree",
-    group: "organizacao",
-    section: "Sua empresa",
-    minRole: "manager",
-  },
-  {
     // A porta do freio POR EMPRESA do passo `ai_decide` (issue #2367). O #2228
     // criou o passo e o deixou opcional POR REGRA; sem esta tela, desligar de
     // uma vez todos os `ai_decide` de uma organização só existiria como

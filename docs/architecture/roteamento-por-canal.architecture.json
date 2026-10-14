@@ -34,7 +34,7 @@
       "lane": "humano",
       "col": 0,
       "type": "ui",
-      "label": "Atendimento: responsáveis por número"
+      "label": "Equipe › Atendimento: responsáveis por número"
     },
     {
       "id": "policy",

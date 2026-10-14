@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ChannelRoutingForm } from "./_channels-form";
+import { ChannelRoutingForm } from "./ChannelRoutingForm";
 vi.mock("next/navigation",()=>({useRouter:()=>({refresh:vi.fn()})}));
 vi.mock("@/hooks/i18n/useT",()=>({useT:()=>(s:string)=>s}));
 const fetcher=vi.fn();

@@ -183,7 +183,7 @@ test("configura responsáveis por canal e o cron distribui sem misturar números
     context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
     await login(page, manager.email, password);
-    await page.goto("/app/settings/atendimento");
+    await page.goto("/app/team?aba=atendimento");
     await expect(page.getByRole("heading", { name: "Distribuição de atendimento" })).toBeVisible();
 
     const northGroup = page.getByRole("group", { name: "Canal Norte" });
@@ -322,7 +322,7 @@ test("configura responsáveis por canal e o cron distribui sem misturar números
       page.getByText("Mensagem de Cliente Canal Sul", { exact: true }).first(),
     ).toBeVisible();
 
-    await page.goto("/app/settings/atendimento");
+    await page.goto("/app/team?aba=atendimento");
     const resetSouth = page.getByRole("group", { name: "Canal Sul" });
     await resetSouth.getByRole("button", { name: "Voltar ao padrão da organização" }).click();
     await expect(resetSouth.getByTestId("channel-routing-state")).toHaveText(

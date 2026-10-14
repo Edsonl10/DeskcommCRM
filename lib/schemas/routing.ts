@@ -18,7 +18,7 @@ const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
  * Modos de roteamento. `manual` e `round_robin` são o MVP (decisão G1-06b);
  * `load` — o de menor carga, com desempate pelo rodízio — era o "pós-MVP"
  * prometido ali e entrou pela issue #1539. O worker (lib/routing/decide.ts) e
- * as DUAS telas que oferecem o modo (settings/atendimento e team) derivam desta
+ * a tela Equipe → Atendimento deriva desta
  * lista, então acrescentar um modo aqui os atualiza sem tocar em mais nada.
  */
 export const ROUTING_MODES = ["manual", "round_robin", "load"] as const;

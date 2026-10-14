@@ -37,7 +37,7 @@
  *
  * ═══ Por que este alvo ═══════════════════════════════════════════════════════
  *
- * `/app/settings/atendimento` é a tela que a própria issue escolheu para o
+ * `/app/team?aba=atendimento` é a tela que a própria issue escolheu para o
  * experimento ("contexto com javaScriptEnabled: false, goto('/app/settings/
  * atendimento') logado"), é a dona dos testids citados (`opcao-modo-manual`,
  * `form-atendimento`) e o seu boundary é o raiz (`app/app/loading.tsx`) — um
@@ -58,7 +58,7 @@ import { caixasSemRevelador, REVELADOR_DE_CAIXA } from "./helpers/caixa-ssr";
 import { instalarInstrumento } from "./helpers/instrumento-da-pagina";
 
 const CREDS_PATH = path.join(process.cwd(), ".e2e-creds.json");
-const TELA = "/app/settings/atendimento";
+const TELA = "/app/team?aba=atendimento";
 
 interface Creds {
   password: string;

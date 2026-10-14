@@ -1,5 +1,14 @@
 # PROJECT_STATE
 
+## Em validação — atendimento centralizado na Equipe
+- Pedido de 14/10/2026: retirar a distribuição em Configurações se duplicasse Equipe.
+- CONFIRMADO: os dois formulários escreviam mode, max_retries e backoff_seconds na mesma API. Responsáveis por canal e participantes do departamento são filtros complementares.
+- Todos os ajustes existentes de atendimento foram reunidos em Equipe → Atendimento; removidos o RoutingCard repetido e a entrada Distribuição de atendimento no hub de Configurações. O endereço antigo redireciona para a aba Atendimento.
+- Responsáveis por número, visibilidade do CRM, ajustes da IA e assinatura continuam acessíveis. APIs, dados, permissões e algoritmo de distribuição preservados.
+- Validação local: 41 testes relevantes passaram, typecheck e verificações de canal/papel passaram; lint completo terminou sem erros, com avisos preexistentes. A suíte completa no Windows foi interrompida após falhas de ferramentas/caminhos nas cercas; a validação completa e a prova visual serão feitas pelo CI Linux.
+- Publicação e instalação pendentes nesta revisão; a produção ainda não recebeu esta alteração.
+- Destino: núcleo, pois a organização continua operando sem extensões.
+
 ## Integrado — atendimento sem limite de quantidade
 - Pedido de 14/10/2026: retirar o limite de conversas dos atendentes.
 - Capacidade zero significa Sem limite na tela Equipe → Atendimento, no carregador de elegíveis e na reserva atômica do banco. Disponibilidade, jornada, responsáveis por canal e limites positivos continuam vigentes.

@@ -7,26 +7,13 @@ import { FUSOS_OFERECIDOS, fusoOferecidoOuPadrao } from "@/lib/tempo/fusos";
 
 import {
   useAttendants,
-  useRoutingConfig,
   useUpdateAvailability,
-  useUpdateRouting,
   type AttendantAvailability,
 } from "@/hooks/team/useAttendants";
 import { estaDePlantao, isAtCapacity } from "@/lib/routing/eligibility";
-import {
-  ROUTING_MODES,
-  type RoutingConfig,
-  type ScheduleWindow,
-} from "@/lib/schemas/routing";
+import { type ScheduleWindow } from "@/lib/schemas/routing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -68,12 +55,6 @@ import {
  * para o mesmo dia, que é a segunda régua do mesmo número.
  */
 const DOW_LABELS: readonly string[] = ROTULOS_DOS_DIAS;
-
-const MODE_LABELS: Record<(typeof ROUTING_MODES)[number], string> = {
-  manual: "Manual (atendente puxa da fila)",
-  round_robin: "Rodízio (distribui automático)",
-  load: "Menor carga (quem tem menos conversas na mão)",
-};
 
 interface Attendant {
   userId: string;
@@ -264,7 +245,9 @@ export function ScheduleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("Horário de")} {attendant.name}</DialogTitle>
+          <DialogTitle>
+            {t("Horário de")} {attendant.name}
+          </DialogTitle>
           <DialogDescription>
             {t(
               "Sem janelas, o roteamento aceita conversa a qualquer hora — mas a Agenda não oferece NENHUM horário para marcar. Adicione janelas para publicar seus horários de atendimento.",
@@ -300,13 +283,16 @@ export function ScheduleDialog({
               </p>
             ) : null}
             {windows.map((w, i) => (
-              <div key={i} data-testid="janela" data-dow={w.dow} className="flex items-center gap-2">
+              <div
+                key={i}
+                data-testid="janela"
+                data-dow={w.dow}
+                className="flex items-center gap-2"
+              >
                 <Select
                   value={String(w.dow)}
                   onValueChange={(v) =>
-                    setWindows((ws) =>
-                      ws.map((x, j) => (j === i ? { ...x, dow: Number(v) } : x)),
-                    )
+                    setWindows((ws) => ws.map((x, j) => (j === i ? { ...x, dow: Number(v) } : x)))
                   }
                 >
                   <SelectTrigger className="w-[90px]" aria-label="Dia da semana">
@@ -354,9 +340,7 @@ export function ScheduleDialog({
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                setWindows((ws) => [...ws, { dow: 1, start: "08:00", end: "18:00" }])
-              }
+              onClick={() => setWindows((ws) => [...ws, { dow: 1, start: "08:00", end: "18:00" }])}
             >
               <Plus size={16} className="mr-1" /> Adicionar janela
             </Button>
@@ -431,115 +415,6 @@ export function ScheduleDialog({
   );
 }
 
-function RoutingCard({ canManage }: { canManage: boolean }) {
-  const t = useT();
-  const { data, isLoading, isError } = useRoutingConfig();
-  const update = useUpdateRouting();
-  const config = data?.data;
-
-  const [draft, setDraft] = useState<RoutingConfig | null>(null);
-  const current = draft ?? config ?? null;
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-40" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-9 w-full max-w-sm" />
-        </CardContent>
-      </Card>
-    );
-  }
-  if (isError || !current) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-sm text-destructive">{t("Erro ao carregar a configuração de roteamento.")}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const dirty =
-    !!config &&
-    (current.mode !== config.mode ||
-      current.max_retries !== config.max_retries ||
-      current.backoff_seconds !== config.backoff_seconds);
-
-  const set = (patch: Partial<RoutingConfig>) => setDraft({ ...current, ...patch });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("Modo de roteamento")}</CardTitle>
-        <CardDescription>
-          {t("Como as conversas novas são distribuídas entre os atendentes da organização.")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label>Modo</Label>
-            <Select
-              value={current.mode}
-              disabled={!canManage}
-              onValueChange={(v) => set({ mode: v as RoutingConfig["mode"] })}
-            >
-              <SelectTrigger aria-label="Modo de roteamento">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ROUTING_MODES.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {MODE_LABELS[m]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="max_retries">{t("Tentativas máx.")}</Label>
-            <Input
-              id="max_retries"
-              type="number"
-              min={0}
-              max={20}
-              disabled={!canManage}
-              value={current.max_retries}
-              onChange={(e) => set({ max_retries: Number(e.target.value) })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="backoff">Backoff (s)</Label>
-            <Input
-              id="backoff"
-              type="number"
-              min={1}
-              max={3600}
-              disabled={!canManage}
-              value={current.backoff_seconds}
-              onChange={(e) => set({ backoff_seconds: Number(e.target.value) })}
-            />
-          </div>
-        </div>
-        {canManage ? (
-          <div className="flex sm:justify-end">
-            <Button
-              disabled={!dirty || update.isPending}
-              onClick={() => update.mutate(current, { onSuccess: () => setDraft(null) })}
-              className="w-full sm:w-auto"
-            >
-              Salvar
-            </Button>
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
 interface Props {
   canManage: boolean;
   organizationTimezone?: string;
@@ -568,8 +443,6 @@ export function AttendantsClient({ canManage, organizationTimezone }: Props) {
 
   return (
     <div className="space-y-6">
-      <RoutingCard canManage={canManage} />
-
       <div className="rounded-md border">
         <div className="border-b px-4 py-3" data-testid="atendentes-e-horarios">
           <h2 className="text-sm font-semibold">{t("Atendentes e horários de atendimento")}</h2>
@@ -598,7 +471,9 @@ export function AttendantsClient({ canManage, organizationTimezone }: Props) {
           <p className="p-4 text-sm text-destructive">Erro ao carregar atendentes.</p>
         ) : attendants.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">
-            {t("Nenhum atendente na organização. Convide membros com papel de atendente ou superior.")}
+            {t(
+              "Nenhum atendente na organização. Convide membros com papel de atendente ou superior.",
+            )}
           </p>
         ) : (
           <Table>
@@ -632,7 +507,11 @@ export function AttendantsClient({ canManage, organizationTimezone }: Props) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className={isAtCapacity(load, capacity) ? "font-medium text-destructive" : ""}>
+                      <span
+                        className={
+                          isAtCapacity(load, capacity) ? "font-medium text-destructive" : ""
+                        }
+                      >
                         {load}
                       </span>
                     </TableCell>

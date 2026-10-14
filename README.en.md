@@ -268,7 +268,7 @@ Under the hood, every event becomes a row in `event_log` — no database trigger
 | **AI Agent** | **Agents** · **Follow-ups** · **Routers** · **Providers** and **Credentials** · **Knowledge** (RAG) · **Memory** · **Skills** · **Cases** · **Alerts** · **Proposals** · **Runs** · **Usage & budget** |
 | **Channels** | **Connections** (QR or Meta's official channel, with health, reconnect and templates) · **Nuvemshop** · **Webhooks** |
 | **Analytics** | **Performance** (funnel and per-agent metrics) · **AI Evolution** · **Audit Log** |
-| **Organization** | **Team** · **Support distribution** · **Organization** · **LGPD** · **API Tokens** · **Security** (MFA, recovery codes, sessions) · Profile, Notifications, Billing |
+| **Organization** | **Team** (members, departments and support settings) · **Organization** · **LGPD** · **API Tokens** · **Security** (MFA, recovery codes, sessions) · Profile, Notifications, Billing |
 
 Every screen has a door in the navigation — CI fails a screen that exists but can only be reached by typing its URL.
 

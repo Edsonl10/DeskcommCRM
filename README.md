@@ -293,7 +293,7 @@ Por baixo, cada evento vira uma linha em `event_log` — nenhum trigger de banco
 | **Agente de IA** | **Agentes** · **Follow-ups** · **Roteadores** · **Provedores** e **Credenciais** · **Conhecimento** (RAG) · **Memória** · **Skills** · **Casos** · **Alertas** · **Propostas** · **Execuções** · **Uso e orçamento** |
 | **Canais** | **Conexões** (QR ou canal oficial da Meta, com saúde, reconexão e templates) · **Nuvemshop** · **Webhooks** |
 | **Análise** | **Desempenho** (funil e performance por atendente) · **Evolução da IA** · **Audit Log** |
-| **Organização** | **Equipe** · **Distribuição de atendimento** · **Organização** · **LGPD** · **API Tokens** · **Segurança** (MFA, códigos de recuperação, sessões) · Perfil, Notificações, Billing |
+| **Organização** | **Equipe** (membros, departamentos e atendimento) · **Organização** · **LGPD** · **API Tokens** · **Segurança** (MFA, códigos de recuperação, sessões) · Perfil, Notificações, Billing |
 
 Toda tela tem porta na navegação — o CI reprova tela que existe mas em que só se chega digitando a URL.
 

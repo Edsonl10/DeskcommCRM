@@ -42,6 +42,8 @@ const NAV_ALLOWLIST: Record<string, string> = {
   "/app/settings/tenant/whatsapp": "redirect legado para /app/connections; mantido por links salvos",
   "/app/settings/canal-oficial":
     "redirect para /app/connections?aba=oficial desde o PR #105 — conectar canal passou a ter um lugar só. Conexões é a porta; a aba é navegação interna dela",
+  "/app/settings/atendimento":
+    "redirect legado para /app/team?aba=atendimento; distribuição, responsáveis e comportamento foram centralizados na aba Atendimento de Equipe",
   "/app/settings/templates":
     "redirect para /app/connections?aba=oficial&sub=templates — template da Meta só existe por causa do canal oficial, e vive como sub-aba dele",
   "/app/settings/atualizacao":
@@ -69,6 +71,13 @@ const NO_REGISTRO = new Set(NAV_DESTINATIONS.map((d) => d.href));
 const HUBS = NAV_GROUPS.flatMap((g) => (g.hub ? [g.hub.href] : []));
 
 describe("completude da navegação", () => {
+  it("os ajustes de atendimento têm uma única porta, pela Equipe", () => {
+    const portas = NAV_DESTINATIONS.filter((d) =>
+      ["/app/team", "/app/settings/atendimento"].includes(d.href),
+    );
+    expect(portas).toEqual([expect.objectContaining({ href: "/app/team" })]);
+  });
+
   it("encontrou as rotas do app — se isto zerar, o resto do arquivo não prova nada", () => {
     expect(ROTAS.length).toBeGreaterThan(20);
   });

@@ -34,7 +34,8 @@ function loadCreds(): Creds {
     const c = JSON.parse(fs.readFileSync(CREDS_PATH, "utf8")) as Creds;
     return !c.users?.manager;
   };
-  if (precisa()) execFileSync("npx", ["tsx", "scripts/seed-e2e-credentials.ts"], { stdio: "inherit" });
+  if (precisa())
+    execFileSync("npx", ["tsx", "scripts/seed-e2e-credentials.ts"], { stdio: "inherit" });
   return JSON.parse(fs.readFileSync(CREDS_PATH, "utf8")) as Creds;
 }
 
@@ -50,9 +51,7 @@ async function login(page: Page, email: string): Promise<void> {
 
 /** O estado marcado vem do atributo que o próprio componente escreve. */
 async function marcada(page: Page, nome: string, valor: string): Promise<boolean> {
-  return (
-    (await page.getByTestId(`opcao-${nome}-${valor}`).getAttribute("data-marcada")) === "sim"
-  );
+  return (await page.getByTestId(`opcao-${nome}-${valor}`).getAttribute("data-marcada")) === "sim";
 }
 
 test.describe("distribuição de atendimento — a tela que liga o rodízio e a visibilidade", () => {
@@ -65,7 +64,12 @@ test.describe("distribuição de atendimento — a tela que liga o rodízio e a 
     const page = await browser.newPage();
     await login(page, creds.users.manager!.email);
     await page.request.patch("/api/v1/settings/routing", {
-      data: { mode: "manual", max_retries: 5, backoff_seconds: 60, visibility_mode: "own_and_unassigned" },
+      data: {
+        mode: "manual",
+        max_retries: 5,
+        backoff_seconds: 60,
+        visibility_mode: "own_and_unassigned",
+      },
     });
     await page.close();
   });
@@ -78,14 +82,23 @@ test.describe("distribuição de atendimento — a tela que liga o rodízio e a 
     // 1. A tela é ALCANÇÁVEL pela navegação — não só pela URL digitada. É o
     //    defeito da issue: a feature existia e não tinha porta.
     await page.goto("/app/settings");
-    const porta = page.getByRole("link", { name: /Distribuição de atendimento/i });
-    await expect(porta).toBeVisible();
-    await porta.click();
-    await page.waitForURL(/\/app\/settings\/atendimento/);
+    await expect(page.getByRole("link", { name: /Distribuição de atendimento/i })).toHaveCount(0);
+    await page.getByRole("link", { name: /^Equipe/ }).click();
+    await page.getByRole("tab", { name: "Atendimento", exact: true }).click();
 
-    await expect(
-      page.getByRole("heading", { name: "Distribuição de atendimento" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Distribuição de atendimento" })).toBeVisible();
+
+    await expect(page.getByTestId("form-atendimento")).toHaveCount(1);
+    await expect(page.getByRole("combobox", { name: "Modo de roteamento" })).toHaveCount(0);
+    await page.goto("/app/settings/atendimento");
+    await expect(page).toHaveURL(/\/app\/team\?aba=atendimento$/);
+    await expect(page.getByRole("tab", { name: "Atendimento", exact: true })).toHaveAttribute(
+      "data-state",
+      "active",
+    );
+    const evidencia = path.join(process.cwd(), "evidence", "atendimento-centralizado");
+    fs.mkdirSync(evidencia, { recursive: true });
+    await page.screenshot({ path: path.join(evidencia, "equipe-atendimento.png"), fullPage: true });
 
     // 2. O default do produto aparece: manual + "os seus e os sem dono".
     expect(await marcada(page, "modo", "manual")).toBe(true);
