@@ -10,6 +10,7 @@ it("expõe três permissões independentes dentro da personalização e o preset
   fireEvent.click(screen.getByText("Personalizar áreas visíveis"));
   const all = screen.getByLabelText("Ver Todos — atendimentos em andamento de toda a equipe.");
   expect(all.closest("details")).toBe(container.querySelector("details"));
+  expect(screen.getByLabelText("Inbox", {exact:true}).closest("label")?.nextElementSibling).toBe(all.closest("fieldset"));
   fireEvent.click(all);
   expect(permissions).toHaveBeenLastCalledWith({all: true, ai: false, closed: true});
   fireEvent.change(screen.getByLabelText("Perfil de interface"), { target: { value: "simplificada" } });

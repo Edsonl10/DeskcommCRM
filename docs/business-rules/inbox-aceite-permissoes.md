@@ -25,4 +25,4 @@ Leitura global não concede alteração de outro responsável. RLS, envio, fecha
 - Anti-morte: casos sem elegível continuam visíveis em Todos, com retentativa e aviso na Central.
 - Configuração: três controles no editor de áreas visíveis; presets visuais não concedem acesso.
 - Retorno: alterar disponibilidade e regras de distribuição permite que a próxima tentativa encaminhe a pendência.
-- Testes: `lib/inbox/visoes.test.ts`, `tests/invariants/inbox-permissoes-e-aceite.test.ts` e specs do Inbox/Equipe.
+- Testes: `lib/inbox/visoes.test.ts`, `tests/invariants/inbox-permissoes-e-aceite.test.ts`, `tests/invariants/inbox-convite-permissoes.test.ts` e specs do Inbox/Equipe.

@@ -34,10 +34,29 @@ export function InterfaceEditor({
     value.destinos ?? destinosDaInterface(value, false, role).map((d) => d.href),
   );
   const options = permitidos(false, role).filter((d) => !essencial(d, role));
+  const permissoesDoInbox = onInboxPermissionsChange && (
+    <fieldset className="ml-6 space-y-2 border-l pl-3">
+      <legend className="text-sm font-medium">{t("Permissões do Inbox")}</legend>
+      <p className="text-xs text-muted-foreground">{t("Estas opções autorizam consultar conversas da equipe. Ativos e Aguardando continuam pessoais. Gestores e administradores têm visão global.")}</p>
+      {([
+        ["all", t("Ver Todos — atendimentos em andamento de toda a equipe.")],
+        ["ai", t("Ver IA de toda a equipe.")],
+        ["closed", t("Ver Fechadas de toda a equipe.")],
+      ] as const).map(([key, label]) => (
+        <label key={key} className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name={`inbox-permission-${key}`} disabled={role === "manager" || role === "admin"}
+            checked={role === "manager" || role === "admin" || lerPermissoesInbox(inboxPermissions)[key]}
+            onChange={(e) => onInboxPermissionsChange({ ...lerPermissoesInbox(inboxPermissions), [key]: e.target.checked })} />
+          {label}
+        </label>
+      ))}
+      <p className="text-xs text-muted-foreground">{t("Todos inclui as conversas da IA. Alterar o perfil visual não altera estas permissões.")}</p>
+    </fieldset>
+  );
   return (
     <fieldset disabled={disabled} className="space-y-3 rounded-md border p-4">
       <legend className="px-1 text-sm font-medium">{t("Interface")}</legend>
-      <p className="text-xs text-muted-foreground">{t("Define quais áreas aparecem na navegação. As permissões continuam sendo determinadas pelo papel. Links de conversas e avisos podem abrir áreas autorizadas que estejam ocultas.")}</p>
+      <p className="text-xs text-muted-foreground">{t("Define quais áreas aparecem na navegação. Os acessos dependem do papel e das autorizações de consulta do Inbox. Links de conversas e avisos podem abrir áreas autorizadas que estejam ocultas.")}</p>
       <label htmlFor={id} className="block text-sm">{t("Perfil de interface")}</label>
       <select
         id={id}
@@ -66,7 +85,8 @@ export function InterfaceEditor({
                   {t(group.label)}
                 </legend>
                 {items.map((d) => (
-                  <label key={d.href} className="flex items-start gap-2 text-sm">
+                  <div key={d.href} className="space-y-2">
+                  <label className="flex items-start gap-2 text-sm">
                     <input
                       type="checkbox"
                       checked={selected.has(d.href)}
@@ -87,29 +107,12 @@ export function InterfaceEditor({
                     />
                     {t(d.label)}
                   </label>
+                  {d.href === "/app/inbox" && permissoesDoInbox}
+                  </div>
                 ))}
               </fieldset>
             );
           })}
-          {onInboxPermissionsChange && (
-            <fieldset className="space-y-2 border-t pt-3">
-              <legend className="text-sm font-medium">{t("Permissões do Inbox")}</legend>
-              <p className="text-xs text-muted-foreground">{t("Estas opções autorizam consultar conversas da equipe. Ativos e Aguardando continuam pessoais. Gestores e administradores têm visão global.")}</p>
-              {([
-                ["all", t("Ver Todos — atendimentos em andamento de toda a equipe.")],
-                ["ai", t("Ver IA de toda a equipe.")],
-                ["closed", t("Ver Fechadas de toda a equipe.")],
-              ] as const).map(([key, label]) => (
-                <label key={key} className="flex items-start gap-2 text-sm">
-                  <input type="checkbox" name={`inbox-permission-${key}`} disabled={role === "manager" || role === "admin"}
-                    checked={role === "manager" || role === "admin" || lerPermissoesInbox(inboxPermissions)[key]}
-                    onChange={(e) => onInboxPermissionsChange({ ...lerPermissoesInbox(inboxPermissions), [key]: e.target.checked })} />
-                  {label}
-                </label>
-              ))}
-              <p className="text-xs text-muted-foreground">{t("Todos inclui as conversas da IA. Alterar o perfil visual não altera estas permissões.")}</p>
-            </fieldset>
-          )}
         </div>
       </details>
       {!interfaceTemDestino(value, role) || value.destinos?.length === 0 ? (
