@@ -194,12 +194,17 @@ export function ConversationHeader({
     // `canais-baseline` clica, e, pior, esconderia ação de quem atende.
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-4 py-3">
       <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-1.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           <ChannelLogo channel={conversation.channel_sessions} size={20} />
           <h2 className="min-w-0 truncate text-sm font-semibold" title={displayName}>{displayName}</h2>
           <Badge variant="outline" className="h-4 shrink-0 px-1.5 text-[10px]">
             {conversation.inbox_state === "waiting" ? t("Aguardando") : t(STATUS_LABEL[status] ?? status)}
           </Badge>
+          {conversation.departments && (
+            <Badge variant="outline" className="max-w-36 min-w-0 shrink truncate" title={conversation.departments.name}>
+              {conversation.departments.name}
+            </Badge>
+          )}
           {/* Ao lado do estado, não escondido num painel: a pergunta "dá para
               escrever agora?" se faz ANTES de digitar, não depois de receber um
               `failed` com um código de cinco dígitos. */}

@@ -5,6 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConversationHeader } from "./ConversationHeader";
 import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
 
+it("mostra o departamento vigente junto à fila Aguardando, sem nome fixo de setor", () => {
+  render(<ConversationHeader conversation={{ ...conversa("claimed"), inbox_state: "waiting", departments: { id: "setor-2", name: "Financeiro" } }} />);
+  expect(screen.getByText("Financeiro")).toBeInTheDocument();
+  expect(screen.getByText("Aguardando")).toBeInTheDocument();
+});
+
 /**
  * "Fechar" usava `window.confirm()` — mesmo defeito documentado
  * em `app/app/tasks/_components/ListaDeTarefas.tsx`: bloqueado em iframe,

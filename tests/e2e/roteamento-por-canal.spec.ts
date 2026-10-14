@@ -83,7 +83,7 @@ async function deferForeignRoutingDue(org: string): Promise<void> {
   const { error } = await db
     .from("event_log")
     .update({ next_attempt_at: new Date(agora.getTime() + 3_600_000).toISOString() })
-    .eq("event_type", "conversation.routing_requested")
+    .in("event_type", ["conversation.routing_requested", "conversation.department_routing_requested"])
     .eq("status", "pending")
     .neq("organization_id", org)
     .or(`next_attempt_at.is.null,next_attempt_at.lte.${agora.toISOString()}`);
@@ -380,6 +380,80 @@ test("configura responsáveis por canal e o cron distribui sem misturar números
       .eq("organization_id", org).eq("id", extra).single();
     if (extraAssigned.error) throw extraAssigned.error;
     expect(extraAssigned.data.assigned_to_user_id).toBe(ana.id);
+
+    // O mesmo canal passa a usar o setor padrão; outro setor não herda a lista
+    // de responsáveis do número. Configuração, worker, RPC e filas são reais.
+    async function createDepartment(name: string, method: string, members: string[], isDefault: boolean, onlyOnline: boolean) {
+      const response = await page.request.post("/api/v1/departments", { data: {
+        name, distribution_method: method, is_default: isDefault, only_online: onlyOnline,
+        members: members.map(user_id => ({ user_id, member_role: "normal", receives_auto_distribution: true })),
+      } });
+      expect(response.ok()).toBe(true);
+      return (await response.json()).data.id as string;
+    }
+    const commercial = await createDepartment("Comercial de teste", "round_robin", [ana.id, bruno.id], true, true);
+    const billing = await createDepartment("Financeiro de teste", "least_loaded", [bruno.id], false, false);
+    const names = ["Cliente Departamento A", "Cliente Departamento B"] as const;
+    const queued = [await conversation(north, names[0], "+5511999000041"), await conversation(north, names[1], "+5511999000042")];
+    await deferForeignRoutingDue(org);
+    expect((await drain(page)).errors).toEqual([]);
+    const assigned = await db.from("conversations").select("id,assigned_department_id,assigned_to_user_id,human_accepted_at,inbox_state")
+      .eq("organization_id", org).in("id", queued);
+    if (assigned.error) throw assigned.error;
+    expect(new Set(assigned.data.map(row => row.assigned_to_user_id))).toEqual(new Set([ana.id, bruno.id]));
+    expect(assigned.data.every(row => row.assigned_department_id === commercial && row.human_accepted_at === null && row.inbox_state === "waiting")).toBe(true);
+    const anaConversation = assigned.data.find(row => row.assigned_to_user_id === ana.id)!.id;
+    const anaName = names[queued.indexOf(anaConversation)]!;
+    const agentContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    try {
+      const agentPage = await agentContext.newPage();
+      await login(agentPage, ana.email, password);
+      await agentPage.goto(`/app/inbox?filter=waiting&id=${anaConversation}`);
+      await expect(agentPage.getByRole("heading", { name: anaName, exact: true })).toBeVisible();
+      await expect(agentPage.getByText("Comercial de teste", { exact: true })).toBeVisible();
+      await expect(agentPage.getByRole("button", { name: "Assumir", exact: true })).toBeVisible();
+      const personalQueue = await agentPage.request.get("/api/v1/conversations?view=waiting");
+      expect(personalQueue.ok()).toBe(true);
+      const personalRows = (await personalQueue.json()).data as Array<{ id: string }>;
+      expect(personalRows.some(row => row.id === anaConversation)).toBe(true);
+      expect(personalRows.some(row => row.id === assigned.data.find(row => row.assigned_to_user_id === bruno.id)!.id)).toBe(false);
+      await agentPage.screenshot({ path: `${evidence}/departamento-padrao-aguardando.png`, fullPage: true });
+      await agentPage.setViewportSize({ width: 390, height: 844 });
+      expect(await agentPage.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+      await expect(agentPage.getByText("Comercial de teste", { exact: true })).toBeVisible();
+      await agentPage.screenshot({ path: `${evidence}/departamento-padrao-aguardando-mobile.png`, fullPage: true });
+
+      await page.goto("/app/team");
+      await page.getByRole("tab", { name: "Atendimento", exact: true }).click();
+      const offlineSaved = page.waitForResponse(r => r.request().method() === "PATCH" && r.url().endsWith(`/api/v1/attendants/availability/${bruno.id}`));
+      await page.getByRole("switch", { name: "Disponibilidade de Bruno Canal Sul", exact: true }).click();
+      expect((await offlineSaved).status()).toBe(200);
+      await expect(page.getByRole("switch", { name: "Disponibilidade de Bruno Canal Sul", exact: true })).not.toBeChecked();
+      await page.goto(`/app/inbox?filter=all&id=${anaConversation}`);
+      await page.getByRole("button", { name: "Transferir", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByLabel("Departamento", { exact: true }).click();
+      await page.getByRole("option", { name: "Financeiro de teste", exact: true }).click();
+      await dialog.getByLabel("Transferir para", { exact: true }).click();
+      await page.getByRole("option", { name: "Distribuir para o setor", exact: true }).click();
+      const transferred = page.waitForResponse(r => r.request().method() === "POST" && r.url().includes(`/conversations/${anaConversation}/transfer`));
+      await dialog.getByRole("button", { name: "Transferir", exact: true }).click();
+      expect((await transferred).status()).toBe(200);
+      await expect(dialog).toHaveCount(0);
+      await deferForeignRoutingDue(org);
+      expect((await drain(page)).errors).toEqual([]);
+      const moved = await db.from("conversations").select("assigned_department_id,assigned_to_user_id,inbox_state").eq("id", anaConversation).single();
+      if (moved.error) throw moved.error;
+      expect(moved.data).toMatchObject({ assigned_department_id: billing, assigned_to_user_id: bruno.id, inbox_state: "waiting" });
+      const billingContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+      try {
+        const billingPage = await billingContext.newPage(); await login(billingPage, bruno.email, password);
+        await billingPage.goto(`/app/inbox?filter=waiting&id=${anaConversation}`);
+        await expect(billingPage.getByText("Financeiro de teste", { exact: true })).toBeVisible();
+        await expect(billingPage.getByRole("button", { name: "Assumir", exact: true })).toBeVisible();
+        await billingPage.screenshot({ path: `${evidence}/outro-departamento-aguardando.png`, fullPage: true });
+      } finally { await billingContext.close(); }
+    } finally { await agentContext.close(); }
 
     expect(receiverHits.some((hit) => hit.includes("sendText"))).toBe(false);
   } finally {

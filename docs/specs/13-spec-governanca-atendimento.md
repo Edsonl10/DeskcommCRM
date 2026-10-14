@@ -317,6 +317,21 @@ a migration `20260716120000_0030_config_rls_role_policies.sql` aplica
 
 ## 5. Roteamento (decisões G1-06; G5 implementa)
 
+- **Departamento**: conversa nova individual e sem dono recebe o padrão ativo da
+  organização. Vínculo explícito prevalece; grupos e contatos pessoais não entram
+  nessa distribuição. Eventos anteriores sem setor são preparados sem transferir
+  conversas que já possuem responsável.
+- **Autoridade do setor**: quando existe departamento, seus participantes e método
+  (`manual`, `round_robin`, `least_loaded`) prevalecem sobre os responsáveis do
+  número. Sem setor, a política por canal permanece vigente. Só online exige
+  disponibilidade quando ligado; desligado permite offline, conservando jornadas
+  e capacidade. Fidelização prefere o último responsável elegível daquele contato
+  no mesmo setor. Setor manual ou sem elegível espera, sem recorrer a outro setor.
+- **Reserva e aceite**: o claim privado relê vínculos, configuração, jornada e
+  capacidade; serializa o rodízio do setor e a vaga global da pessoa. A distribuição
+  coloca a conversa na fila pessoal Aguardando, com IA pausada e aceite nulo.
+  O humano passa a Ativos somente ao aceitar. O cabeçalho mostra o setor vigente.
+
 - **Modos no MVP** (decisão G1-06b): `manual` (só claim/atribuição humana) e
   `round_robin` (rodízio entre elegíveis). `load` (menor carga) fica pós-MVP —
   `settings.routing` é jsonb, entra sem quebrar contrato. Elegível =

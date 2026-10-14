@@ -61,6 +61,7 @@ export interface ChannelSummary {
 export type ConversationWithContact = Conversation & {
   contacts?: ContactSummary | null;
   channel_sessions?: ChannelSummary | null;
+  departments?: { id: string; name: string } | null;
   /**
    * O nome de quem atende, resolvido no servidor.
    *
