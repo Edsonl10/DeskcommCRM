@@ -4829,6 +4829,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          human_accepted_at: string | null
           reply_context_revision: number
           active_agent_set_at: string | null
           active_ai_agent_id: string | null
@@ -4875,6 +4876,7 @@ export type Database = {
         }
         Insert: {
           reply_context_revision?: number
+          human_accepted_at?: string | null
           active_agent_set_at?: string | null
           active_ai_agent_id?: string | null
           active_intent?: string | null
@@ -4920,6 +4922,7 @@ export type Database = {
         }
         Update: {
           reply_context_revision?: number
+          human_accepted_at?: string | null
           active_agent_set_at?: string | null
           active_ai_agent_id?: string | null
           active_intent?: string | null
@@ -9653,6 +9656,7 @@ export type Database = {
       }
       user_organizations: {
         Row: {
+          inbox_permissions: Json
           interface_settings: Json
           accepted_at: string | null
           calendar_trilha: number | null
@@ -9668,6 +9672,7 @@ export type Database = {
         }
         Insert: {
           interface_settings?: Json
+          inbox_permissions?: Json
           accepted_at?: string | null
           calendar_trilha?: number | null
           created_at?: string
@@ -9682,6 +9687,7 @@ export type Database = {
         }
         Update: {
           interface_settings?: Json
+          inbox_permissions?: Json
           accepted_at?: string | null
           calendar_trilha?: number | null
           created_at?: string
@@ -10687,6 +10693,14 @@ export type Database = {
       fn_accept_team_invite: {
         Args: { p_user: string; p_org: string; p_role: string; p_invited_by: string | null; p_issued_at: string | null; p_invited_at: string; p_interface_settings?: Json }
         Returns: Json
+      }
+      fn_accept_inbox_invite: {
+        Args: { p_invite_id: string; p_user: string; p_org: string; p_role: string; p_invited_by: string | null; p_issued_at: string | null; p_invited_at: string; p_interface_settings: Json; p_inbox_permissions: Json }
+        Returns: Json
+      }
+      fn_can_write_inbox: {
+        Args: { p_org: string; p_conversation: string }
+        Returns: boolean
       }
 
       fn_support_context: { Args: Record<PropertyKey, never>; Returns: Json }
