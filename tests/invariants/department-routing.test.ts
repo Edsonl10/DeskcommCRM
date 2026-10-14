@@ -110,7 +110,10 @@ describe("departamentos instalados, sem nomes ou tenants fixos", () => {
     expect(await claim((await conversation()).id)).toMatchObject({user_id:bruno});
     await q("update departments set contact_stickiness=true where id=$1",[department]);
     await q("update conversations set status='closed' where id=$1",[previous.id]);
-    expect(await claim((await conversation(null,previous.contact)).id)).toMatchObject({user_id:ana});
+    for (let i=0;i<2;i++) await q("select fn_conversation_assign($1,$2,$3,'routing',null,true)",[org,(await conversation()).id,ana]);
+    // A conversa por contato/canal é única mesmo fechada; o novo episódio reabre a mesma linha.
+    await q("update conversations set status='open',assigned_to_user_id=null,assigned_to_user_name=null,assignee_kind=null,assigned_at=null,human_accepted_at=null where id=$1",[previous.id]);
+    expect(await claim(previous.id)).toMatchObject({user_id:ana});
   });
   it("configuração, transferência, membro e capacidade alterados invalidam a escolha antiga", async () => {
     const a=await conversation(), config=await snapshot();
