@@ -1,15 +1,21 @@
 # PROJECT_STATE
 
-## Em validação — Inbox por aceite e permissões individuais
-- Branch `feat/inbox-permissoes-equipe`: Ativos, Aguardando, IA, Todos e Fechadas; histórico arquivado incorporado sem exclusão.
+## Em produção — Inbox por aceite e permissões individuais
+- PR #6 integrado e publicado em 13/10/2026 (14/10 em UTC), código `864bd67ee6d525416ff6bcdc666de96477fd25c3`. App, worker e scheduler saudáveis, com as imagens do fork fixadas por digest. Ativos, Aguardando, IA, Todos e Fechadas; histórico arquivado incorporado sem exclusão.
 - Permissões `all`, `ai`, `closed` separadas do perfil visual, editáveis em Personalizar áreas visíveis na Equipe e nos convites. Gestores/admin têm visão global; supervisores sem concessão veem suas conversas.
 - Migration do fork 9003: aceite humano explícito, RLS por estado, proteção da atribuição e de alterações por quem recebeu apenas consulta, aceite de convite atômico e push alinhado à leitura.
-- Produção ainda não atualizada nesta mudança. Publicação autorizada pelo usuário; depende da validação, backup e preservação dos pins/configurações da instalação.
+- Migração `20261014001000_9003_inbox_aceite_e_permissoes.sql` aplicada em transação antes de iniciar a aplicação nova. SHA-256 conferido: `f7e604f2a30c1bf43bdaac72a6040883cb1ece1cee30d59d9d36c380899457fe`.
+- Backup novo validado em `/opt/backups/crm-inbox-20261014-015455`: banco (5,3 MB, gzip conferido), sessões WhatsApp (1016 KB, conteúdo conferido) e configurações. Recibos `deployment-inbox.txt` e `images-after.txt` no mesmo diretório; execução terminou com código zero.
+- Apenas `APP_IMAGE`, `WORKER_IMAGE` e `SCHEDULER_IMAGE` mudaram no `.env`; comparação das demais linhas passou. Caddyfile preservado por SHA-256, WhatsApp não reiniciado e demais sistemas da VPS preservados.
+- Revisão validada `f61b697`, com árvore idêntica ao commit integrado: verify, desempenho, imagens AMD64/ARM64 e seis partes E2E aprovados. PostgreSQL 15 e 17: 424 arquivos, 3330 testes aprovados, 1 falha esperada e 2 ignorados em cada versão; atualização do kit sobre banco com dados também passou. Sabotagem do filtro por responsável produziu a falha prevista; restaurado o filtro, os testes passaram.
+- Conferência em produção: abertura em Ativos, ordem das cinco abas, controles junto a Inbox no editor individual e nos convites, padrão desmarcado para atendentes, aviso de direcionamento em Todos e links antigos `mine`/`archived`. Tela de 390 × 844 conferida e tamanho normal restaurado. Nenhuma permissão de membro nem convite real foi alterado durante a conferência.
+- Checkout da VPS avançado por fast-forward para `864bd67`; Caddyfile local modificado e seus backups foram preservados. Não usar atualização oficial que substitua os pins do fork.
+- O workflow de corte de release do fork continua sem `RELEASE_APP_ID`/credencial do GitHub App, falha já presente antes desta publicação. O workflow independente de imagens publicou a revisão instalada com sucesso; não foi criada uma tag de versão nesta atualização.
 
-## Estado atual
-- Interface atualizada em produção em 13/10/2026 pelo PR #4, código `c7c8f6c887c4d3a40e494d733741324cfc8c516b`. App saudável, fixado em `ghcr.io/edsonl10/deskcommcrm@sha256:3b9d24c22d48146cbcb292f3c1aff836e6fd03aceb637548d36aa4aeb177e477`. Worker e scheduler permanecem na versão anterior por esta mudança tocar somente a interface.
+## Base da instalação e atualizações anteriores
+- A atualização anterior da interface, em 13/10/2026 pelo PR #4, instalou `c7c8f6c887c4d3a40e494d733741324cfc8c516b`, com app fixado em `ghcr.io/edsonl10/deskcommcrm@sha256:3b9d24c22d48146cbcb292f3c1aff836e6fd03aceb637548d36aa4aeb177e477`. Naquele deploy, worker e scheduler permaneceram na versão anterior por a mudança tocar somente a interface.
 - Release oficial `v1.78.0` integrada às melhorias do fork e instalada em 09/10/2026. Naquela atualização, app, worker e scheduler passaram a executar `ce7829f90d6eb7c9626e17c4093dc99574250617`, com imagens do fork fixadas por digest.
-- Preservados departamentos, membros Normal/Supervisor, transferência por departamento, participação na distribuição e visibilidade do supervisor.
+- Departamentos, membros Normal/Supervisor, transferência por departamento e participação na distribuição continuam disponíveis. A consulta global de conversas segue as permissões individuais descritas acima.
 - Incorporadas as proteções locais de suporte e de autenticação da atribuição por departamento.
 - Mantidos os modos oficiais `round_robin`/`load` e o modo personalizado `least_loaded`.
 
@@ -22,7 +28,7 @@
 - Teste preexistente de conversão com data fixa expirada estabilizado (janela de sete dias); 20 testes passaram, sem mudar runtime. Duas verificações E2E passaram a conferir o responsável e a ausência de Liberar.
 - Acesso ao terminal web da VPS confirmado pelo painel Hostinger. Backup do banco (5,3 MB, gzip conferido), sessões WhatsApp (1016 KB) e configurações em `/opt/backups/crm-ui-20261013-212957`.
 - Somente APP_IMAGE mudou no .env (comparação conferida); Caddyfile preservado por SHA-256. Worker e scheduler seguem saudáveis e WhatsApp não foi reiniciado. Recibo e script de instalação/rollback no mesmo diretório do backup.
-- Checkout da VPS continua em `a47fec4` com Caddyfile local modificado; runtime do app vem da imagem `c7c8f6c` acima. Não sobrescrever esse Caddyfile nem usar update oficial que substitua os pins do fork.
+- Naquele deploy, o checkout da VPS estava em `a47fec4` com Caddyfile local modificado e o runtime do app vinha da imagem `c7c8f6c` acima. A publicação do Inbox descrita no início deste documento atualizou também esse checkout.
 
 ## Decisões aprovadas
 - Atualizar pelo repositório oficial preservando as melhorias da instalação.
