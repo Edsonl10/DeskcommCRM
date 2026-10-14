@@ -245,13 +245,13 @@ function GraficoDiario({
                 <XAxis
                   dataKey="day"
                   tickFormatter={(v) => diaCurto(v, tagDoIdioma)}
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: "var(--text-micro)" }}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
                 />
                 <YAxis
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: "var(--text-micro)" }}
                   tickLine={false}
                   axisLine={false}
                   allowDecimals={false}
@@ -262,7 +262,7 @@ function GraficoDiario({
                   labelFormatter={(l) => diaCurto(String(l), tagDoIdioma)}
                   contentStyle={{
                     borderRadius: "8px",
-                    fontSize: "12px",
+                    fontSize: "var(--text-xs)",
                     border: "1px solid hsl(var(--border))",
                     background: "hsl(var(--popover))",
                   }}

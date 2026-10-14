@@ -82,13 +82,13 @@ export function UsageCharts({ series }: UsageChartsProps) {
               <XAxis
                 dataKey="date"
                 tickFormatter={(v) => formatDateTick(v, tagDoIdioma)}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={formatNumber}
@@ -99,7 +99,7 @@ export function UsageCharts({ series }: UsageChartsProps) {
                 labelFormatter={(label) => formatDateTick(String(label), tagDoIdioma)}
                 contentStyle={{
                   borderRadius: "8px",
-                  fontSize: "12px",
+                  fontSize: "var(--text-xs)",
                   border: "1px solid hsl(var(--border))",
                 }}
               />
@@ -135,13 +135,13 @@ export function UsageCharts({ series }: UsageChartsProps) {
               <XAxis
                 dataKey="date"
                 tickFormatter={(v) => formatDateTick(v, tagDoIdioma)}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) =>
@@ -154,7 +154,7 @@ export function UsageCharts({ series }: UsageChartsProps) {
                 labelFormatter={(label) => formatDateTick(String(label), tagDoIdioma)}
                 contentStyle={{
                   borderRadius: "8px",
-                  fontSize: "12px",
+                  fontSize: "var(--text-xs)",
                   border: "1px solid hsl(var(--border))",
                 }}
               />
@@ -191,13 +191,13 @@ export function UsageCharts({ series }: UsageChartsProps) {
                 <XAxis
                   dataKey="date"
                   tickFormatter={(v) => formatDateTick(v, tagDoIdioma)}
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: "var(--text-micro)" }}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
                 />
                 <YAxis
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: "var(--text-micro)" }}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(v: number) => {
@@ -212,7 +212,7 @@ export function UsageCharts({ series }: UsageChartsProps) {
                   labelFormatter={(label) => formatDateTick(String(label), tagDoIdioma)}
                   contentStyle={{
                     borderRadius: "8px",
-                    fontSize: "12px",
+                    fontSize: "var(--text-xs)",
                     border: "1px solid hsl(var(--border))",
                   }}
                 />

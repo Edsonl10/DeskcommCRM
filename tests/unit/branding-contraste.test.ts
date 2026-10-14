@@ -84,7 +84,10 @@ describe("extrairRegua — os pares saem do globals.css, nunca de lista à mão"
   it("classifica -fg como texto e -soft como superfície", () => {
     const fg = REGUA.claro.papeis.find((p) => p.token === "--color-accent-fg");
     expect(fg?.tipo).toBe("texto");
-    expect(REGUA.claro.tingidas.map((t) => t.chave)).toEqual(["--color-accent-soft"]);
+    expect(REGUA.claro.tingidas.map((t) => t.chave)).toEqual([
+      "--color-conversation-selected-soft",
+      "--color-accent-soft",
+    ]);
     // No escuro o token é o literal `rgba(130,160,119,0.16)` — verde Sage cru, sem
     // referência à rampa. É por isso que ele precisa ser REANCORADO na derivação.
     expect(REGUA.escuro.indices.soft).toBeNull();
@@ -105,12 +108,12 @@ describe("extrairRegua — os pares saem do globals.css, nunca de lista à mão"
     ]);
     expect(REGUA.escuro.papeis).toHaveLength(6);
 
-    expect(superficiesDoTema(REGUA.claro, REGUA.rampaDoProduto, 0)).toHaveLength(4);
+    expect(superficiesDoTema(REGUA.claro, REGUA.rampaDoProduto, 0)).toHaveLength(5);
     // 6 no escuro e não 4: o `-soft` translúcido compõe sobre CADA base, e as três
     // razões diferem (4,99 · 4,59 · 4,02). Medir uma só escolheria a mais folgada.
     expect(superficiesDoTema(REGUA.escuro, REGUA.rampaDoProduto, 0)).toHaveLength(6);
 
-    expect(medirPares(REGUA.claro, REGUA.rampaDoProduto, 0)).toHaveLength(18);
+    expect(medirPares(REGUA.claro, REGUA.rampaDoProduto, 0)).toHaveLength(22);
     expect(medirPares(REGUA.escuro, REGUA.rampaDoProduto, 0)).toHaveLength(26);
   });
 

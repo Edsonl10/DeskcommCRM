@@ -58,7 +58,7 @@ function EmptyChart() {
 
 const tooltipStyle = {
   borderRadius: "8px",
-  fontSize: "12px",
+  fontSize: "var(--text-xs)",
   border: "1px solid hsl(var(--border))",
   background: "hsl(var(--popover))",
 };
@@ -100,13 +100,13 @@ export function UsageChart({ payload }: Props) {
               <XAxis
                 dataKey="day"
                 tickFormatter={(v) => formatDateTick(v, tagDoIdioma)}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) => formatCentsUSD(v)}
@@ -142,13 +142,13 @@ export function UsageChart({ payload }: Props) {
               <XAxis
                 dataKey="day"
                 tickFormatter={(v) => formatDateTick(v, tagDoIdioma)}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={formatTokens}
@@ -184,13 +184,13 @@ export function UsageChart({ payload }: Props) {
               <XAxis
                 dataKey="day"
                 tickFormatter={(v) => formatDateTick(v, tagDoIdioma)}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 // O eixo TAMBÉM em segundos. Traduzir só o título e o tooltip
@@ -211,7 +211,7 @@ export function UsageChart({ payload }: Props) {
                 labelFormatter={(label) => formatDateTick(String(label), tagDoIdioma)}
                 contentStyle={tooltipStyle}
               />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: "var(--text-micro)" }} />
               <Line
                 type="monotone"
                 dataKey="p50"
@@ -246,13 +246,13 @@ export function UsageChart({ payload }: Props) {
               <XAxis
                 dataKey="day"
                 tickFormatter={(v) => formatDateTick(v, tagDoIdioma)}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: "var(--text-micro)" }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) => `${v.toFixed(0)}%`}

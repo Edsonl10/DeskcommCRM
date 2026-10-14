@@ -41,6 +41,7 @@
   --color-text: #1c1a16;
   --color-text-muted: #5d594f;
   --color-text-subtle: #7d786c;
+  --color-conversation-selected-soft: var(--color-accent-50);
 
   /* Borders (light) */
   --color-border: #e7e3da;
@@ -270,6 +271,7 @@
   --color-text: #1c1a16;
   --color-text-muted: #5d594f;
   --color-text-subtle: #7d786c;
+  --color-conversation-selected-soft: var(--color-accent-50);
   --color-border: #e7e3da;
   --color-border-strong: #d2cdbf;
   --color-accent: var(--color-accent-600);
@@ -348,8 +350,9 @@
 
   /* Text (dark) */
   --color-text: #f5f4ef;
-  --color-text-muted: #8e8b7f;
-  --color-text-subtle: #605e54;
+  --color-text-muted: #b9b6ab;
+  --color-text-subtle: #9d998e;
+  --color-conversation-selected-soft: color-mix(in oklab, var(--color-accent) 12%, transparent);
 
   /* Borders (dark) */
   --color-border: #33312a;
@@ -465,6 +468,26 @@
    layer. Vigiado por `tests/unit/tailwind-tokens.test.ts`; se um dia alguém
    embrulhar o `:root` num `@layer`, o teste reprova e a explicação está aqui.
    ───────────────────────────────────────────────────────────────────────── */
+@theme static {
+  /* Legibilidade global: até 14px, +15%; a partir de 16px, +10%.
+     A raiz continua em 16px: espaçamentos e alturas em rem não recebem zoom.
+     As proporções de line-height do Tailwind acompanham os novos tamanhos. */
+  --text-micro: 0.790625rem;
+  --text-xs: 0.8625rem;
+  --text-sm: 1.00625rem;
+  --text-base: 1.1rem;
+  --text-lg: 1.2375rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.65rem;
+  --text-3xl: 2.0625rem;
+  --text-4xl: 2.475rem;
+  --text-5xl: 3.3rem;
+  --text-6xl: 4.125rem;
+  --text-7xl: 4.95rem;
+  --text-8xl: 6.6rem;
+  --text-9xl: 8.8rem;
+}
+
 @theme inline {
   /* Foundation */
   --color-bg: var(--color-bg);
@@ -475,6 +498,7 @@
   --color-text: var(--color-text);
   --color-text-muted: var(--color-text-muted);
   --color-text-subtle: var(--color-text-subtle);
+  --color-conversation-selected: var(--color-conversation-selected-soft);
 
   /* Accent — Sage */
   --color-accent: var(--color-accent);
@@ -592,6 +616,14 @@
   --ease-in-out: var(--ease-in-out);
   --ease-out-slow: var(--ease-out-slow);
   --ease-spring: var(--ease-spring);
+}
+
+/* Também alcança as fontes arbitrárias (8, 10, 11 e 13px) sem alterar
+   centenas de consumidores. --value([length]) exclui as classes de cor.
+   Até 14px vale 1.15; a partir de 15px vale 1.10. min/max mantém a regra
+   válida para comprimentos e variantes responsivas, sem JavaScript. */
+@utility text-* {
+  font-size: min(calc(--value([length]) * 1.15), max(calc(--value([length]) * 1.1), 16.1px));
 }
 
 /* `duration-*` não tem espaço de tema no v4 (o `transitionDuration` do v3 não
@@ -782,6 +814,7 @@
     overflow-x: clip;
     background-color: var(--color-bg);
     color: var(--color-text);
+    font-size: var(--text-base);
     font-family:
       var(--font-atkinson),
       ui-sans-serif,
@@ -799,6 +832,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+  }
+
+  /* Os eixos dos gráficos usam um cinza fixo por padrão no Recharts.
+     Acompanham os mesmos textos secundários do restante da interface. */
+  .recharts-cartesian-axis-tick-value {
+    fill: var(--color-text-muted);
   }
 
   code,

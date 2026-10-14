@@ -273,7 +273,7 @@ export function DocumentoCanvas({ propostaId, podeRevisar = false, emRascunho = 
   if (!doc.modeloSlug) {
     const rotuloSugerido = doc.modeloSlugSugerido ? opcoesDeModelo.find(([s]) => s === doc.modeloSlugSugerido)?.[1] : null;
     return (
-      <div className="rounded-lg border border-dashed p-4 text-sm text-gray-600 space-y-3">
+      <div className="rounded-lg border border-dashed p-4 text-sm text-text-muted space-y-3">
         {doc.modeloSlugSugerido ? (
           <p>
             {t("A IA sugeriu o modelo")} <strong>{rotuloSugerido ?? doc.modeloSlugSugerido}</strong>.
@@ -356,7 +356,7 @@ export function DocumentoCanvas({ propostaId, podeRevisar = false, emRascunho = 
                   <Button size="sm" variant="outline" disabled={preenchendo || ocupado} onClick={preencherComConversa}>
                     {preenchendo ? t("Lendo a conversa…") : t("Preencher com a conversa")}
                   </Button>
-                  {avisoDeSugestao && <span className="text-gray-500">{avisoDeSugestao}</span>}
+                  {avisoDeSugestao && <span className="text-inherit">{avisoDeSugestao}</span>}
                 </div>
               )}
               <ul className="space-y-2">
