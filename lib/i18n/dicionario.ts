@@ -1302,6 +1302,7 @@ export const DICIONARIO: Traducoes = {
   "Simplificada": { es: "Simplificada" },
   "Personalizada": { es: "Personalizada" },
   "Define quais áreas aparecem na navegação. As permissões continuam sendo determinadas pelo papel. Links de conversas e avisos podem abrir áreas autorizadas que estejam ocultas.": { es: "Define qué áreas aparecen en la navegación. Los permisos siguen dependiendo del rol. Los enlaces de conversaciones y avisos pueden abrir áreas autorizadas aunque estén ocultas." },
+  "Define quais áreas aparecem na navegação. Os acessos dependem do papel e das autorizações de consulta do Inbox. Links de conversas e avisos podem abrir áreas autorizadas que estejam ocultas.": { es: "Define qué áreas aparecen en la navegación. Los accesos dependen del rol y de las autorizaciones para consultar el Inbox. Los enlaces de conversaciones y avisos pueden abrir áreas autorizadas aunque estén ocultas." },
   "Trocar o perfil restaura sua seleção padrão. Perfil, segurança e acesso à equipe de quem administra continuam disponíveis.": { es: "Al cambiar el perfil se restaura la selección predeterminada. Quien administra sigue teniendo acceso a su perfil, a la seguridad y al equipo." },
   "A seleção contém áreas antigas. Confira e salve novamente.": { es: "La selección contiene áreas antiguas. Revísala y vuelve a guardar." },
   "Personalizar áreas visíveis": { es: "Personalizar áreas visibles" },
