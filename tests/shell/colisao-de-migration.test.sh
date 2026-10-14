@@ -50,6 +50,10 @@
 #  30. mais de 30 PRs abertos: o gate pede --limit, senão o gh corta calado em 30.
 set -uo pipefail
 
+# Os PRs abaixo pertencem aos clones sintéticos. O número do PR real que roda
+# esta suíte (por exemplo #7) não pode excluir o #7 fictício da população.
+unset GITHUB_REF
+
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 GATE_ORIGEM="$RAIZ/scripts/checar-colisao-de-migration.sh"
 
@@ -578,6 +582,12 @@ assert_not_contains "$saida" "NNNN=0291" "o 0290 antigo do próprio PR não empu
 teto_main="$(git -C "$principal" ls-tree -r --name-only main -- supabase/migrations \
   | sed -nE 's#^.*/[0-9]{14}_([0-9]{4})_.*$#\1#p' | sort -n | tail -1)"
 assert_contains "$saida" "NNNN=$(printf '%04d' $((10#$teto_main + 1)))" "o próximo livre é o teto da main + 1 (a main anda nesta suíte: $teto_main)"
+
+# O caminho do CI é medido explicitamente, sem depender da ref herdada do runner.
+# A branch anunciada é diferente: só o número em GITHUB_REF identifica o próprio PR.
+saida="$(GITHUB_REF=refs/pull/5/merge gate_prs "5:outra/branch" "$c")"; code=$?
+assert_exit "$code" 0 "o número do próprio PR no CI exclui sua cabeça antiga"
+assert_not_contains "$saida" "PR aberto #5" "a ref explícita do CI funciona mesmo com outro nome de branch"
 
 echo "29. cópia de PR em refs/remotes/*/pr/N (fetch de triagem) não traz fantasma de volta"
 c="$TMP/c29"; clonar "$c"; git -C "$c" switch -q -c fix/pr
