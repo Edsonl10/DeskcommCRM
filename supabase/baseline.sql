@@ -51273,7 +51273,7 @@ grant execute on function public.fn_channel_routing_claim(uuid,uuid,uuid,uuid,js
 -- ---- Entrada e distribuição por departamento (migration 9005) ----
 -- manifest: Liga a entrada ao departamento padrão e distribui pela configuração do setor, com reserva atômica, fidelização e espera pelo aceite humano.
 create or replace function public.fn_default_conversation_department() returns trigger
-language plpgsql security definer set search_path=public,pg_temp as $
+language plpgsql security definer set search_path=public,pg_temp as $$
 begin
  if new.assigned_department_id is null and new.assigned_to_user_id is null
    and new.status in ('open','pending') and not coalesce(new.is_group,false)
@@ -51282,7 +51282,7 @@ begin
     where organization_id=new.organization_id and is_default and is_active;
  end if;
  return new;
-end $;
+end $$;
 revoke all on function public.fn_default_conversation_department() from public,anon,authenticated;
 drop trigger if exists trg_default_conversation_department on public.conversations;
 create trigger trg_default_conversation_department before insert on public.conversations
@@ -51290,7 +51290,7 @@ create trigger trg_default_conversation_department before insert on public.conve
 
 -- Também prepara eventos anteriores à atualização, sem transferir conversas com dono.
 create or replace function public.fn_prepare_conversation_department(p_org uuid,p_conversation uuid)
-returns uuid language plpgsql security definer set search_path=public,pg_temp as $
+returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
 declare c public.conversations; contact uuid; department uuid;
 begin
  if not public.fn_support_write_allowed(p_org) then raise exception 'support_readonly' using errcode='42501';end if;
@@ -51307,7 +51307,7 @@ begin
    update public.conversations set assigned_department_id=department,updated_at=now() where organization_id=p_org and id=c.id;
  end if;
  return department;
-end $;
+end $$;
 revoke all on function public.fn_prepare_conversation_department(uuid,uuid) from public,anon,authenticated;
 grant execute on function public.fn_prepare_conversation_department(uuid,uuid) to service_role;
 
@@ -51316,7 +51316,7 @@ grant execute on function public.fn_prepare_conversation_department(uuid,uuid) t
 -- O lock do setor ordena rodízios concorrentes; a vaga continua global por pessoa.
 create or replace function public.fn_department_routing_claim(
  p_org uuid,p_conversation uuid,p_channel uuid,p_department uuid,p_candidates jsonb,p_department_snapshot jsonb
-) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $
+) returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
 declare c public.conversations; d public.departments; a public.attendant_availability;
  contact uuid; chosen uuid; previous_user uuid; current_load integer; candidate_schedule jsonb;
 begin
@@ -51386,14 +51386,14 @@ begin
  update public.conversations set human_accepted_at=null,bot_silenced_until='infinity'::timestamptz
    where organization_id=p_org and id=p_conversation;
  return jsonb_build_object('result','assigned','user_id',chosen);
-end $;
+end $$;
 revoke all on function public.fn_department_routing_claim(uuid,uuid,uuid,uuid,jsonb,jsonb) from public,anon,authenticated;
 grant execute on function public.fn_department_routing_claim(uuid,uuid,uuid,uuid,jsonb,jsonb) to service_role;
 
 -- Configuração nova acorda a fila que já esperava; heartbeat não reabre eventos.
 -- Só agenda: a atribuição permanece no worker, e não há trigger de eco no assign.
 create or replace function public.fn_wake_department_queues() returns trigger
-language plpgsql security definer set search_path=public,pg_temp as $
+language plpgsql security definer set search_path=public,pg_temp as $$
 declare organization uuid;
 begin
  if tg_table_name='attendant_availability' and tg_op='UPDATE' then
@@ -51405,7 +51405,7 @@ begin
  if not exists(select 1 from public.organizations where id=organization) then return null;end if;
  perform public.fn_wake_channel_routing(organization);
  return null;
-end $;
+end $$;
 revoke all on function public.fn_wake_department_queues() from public,anon,authenticated;
 drop trigger if exists trg_wake_department_queues on public.departments;
 create trigger trg_wake_department_queues after insert or update on public.departments
