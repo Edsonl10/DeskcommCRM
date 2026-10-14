@@ -69,6 +69,14 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   if (convErr) return fail("internal_error", t("Erro ao validar conversa."), 500, { requestId });
   if (!conv) return fail("not_found", t("Conversa não encontrada."), 404, { requestId });
 
+  if (authz.via === "session") {
+    const { data: canWrite, error: permissionError } = await supabase.rpc("fn_can_write_inbox", {
+      p_org: activeOrg.orgId, p_conversation: conversationId,
+    });
+    if (permissionError) return fail("internal_error", t("Erro ao validar conversa."), 500, { requestId });
+    if (!canWrite) return fail("forbidden", t("A permissão de consulta não permite enviar anexos por outro atendente."), 403, { requestId });
+  }
+
   // Guard de DoS: rejeita pelo Content-Length declarado ANTES de bufferizar
   // o corpo inteiro. 1MB de slack pro overhead de multipart; o check
   // autoritativo continua o file.size pós-parse (Content-Length pode mentir).

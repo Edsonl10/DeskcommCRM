@@ -41,7 +41,7 @@ interface Props {
    * Opcional para o fio continuar renderizável sem a conversa em mãos — o
    * cartão então cai no estado mais conservador (nenhum convite).
    */
-  dono?: { userId: string | null; nome: string | null } | null;
+  dono?: { userId: string | null; nome: string | null; aceito?: boolean } | null;
   contatoId?: string | null;
 }
 
@@ -166,8 +166,9 @@ export function ChatThread({
         usuarioId: currentUser.id,
         donoId: dono?.userId ?? null,
         donoNome: dono?.nome ?? null,
+        aceito: dono?.aceito,
       }),
-    [passagens, currentUser.id, dono?.userId, dono?.nome],
+    [passagens, currentUser.id, dono?.userId, dono?.nome, dono?.aceito],
   );
 
   const items: ThreadItem[] = useMemo(

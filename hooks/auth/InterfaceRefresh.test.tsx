@@ -1,3 +1,5 @@
+const queryMocks = vi.hoisted(() => ({ cancel: vi.fn(async () => {}), clear: vi.fn() }));
+vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ cancelQueries: queryMocks.cancel, clear: queryMocks.clear }) }));
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ refresh: vi.fn(), realtime: vi.fn(), toast: vi.fn(), aviso: vi.fn(), recarregar: vi.fn() }));
@@ -11,6 +13,26 @@ const fetcher = vi.fn();
 beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal("fetch", fetcher); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const response = (org: string, preset = "simplificada") => ({ ok: true, json: async () => ({ data: { organization_id: org, signature: JSON.stringify({ preset }) } }) });
+it.each([401, 403])("perda da sessão ou vínculo (%s) também remove os dados do cache", async (status) => {
+  fetcher.mockResolvedValue({ ok: false, status });
+  render(<InterfaceRefresh userId="user" org={a} support={false} />);
+  await act(async () => { mocks.realtime.mock.lastCall![0].onChange({}); });
+  expect(queryMocks.cancel).toHaveBeenCalledOnce();
+  expect(queryMocks.clear).toHaveBeenCalledOnce();
+  expect(mocks.refresh).toHaveBeenCalledOnce();
+});
+it("revogação de permissão cancela respostas antigas e limpa os dados antes do refresh", async () => {
+  fetcher.mockResolvedValue({ ok: true, json: async () => ({ data: {
+    organization_id: "a", signature: JSON.stringify({preset:"completa"}),
+    inbox_role: "agent", inbox_permissions: {all:false,ai:false,closed:false},
+  } }) });
+  render(<InterfaceRefresh userId="user" org={{...a, inbox_permissions:{all:true,ai:false,closed:false}}} support={false} />);
+  await act(async () => { mocks.realtime.mock.lastCall![0].onChange({}); });
+  await waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
+  expect(queryMocks.cancel).toHaveBeenCalledOnce();
+  expect(queryMocks.clear).toHaveBeenCalledOnce();
+  expect(queryMocks.cancel.mock.invocationCallOrder[0]).toBeLessThan(queryMocks.clear.mock.invocationCallOrder[0]!);
+});
 it("invalidações durante leitura antiga provocam uma releitura fresca, sem esperar polling", async () => {
   let resolveOld!: (value: ReturnType<typeof response>) => void;
   fetcher.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; }))

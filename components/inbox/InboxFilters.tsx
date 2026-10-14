@@ -34,36 +34,13 @@ import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useContactTagVocabulary } from "@/hooks/contacts/useContactTagVocabulary";
 import { useConversationTagVocabulary } from "@/hooks/inbox/useConversationTags";
 import { useConversationCounts } from "@/hooks/inbox/useConversationCounts";
-import type { Role, VisibilityMode } from "@/lib/auth/types";
+import type { Role } from "@/lib/auth/types";
 
-export type InboxTab = "unassigned" | "mine" | "all" | "closed" | "archived" | "ai";
-
-const INBOX_TABS: { value: InboxTab; label: string }[] = [
-  { value: "unassigned", label: "Fila" },
-  { value: "mine", label: "Minhas" },
-  { value: "all", label: "Todas" },
-  { value: "closed", label: "Fechadas" },
-  // "Arquivadas" fica ao lado de "Fechadas" porque as duas são passado — e
-  // separada dela porque são passados diferentes (#923): fechada é atendimento
-  // encerrado, arquivada é o que saiu da fila de trabalho sem ser destruído.
-  { value: "archived", label: "Arquivadas" },
-  // "Automático", não "IA": a palavra deste ator já é contrato em quatro arquivos
-  // e no dicionário, e `handoff-por-orcamento.test.ts` usa literalmente "Voltar
-  // para a IA" como a sabotagem que deve reprovar. A aba era a última fora do
-  // padrão — e ela mudou de significado junto (deixou de filtrar `ai_handling` e
-  // passou a perguntar a régua do motor), então o rótulo velho descreveria outra
-  // coisa.
-  { value: "ai", label: "Automático" },
-];
-
-/**
- * Visões visíveis por papel + escopo (G4-02, acceptance 1). 'Todas' fica oculta
- * para `agent` quando visibility_mode ≠ 'all'; viewer/manager/admin sempre veem.
- * É apenas cosmético — a RLS (G4-01) é quem garante o escopo mesmo via ?filter=all.
- */
-export function visibleInboxTabs(role: Role, mode: VisibilityMode | undefined): InboxTab[] {
-  const hideAll = role === "agent" && mode !== "all";
-  return INBOX_TABS.filter((t) => !(t.value === "all" && hideAll)).map((t) => t.value);
+import { INBOX_VIEWS, permissaoGlobalInbox, type InboxView } from "@/lib/inbox/visoes";
+export type InboxTab = InboxView | "mine" | "unassigned" | "archived";
+const INBOX_TABS = INBOX_VIEWS;
+export function visibleInboxTabs(role: Role, permissions: unknown): InboxTab[] {
+  return INBOX_TABS.filter((tab) => tab.value !== "all" || permissaoGlobalInbox(role, permissions, "all")).map((tab) => tab.value);
 }
 
 export interface InboxFiltersValue {
@@ -189,33 +166,24 @@ export function InboxFilters({ value, onChange }: Props) {
   // manda o atendente procurar trabalho que não existe — a regra já estava escrita
   // na rota; faltava alcançar os filtros ao lado da aba.
   const { data: counts } = useConversationCounts(activeOrg?.orgId ?? null, {
+    search: value.search,
     unread: value.onlyUnread,
+    is_group: value.onlyGroups,
     tag: etiquetas,
     tagMode: value.tagMode,
     channel_session_id: value.channel_session_id,
   });
 
   const tabs = activeOrg
-    ? visibleInboxTabs(activeOrg.role, activeOrg.visibility_mode)
+    ? visibleInboxTabs(activeOrg.role, activeOrg.inbox_permissions)
     : INBOX_TABS.map((t) => t.value);
   const moveTab = (direction: -1 | 1) => {
     const next = tabs[tabs.indexOf(value.tab) + direction];
     if (next) onChange({ ...value, tab: next });
   };
   const countFor: Partial<Record<InboxTab, number>> = {
-    // `fila` é o nome novo; `unassigned` é o alias que a rota versionada mantém.
-    // O `??` cobre a janela em que a página ainda lê um cache de react-query
-    // gravado antes do deploy — sem ele o badge sumiria por alguns segundos.
-    unassigned: counts?.fila ?? counts?.unassigned,
-    // A aba do automático ganhou contador junto com o significado: ela deixou de
-    // filtrar `ai_handling` (2 conversas) e passou a mostrar o que o robô conduz
-    // (47, na instalação onde isto foi medido). Um número que existe na API e não
-    // aparece na tela é trabalho feito que ninguém vê.
-    ai: counts?.automatico,
-    mine: counts?.mine,
-    all: counts?.all,
-    closed: counts?.closed,
-    archived: counts?.archived,
+    active: counts?.active, waiting: counts?.waiting, ai: counts?.ai,
+    all: counts?.all, closed: counts?.closed,
   };
   // Filtrar por um número que saiu da lista (o operador acabou de excluir o
   // canal) deixa o inbox mostrando um subconjunto — às vezes vazio — sem nada na
@@ -341,6 +309,11 @@ export function InboxFilters({ value, onChange }: Props) {
 
   return (
     <div className="border-b border-border bg-background">
+      {value.tab === "all" && (counts?.needs_assignment ?? 0) > 0 && (
+        <p role="status" className="px-3 pt-2 text-sm text-warning-fg">
+          {counts?.needs_assignment} {t("atendimento(s) aguardando direcionamento. Confira a disponibilidade da equipe ou transfira para um atendente.")}
+        </p>
+      )}
       <div className="space-y-2 px-3 pt-3 pb-2">
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">

@@ -8,7 +8,7 @@
  * (`bot_silenced_until = 'infinity'`, `force_human = true`). Quinze minutos
  * depois a derivação entregou (`media_derived_status = 'ready'`) e nada
  * reavaliou — o motivo gravado seguia afirmando o que o próprio banco desmentia,
- * e a conversa só saía do silêncio pelo botão "Devolver ao automático".
+ * e a conversa só saía do silêncio pelo botão "Devolver à IA".
  *
  * A FATIA (do corpo da issue):
  *   1. o motivo gravado não pode seguir afirindo algo que o banco já desmentiu;
@@ -28,6 +28,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { temAceiteHumano } from "@/lib/inbox/aceite";
 import { logger } from "@/lib/logger";
 import { DERIVACAO_TERMINADA } from "@/lib/messaging/media/derivable";
 import { devolverAtendimentoAoAgente } from "@/lib/escalacao/retomada";
@@ -151,6 +152,7 @@ export function lerMarcaDeHandoffTecnico(metadata: unknown): MarcaDeHandoffTecni
 }
 
 export interface ConversaEmHandoff {
+  human_accepted_at?: string | null;
   status: string | null;
   bot_silenced_until: string | null;
   last_handoff_reason: string | null;
@@ -211,7 +213,7 @@ export function decidirReacaoAposDerivacao(entrada: {
     return { acao: "nada", porque: "conversa_encerrada" };
 
   // Quem já assumiu fica com a conversa: só o motivo é corrigido.
-  if (conversa.assigned_to_user_id || conversa.assignee_kind === "user")
+  if (temAceiteHumano(conversa))
     return { acao: "corrigir_motivo", motivo: motivoResolvido(agora), porque: "humano_assumiu" };
 
   // Quem já respondeu sem clicar em "Assumir" também está conversando: devolver
@@ -253,7 +255,7 @@ export async function reagirAConclusaoDeDerivacao(
     const { data, error } = await admin
       .from("conversations")
       .select(
-        "id, organization_id, contact_id, channel_session_id, status, bot_silenced_until, last_handoff_reason, assigned_to_user_id, assignee_kind, metadata",
+        "id, organization_id, contact_id, channel_session_id, status, bot_silenced_until, last_handoff_reason, assigned_to_user_id, assignee_kind, human_accepted_at, metadata",
       )
       .eq("id", conversationId)
       .eq("organization_id", organizationId)

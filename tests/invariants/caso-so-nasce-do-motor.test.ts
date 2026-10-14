@@ -447,3 +447,5 @@ describe("0279 — o que tinha de continuar funcionando", () => {
       toBeGreaterThan(10);
   });
 });
+
+beforeAll(() => { sql(`update public.conversations set assigned_to_user_id='${AGENTE}', assignee_kind='user' where id='${CONVERSA}' and organization_id='${ORG}';`); });

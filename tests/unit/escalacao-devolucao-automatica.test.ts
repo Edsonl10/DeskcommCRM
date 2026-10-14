@@ -85,6 +85,10 @@ describe("ultimoSinalHumanoMs — de onde o relógio conta", () => {
 });
 
 describe("avaliarDevolucao — quem vence", () => {
+  it("indicação sem aceite nem silêncio não inicia prazo de devolução humana", () => {
+    expect(avaliarDevolucao(conversa({ assigned_to_user_id: "pessoa", human_accepted_at: null, bot_silenced_until: null }), selecao()))
+      .toEqual({ devolver: false, motivo: "nao_esta_com_humano" });
+  });
   it("handoff formal parado há mais que o prazo: devolve, e diz o prazo", () => {
     expect(avaliarDevolucao(conversa({ last_handoff_at: min(61) }), selecao(60))).toEqual({
       devolver: true,

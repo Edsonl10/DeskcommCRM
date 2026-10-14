@@ -145,6 +145,11 @@ test.describe("a passagem para humano chega com contexto", () => {
         "`pnpm exec tsx --env-file=.env.e2e scripts/seed-e2e-escalacao.ts`",
     ).toBeTruthy();
     await devolverEpisodioAoInicio();
+    const routed = await admin.rpc("fn_conversation_assign", {
+      p_organization_id: creds.org_id, p_conversation_id: creds.passagem!.conversation_id,
+      p_to_user_id: creds.users.agent!.id, p_reason: "routing",
+    });
+    if (routed.error) throw routed.error;
   });
 
   test.afterAll(devolverEpisodioAoInicio);

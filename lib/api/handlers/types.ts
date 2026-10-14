@@ -1,3 +1,5 @@
+import type { Role } from "@/lib/auth/types";
+import type { InboxPermissions } from "@/lib/inbox/visoes";
 import type { ProspectingDelivery } from "@/lib/prospecting/guard";
 import type { AgentOperationContext } from "@/lib/ai/agents/operation";
 import type { ApprovedReplyContext } from "@/lib/ai/replies/delivery";
@@ -72,6 +74,8 @@ export type Actor =
   | { type: "webhook_source"; id: string; textoEscritoPelaIA?: true };
 
 export interface HandlerCtx {
+  inbox_role?: Role;
+  inbox_permissions?: InboxPermissions;
   prospectingDelivery?: ProspectingDelivery;
   agentOperation?: AgentOperationContext;
   meetingDelivery?: MeetingDeliveryContext;

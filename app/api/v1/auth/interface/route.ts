@@ -17,6 +17,8 @@ export async function GET() {
       // descreve em `lib/api/client.ts`.
       organization_name: authz.org.name,
       interface_settings: settings,
+      inbox_permissions: authz.org.inbox_permissions,
+      inbox_role: authz.org.role,
       signature: JSON.stringify(settings),
     },
     { requestId },

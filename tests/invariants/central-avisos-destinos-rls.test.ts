@@ -53,7 +53,7 @@ describe("destinos Central respeitam RLS de registro e organização", () => {
       ...leads.map(ref_id => ({ kind: "other", ref_kind: "lead", ref_id })),
     ]);
     const expected = ["disponivel", mode === "own" ? "indisponivel" : "disponivel", "indisponivel", "indisponivel"];
-    expect(items.map(i => i.destination.estado)).toEqual([...expected, ...expected]);
+    expect(items.map(i => i.destination.estado)).toEqual(["disponivel", "indisponivel", "indisponivel", "indisponivel", ...expected]);
     for (const i of [2, 3, 6, 7]) expect(items[i]?.destination).not.toHaveProperty("href");
   });
 });

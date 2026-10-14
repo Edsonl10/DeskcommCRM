@@ -112,6 +112,7 @@ function bancoFalso() {
   return {
     tabelas,
     supabase: {
+      rpc: vi.fn(async () => ({data: true, error: null})),
       from,
       auth: {
         admin: {
@@ -295,6 +296,13 @@ describe("POST /api/v1/messages — autoria em nome de (#1613, item C)", () => {
 });
 
 describe("POST /api/v1/messages — ritmo por token", () => {
+  it("consulta global não autoriza responder por outro responsável", async () => {
+    autenticado("session");
+    banco.supabase.rpc.mockResolvedValueOnce({ data: false, error: null });
+    const res = await POST(pedido());
+    expect(res.status).toBe(403);
+    expect(mockedSend).not.toHaveBeenCalled();
+  });
   it("pela sessão do navegador, não aplica teto nem freio", async () => {
     autenticado("session");
     const res = await POST(pedido());

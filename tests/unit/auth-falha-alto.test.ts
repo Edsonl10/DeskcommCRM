@@ -135,6 +135,7 @@ describe("loadAuthUser — falha de permissão não vira 'sem organização'", (
       {
         organization_id: "o1",
         organization_name: "Acme",
+        inbox_permissions: { all: false, ai: false, closed: false },
         role: "admin",
         locale: null,
         timezone: null,

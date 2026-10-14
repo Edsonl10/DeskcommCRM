@@ -118,9 +118,8 @@ describe("a 0404 — comando_da_conversa sem reavaliar a RLS (issue #1571)", () 
 
     const sql = ler(path.join(DIR_MIGRACOES, arquivoDaMigration()!));
     const baseline = ler(path.join(RAIZ, "supabase", "baseline.sql"));
-    const apendice = baseline.slice(
-      baseline.lastIndexOf("drop function if exists public.comando_da_conversa(public.conversations);"),
-    );
+    const inicio = baseline.lastIndexOf("drop function if exists public.comando_da_conversa(public.conversations);");
+    const apendice = baseline.slice(inicio, baseline.indexOf("$comando$;", inicio) + "$comando$;".length);
 
     const motivo =
       "subconsulta em contacts sem `ct.organization_id = $1.organization_id`: sob o definer, uma conversa apontada para contato de outra empresa leria force_human/is_blocked dele";

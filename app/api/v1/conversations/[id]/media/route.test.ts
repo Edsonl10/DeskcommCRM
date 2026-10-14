@@ -119,4 +119,20 @@ describe("POST /api/v1/conversations/[id]/media — teto de escrita do Bearer", 
     expect(checkRateLimit).not.toHaveBeenCalled();
     expect(sessao.from).toHaveBeenCalledWith("conversations");
   });
+
+  it("visão global sem poder de escrita não sobe anexo na conversa de outro atendente", async () => {
+    vi.mocked(requireRole).mockResolvedValue({
+      ok: true,
+      user: { id: USER_ID, idioma: "pt-BR" },
+      org: { orgId: ORG_ID, role: "agent" },
+    } as never);
+    const chain = { select: () => chain, eq: () => chain, maybeSingle: async () => ({ data: { id: CONV_ID }, error: null }) };
+    const rpc = vi.fn(async () => ({ data: false, error: null }));
+    vi.mocked(createClient).mockResolvedValue({ from: () => chain, rpc } as never);
+    const { POST } = await import("./route");
+    const res = await POST(postReq(), ctx);
+    expect(res.status).toBe(403);
+    expect(rpc).toHaveBeenCalledWith("fn_can_write_inbox", { p_org: ORG_ID, p_conversation: CONV_ID });
+    expect(createAdminClient).not.toHaveBeenCalled();
+  });
 });

@@ -141,6 +141,8 @@ beforeAll(() => {
             values (v_org, v_contact, v_sess) returning id into v_conv;
         end if;
 
+        update public.conversations set assigned_to_user_id = case when v_org = '${ORG_A}'::uuid then '${USER_A}'::uuid else '${USER_B}'::uuid end, assignee_kind = 'user'
+          where id = v_conv and organization_id = v_org;
         if not exists (select 1 from public.messages where organization_id = v_org) then
           insert into public.messages (organization_id, conversation_id, channel_session_id, contact_id, type, direction, body)
             values (v_org, v_conv, v_sess, v_contact, 'text', 'inbound', 'rls invariant probe');

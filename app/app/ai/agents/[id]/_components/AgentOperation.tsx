@@ -51,7 +51,7 @@ export function AgentOperation({ agent, readOnly }: { agent: AgentRow; readOnly?
       <p className="w-full text-xs text-muted-foreground">
         {t(
           agent.paused_at
-            ? "Automático pausado. A versão publicada foi preservada e a assistência continua disponível."
+            ? "IA pausada. A versão publicada foi preservada e a assistência continua disponível."
             : "O modo assistido prepara sugestões na conversa. Só a aprovação humana autoriza o envio.",
         )}
       </p>

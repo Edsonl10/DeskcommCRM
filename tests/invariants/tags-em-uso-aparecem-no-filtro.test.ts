@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { GOV_ORG, GOV_VIEWER, GOV_CONV_UNASSIGNED, seedGov, sql } from "./gov-helpers";
 
@@ -61,6 +61,7 @@ function chamarComo(userId: string, org: string): string[] {
 
 beforeAll(() => {
   seedGov();
+  sql(`update public.user_organizations set inbox_permissions='{"all":true,"ai":false,"closed":false}' where organization_id='${GOV_ORG}' and user_id in ('${GOV_VIEWER}');`);
   sql(`
     insert into public.organizations (id, slug, legal_name, display_name)
       values ('${VIZINHA_ORG}', 'viz-tags', 'Vizinha Tags Org', 'Vizinha Tags')
@@ -136,3 +137,5 @@ describe("fn_tags_de_conversa_em_uso — as etiquetas em uso, e só as da própr
     expect(tem, "authenticated perdeu execute — o filtro de tag para de funcionar").toBe("t");
   });
 });
+
+afterAll(() => { sql(`update public.user_organizations set inbox_permissions='{"all":false,"ai":false,"closed":false}' where organization_id='${GOV_ORG}' and user_id in ('${GOV_VIEWER}');`); });

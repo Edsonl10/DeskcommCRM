@@ -1,3 +1,4 @@
+import type { InboxPermissions } from "@/lib/inbox/visoes";
 import type { InterfaceSettings } from "@/lib/navigation/interface";
 import type { Idioma } from "@/lib/i18n/idiomas";
 import type { ModuloOpcional } from "@/lib/instalacao/modulos";
@@ -78,13 +79,14 @@ export const ROTULO_DO_PAPEL: Record<Role, string> = {
 };
 
 /**
- * Escopo de visualização de conversas por atendente (G4-01, spec 13 §3.5).
- * Só restringe o role `agent`; viewer/manager/admin seguem org-wide.
+ * Escopo legado da organização, ainda usado pelo CRM.
+ * O Inbox usa `inbox_permissions` do vínculo, sem herdar visão global deste campo.
  */
 export type VisibilityMode = "all" | "own_and_unassigned" | "own";
 export const DEFAULT_VISIBILITY_MODE: VisibilityMode = "own_and_unassigned"; // G1-06a
 
 export interface UserOrgMembership {
+  inbox_permissions?: InboxPermissions;
   interface_settings?: InterfaceSettings;
   organization_id: string;
   organization_name: string;
@@ -190,6 +192,7 @@ export interface AuthUser {
 }
 
 export interface ActiveOrg {
+  inbox_permissions?: InboxPermissions;
   interface_settings?: InterfaceSettings;
   /** Moeda da organização — o rótulo do valor do negócio sai dela. */
   currency?: string | null;

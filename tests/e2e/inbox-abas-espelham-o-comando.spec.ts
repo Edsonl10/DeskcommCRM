@@ -97,6 +97,9 @@ async function semear(orgId: string) {
   });
   if (eSess) throw new Error(`fixture de canal falhou: ${eSess.message}`);
 
+  const { data: people } = await admin.auth.admin.listUsers();
+  const owner = people.users.find(person => person.email === lerCreds().users.admin!.email)?.id;
+  if (!owner) throw new Error("Admin de teste não encontrado");
   const agora = new Date().toISOString();
   for (const [nome, silencio] of [
     // Escalada: o silêncio é o que a põe esperando uma pessoa — e não o status.
@@ -115,7 +118,7 @@ async function semear(orgId: string) {
       contact_id: (ct as { id: string }).id,
       channel_session_id: SESSAO,
       status: "open",
-      assigned_to_user_id: null,
+      assigned_to_user_id: owner,
       bot_silenced_until: silencio,
       last_inbound_at: agora,
       last_message_at: agora,
@@ -143,45 +146,33 @@ test.describe("Inbox: as abas perguntam quem manda", () => {
     if (orgId) await limpar(orgId);
   });
 
-  test("Fila mostra só quem espera uma PESSOA; Automático mostra o que o robô conduz", async ({
-    page,
-  }) => {
+  test("Ativos abre por padrão; direcionamento aguarda aceite; IA permanece separada", async ({ page }) => {
+    // A conversa aberta continua no painel ao trocar a aba. A prova é sobre
+    // as linhas da lista, não sobre o título desse painel.
+    const esperando = page.locator("[data-conversation-id]").filter({ hasText: ESPERANDO });
+    const robo = page.locator("[data-conversation-id]").filter({ hasText: ROBO });
     await loginComoAdmin(page, lerCreds());
     await page.goto("/app/inbox");
-
-    const lista = page.getByRole("main").or(page.locator("body"));
-    await expect(lista.getByText(ESPERANDO).first()).toBeVisible({ timeout: 30_000 });
-
-    const temAutomatico = await orgTemAutomaticoNoAr(orgId);
-
-    // ── FILA: quem realmente precisa de gente.
-    // `tab`, não `button`: as abas são `TabsTrigger` do shadcn. E o nome vem por
-    // REGEX porque o contador entra no nome acessível ("Fila 36") — `exact` aqui
-    // nunca casaria. Mesmo idioma da spec irmã `inbox-quem-manda.spec.ts`.
-    await page.getByRole("tab", { name: /Fila/i }).first().click();
-    // A escalada está na Fila nos DOIS casos — é o que não depende do fato.
-    await expect(page.getByText(ESPERANDO).first()).toBeVisible({ timeout: 15_000 });
-    if (temAutomatico) {
-      await expect(
-        page.getByText(ROBO),
-        "a Fila listou uma conversa que o automático está conduzindo — o defeito voltou",
-      ).toHaveCount(0);
-    } else {
-      // Sem robô no ar, `automatico` TAMBÉM é "esperando gente", e listá-lo é o
-      // certo. Asserir o contrário aqui reprovaria o comportamento correto.
-      await expect(page.getByText(ROBO).first()).toBeVisible({ timeout: 15_000 });
-    }
-
-    // ── AUTOMÁTICO: a outra direção, e ela é a que impede um 'conserto' que
-    // simplesmente esvazie a Fila.
-    // ESTA é a asserção que não depende de nada: a aba do automático pede
-    // exatamente `comando=automatico` nos dois casos, então a separação aqui vale
-    // sempre — e é ela que impede um "conserto" que simplesmente esvazie a Fila.
-    await page.getByRole("tab", { name: /Autom/i }).first().click();
-    await expect(page.getByText(ROBO).first()).toBeVisible({ timeout: 15_000 });
-    await expect(
-      page.getByText(ESPERANDO),
-      "a aba do automático listou uma conversa escalada para humano",
-    ).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: /^Ativos/ })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: /Arquivadas/ })).toHaveCount(0);
+    await expect(esperando).toHaveCount(0);
+    await expect(robo).toHaveCount(0);
+    await page.getByRole("tab", { name: /^Aguardando/ }).click();
+    await expect(esperando).toBeVisible({ timeout: 30000 });
+    const temIA = await orgTemAutomaticoNoAr(orgId);
+    if (temIA) await expect(robo).toHaveCount(0);
+    await esperando.click();
+    const aceite = page.waitForResponse(response => response.request().method() === "POST" && /\/claim(?:\?|$)/.test(response.url()));
+    await page.getByRole("button", { name: "Assumir", exact: true }).click();
+    expect((await aceite).status()).toBe(200);
+    await page.getByRole("tab", { name: /^Ativos/ }).click();
+    await expect(esperando).toBeVisible({ timeout: 15000 });
+    await page.getByRole("tab", { name: /^IA/ }).click();
+    if (temIA) await expect(robo).toBeVisible({ timeout: 15000 });
+    else await expect(robo).toHaveCount(0);
+    await expect(esperando).toHaveCount(0);
+    await page.getByRole("tab", { name: /^Todos/ }).click();
+    await expect(robo).toBeVisible({ timeout: 15000 });
+    await page.screenshot({ path: "evidence/inbox-aceite-abas.png", fullPage: true });
   });
 });

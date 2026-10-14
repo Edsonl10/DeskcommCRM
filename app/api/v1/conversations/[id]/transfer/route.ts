@@ -64,6 +64,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
       p_department_id: input.department_id,
       ...(input.to_user_id ? { p_to_user_id: input.to_user_id } : {}),
     });
+    if (error?.code === "42501") return fail("forbidden", t("Sem permissão para transferir este atendimento."), 403, { requestId });
     if (error) return fail("unprocessable_entity", error.message, 422, { requestId });
     const row = data?.[0];
     if (!row) return fail("not_found", "Conversa não encontrada.", 404, { requestId });
@@ -114,6 +115,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   });
 
   if (error) {
+    if (error.code === "42501") return fail("forbidden", t("Sem permissão para transferir este atendimento."), 403, { requestId });
     return fail("internal_error", error.message, 500, { requestId });
   }
   const row = data?.[0];

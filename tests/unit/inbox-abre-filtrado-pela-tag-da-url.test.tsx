@@ -40,7 +40,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   useAuth: () => ({
     user: { id: "u-1", role: "admin" },
-    activeOrg: { orgId: "00000000-0000-4000-8000-0000000000aa" },
+    activeOrg: { orgId: "00000000-0000-4000-8000-0000000000aa", role: "admin" },
   }),
   usePermission: () => true,
 }));
@@ -104,6 +104,7 @@ describe("inbox aberto pelo link do relatório Por etiqueta", () => {
       // A aba Todas não recorta: nem o comando da Fila, nem status.
       expect(qs.get("comando")).toBeNull();
       expect(qs.get("status")).toBeNull();
+      expect(qs.get("view")).toBe("all");
     }
   });
 

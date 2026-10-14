@@ -329,6 +329,7 @@ export const listConversationsQuerySchema = z.object({
    * atendente já fechou ficava na aba dele para sempre, e ela deixava de
    * significar "meu trabalho" para virar "tudo que já toquei".
    */
+  view: z.enum(["active", "waiting", "ai", "all", "closed"]).optional(),
   exclude_finished: z.boolean().optional(),
   assigned_to: z.union([z.string().uuid(), z.literal("me"), z.literal("unassigned")]).optional(),
   channel_session_id: z.string().uuid().optional(),

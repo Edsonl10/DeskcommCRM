@@ -4,6 +4,8 @@
  */
 
 export interface Conversation {
+  human_accepted_at?: string | null;
+  inbox_state?: "active" | "waiting" | "ai" | "unassigned" | "closed";
   id: string;
   organization_id: string;
   contact_id: string;

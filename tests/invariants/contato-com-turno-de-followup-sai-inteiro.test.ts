@@ -113,8 +113,8 @@ function semear(): void {
     insert into public.contacts (id, organization_id, display_name)
       values ('${CONTATO_B}', '${GOV_ORG}', 'Contato 1862 B — sai inteiro')
       on conflict (id) do nothing;
-    insert into public.conversations (id, organization_id, contact_id, channel_session_id, status)
-      values ('${CONV_B}', '${GOV_ORG}', '${CONTATO_B}', '${GOV_SESSION}', 'open')
+    insert into public.conversations (id, organization_id, contact_id, channel_session_id, status, assigned_to_user_id)
+      values ('${CONV_B}', '${GOV_ORG}', '${CONTATO_B}', '${GOV_SESSION}', 'open', '${GOV_AGENT_A}')
       on conflict (id) do nothing;
     insert into public.messages (id, organization_id, conversation_id, channel_session_id, contact_id, type, direction, body)
       values ('${MSG_B}', '${GOV_ORG}', '${CONV_B}', '${GOV_SESSION}', '${CONTATO_B}', 'text', 'inbound', 'historico 1862')
@@ -136,8 +136,8 @@ function semear(): void {
     insert into public.contacts (id, organization_id, display_name)
       values ('${CONTATO_C}', '${GOV_ORG}', 'Contato 1862 C — compromisso na agenda')
       on conflict (id) do nothing;
-    insert into public.conversations (id, organization_id, contact_id, channel_session_id, status)
-      values ('${CONV_C}', '${GOV_ORG}', '${CONTATO_C}', '${GOV_SESSION}', 'open')
+    insert into public.conversations (id, organization_id, contact_id, channel_session_id, status, assigned_to_user_id)
+      values ('${CONV_C}', '${GOV_ORG}', '${CONTATO_C}', '${GOV_SESSION}', 'open', '${GOV_AGENT_A}')
       on conflict (id) do nothing;
     insert into public.messages (id, organization_id, conversation_id, channel_session_id, contact_id, type, direction, body)
       values ('${MSG_C}', '${GOV_ORG}', '${CONV_C}', '${GOV_SESSION}', '${CONTATO_C}', 'text', 'inbound', 'historico da agenda')

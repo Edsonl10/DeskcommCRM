@@ -137,11 +137,11 @@ test('"Não lidos" VAI ao servidor — o defeito era filtrar a página carregada
 test("trocar de aba logo após digitar NÃO volta à aba anterior", async ({ page }) => {
   // O timer do debounce é de 250 ms; a troca acontece dentro da janela.
   await page.getByLabel(CAMPO_DE_BUSCA).fill("teste");
-  await page.getByRole("tab", { name: /Todas/i }).click();
+  await page.getByRole("tab", { name: /Todos/i }).click();
   await page.waitForTimeout(600);
 
   await expect(
-    page.getByRole("tab", { name: /Todas/i }),
+    page.getByRole("tab", { name: /Todos/i }),
     "o debounce desfez a troca de aba",
   ).toHaveAttribute("aria-selected", "true");
 });

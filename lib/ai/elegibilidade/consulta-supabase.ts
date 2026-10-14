@@ -22,6 +22,7 @@
  * nova, baseline ainda não aplicado) — exatamente quando NÃO se quer a IA solta.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { temAceiteHumano } from "@/lib/inbox/aceite";
 
 import {
   decidirElegibilidade,
@@ -31,6 +32,7 @@ import {
 
 interface ConversaEmbed {
   bot_silenced_until: string | null;
+  human_accepted_at: string | null;
   assignee_kind: string | null;
   contacts: {
     force_human: boolean | null;
@@ -52,7 +54,7 @@ export async function decidirElegibilidadeDaConversaViaSupabase(
   const { data, error } = await admin
     .from("conversations")
     .select(
-      "bot_silenced_until, assignee_kind, organizations:organization_id(status), contacts:contact_id(force_human, ai_authorized_at, phone_number), channel_sessions:channel_session_id(metadata)",
+      "bot_silenced_until, assignee_kind, human_accepted_at, organizations:organization_id(status), contacts:contact_id(force_human, ai_authorized_at, phone_number), channel_sessions:channel_session_id(metadata)",
     )
     .eq("organization_id", input.organizationId)
     .eq("id", input.conversationId)
@@ -73,7 +75,7 @@ export async function decidirElegibilidadeDaConversaViaSupabase(
       aiTestPhoneNumbers: row.channel_sessions?.metadata?.["ai_test_phone_numbers"] ?? null,
       contactPhoneNumber: row.contacts?.phone_number ?? null,
       forceHuman: row.contacts?.force_human ?? false,
-      assigneeKind: row.assignee_kind,
+      assigneeKind: temAceiteHumano(row) ? row.assignee_kind : null,
       botSilencedUntil: row.bot_silenced_until,
       aiAuthorizedAt: row.contacts?.ai_authorized_at ?? null,
       agora: input.agora,

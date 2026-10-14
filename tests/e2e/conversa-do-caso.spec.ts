@@ -189,8 +189,13 @@ test.describe("conversar com a IA que abriu o caso", () => {
    * que este arquivo inventou. Ordem de arquivo não é contrato.
    */
   let visibilidadeOriginal: "all" | "own_and_unassigned" | "own" | null = null;
+  let permissoesOriginais = { all: false, ai: false, closed: false };
 
   test.beforeAll(async () => {
+    const membership = await admin.from("user_organizations").select("inbox_permissions")
+      .eq("organization_id", creds.org_id).eq("user_id", creds.users.agent!.id).single();
+    if (membership.error) throw membership.error;
+    permissoesOriginais = membership.data.inbox_permissions;
     /**
      * A THREAD COMEÇA VAZIA — e isso não é higiene, é o que torna dois passos
      * possíveis.
@@ -224,6 +229,9 @@ test.describe("conversar com a IA que abriu o caso", () => {
 
   test.afterAll(async () => {
     await definirVisibilidade(visibilidadeOriginal);
+    const restored = await admin.from("user_organizations").update({ inbox_permissions: permissoesOriginais })
+      .eq("organization_id", creds.org_id).eq("user_id", creds.users.agent!.id);
+    if (restored.error) throw restored.error;
   });
 
   test("a equipe pergunta, a resposta fica, e quem não pode ver não vê", async ({ page }) => {
@@ -376,6 +384,9 @@ test.describe("conversar com a IA que abriu o caso", () => {
     );
 
     // ─── 9. COMPARTILHADO: outra pessoa da equipe vê a pergunta ───────────
+    const shared = await admin.from("user_organizations").update({ inbox_permissions: { all: true, ai: false, closed: false } })
+      .eq("organization_id", creds.org_id).eq("user_id", creds.users.agent!.id);
+    if (shared.error) throw shared.error;
     await sair(page);
     await login(page, creds.users.agent!.email);
     const chatDoColega = await abrirOCaso(page);
@@ -393,6 +404,12 @@ test.describe("conversar com a IA que abriu o caso", () => {
     // enxerga nem conversa sem dono. É a RLS de `conversations` respondendo,
     // não uma cópia da regra em TypeScript.
     await definirVisibilidade("own");
+    // A preferência antiga do CRM não remove o acesso explícito do Inbox.
+    await page.goto("/app/ai/cases");
+    await expect(page.getByTestId("case-item").filter({ hasText: creds.escalacao.case_title })).toHaveCount(1);
+    const revoked = await admin.from("user_organizations").update({ inbox_permissions: { all: false, ai: false, closed: false } })
+      .eq("organization_id", creds.org_id).eq("user_id", creds.users.agent!.id);
+    if (revoked.error) throw revoked.error;
     await page.goto("/app/ai/cases");
     await expect(page.getByText("Nenhum caso aberto")).toBeVisible({ timeout: ESPERA });
     expect(

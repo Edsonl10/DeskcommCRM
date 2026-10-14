@@ -98,6 +98,10 @@ async function conversaCom(
       external_id: `busca-${SUFIXO}-${randomUUID()}`,
     });
   }
+  const claimed = await db.rpc("fn_conversation_assign", {
+    p_organization_id: orgId, p_conversation_id: conversa, p_to_user_id: creds.users.agent!.id, p_reason: "claim",
+  });
+  if (claimed.error) throw claimed.error;
   return conversa;
 }
 

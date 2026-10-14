@@ -276,6 +276,7 @@ describe("recibo imutável da origem do evento", () => {
       expect((await resolve(emitted[0].id, contact)).conversation_id).toBe(
         boundary.conversation_id,
       );
+      await pool.query("update conversations set assigned_to_user_id=$1,assignee_kind='user' where id=$2 and organization_id=$3",[GOV_AGENT_A,boundary.conversation_id,GOV_ORG]);
       for (const statement of [
         "select emit_event('message.received','message',$1,'{}','{}',$2)",
         "select fn_log_event($2,'message.received',jsonb_build_object('message_id',$1::uuid))",

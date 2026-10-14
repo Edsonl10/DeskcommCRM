@@ -1094,10 +1094,9 @@ test("Radar recorta demandas pela RLS real, além do pool frio, e preserva gest�
     [
       expected["Própria fora do pool"],
       expected["Conversa própria sem lead"],
-      expected["Conversa não atribuída"],
     ].sort(),
   );
-  expect(unassigned.total_sem_proximo_passo).toBe(3);
+  expect(unassigned.total_sem_proximo_passo).toBe(2);
   await login(page, members.manager!.email);
   await abrirRadar(page);
   await expect(page.getByTestId("radar-sem-proximo-passo")).toContainText("Órfã de gestão");

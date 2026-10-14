@@ -218,10 +218,10 @@ export function AtendimentoForm({ initial }: { initial: AtendimentoConfig }) {
 
       <Card className="space-y-4 p-4">
         <div>
-          <h2 className="text-sm font-semibold">{t("O que cada atendente enxerga")}</h2>
+          <h2 className="text-sm font-semibold">{t("Visibilidade dos negócios no CRM")}</h2>
           <p className="text-xs text-muted-foreground">
             {t("Restringe apenas quem tem o papel")} <strong>{t("Atendente")}</strong>.{" "}
-            {t("Gerente e administrador continuam vendo a operação inteira.")}
+            {t("As permissões de conversas ficam no cadastro da Equipe, em Personalizar áreas visíveis.")}
           </p>
         </div>
         <div className="space-y-2">

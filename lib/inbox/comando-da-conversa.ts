@@ -77,7 +77,7 @@ export interface FatosDoComando {
    * Conversa de GRUPO de WhatsApp (`conversations.is_group`). O automático nunca
    * atende grupo (o banco nem emite `message.received` para ele), então grupo sem
    * dono é conversa HUMANA esperando alguém — `aguardando`, na fila humana — e
-   * nunca "Automático atendendo". Espelho SQL: `p_is_group` de
+   * nunca "IA atendendo". Espelho SQL: `p_is_group` de
    * `fn_comando_da_conversa` (migration 0482).
    */
   is_group?: boolean | null;
@@ -86,11 +86,11 @@ export interface FatosDoComando {
    *
    * Entra aqui porque o motor o trata como parada dura — `before-send.ts` recusa
    * com `select (is_blocked or force_human) as stopped` — e uma tela que dissesse
-   * "Automático atendendo" sobre um contato descadastrado afirmaria o oposto do
+   * "IA atendendo" sobre um contato descadastrado afirmaria o oposto do
    * que vai acontecer.
    *
    * **Mas ele NÃO liga `travaVigente`**, e a diferença é deliberada: `travaVigente`
-   * é o que acende "Devolver ao automático", e devolver não desfaz um opt-out — o
+   * é o que acende "Devolver à IA", e devolver não desfaz um opt-out — o
    * `stopGate` recusaria na mesma. Um botão que aparece e não pode funcionar é
    * controle decorativo, que é pior que ausência de botão.
    */
@@ -293,7 +293,7 @@ export function comandoDaConversa(fatos: FatosDoComando, agora: Date = new Date(
     automaticoAtivo,
     // `bloqueado` ANULA a trava devolvível: veja o comentário de `is_blocked` em
     // `FatosDoComando`. Devolver não desfaz opt-out, e o botão seria decorativo.
-    // Grupo também: "Devolver ao automático" num grupo prometeria o que não existe.
+    // Grupo também: "Devolver à IA" num grupo prometeria o que não existe.
     travaVigente: (travado || silencio.vigente) && !bloqueado && !grupo,
     motivo,
     silencioAte: motivo === "resposta_humana_recente" ? silencio.ate : null,
@@ -312,17 +312,17 @@ export function comandoDaConversa(fatos: FatosDoComando, agora: Date = new Date(
  */
 export const ROTULO_DO_COMANDO: Record<Comando["quem"], string> = {
   humano: "Em atendimento",
-  automatico: "Automático atendendo",
+  automatico: "IA atendendo",
   ninguem: "Sem atendente",
   aguardando: "Aguardando atendente",
   encerrada: "Encerrada",
 };
 
 export const ROTULO_DO_MOTIVO: Record<MotivoDoSilencio, string> = {
-  atendimento_pelo_celular: "Automático pausado — atendimento pelo celular (#on religa)",
-  atendente_no_comando: "Automático pausado — alguém assumiu",
-  contato_travado: "Automático pausado para este cliente",
-  pausado: "Automático pausado",
+  atendimento_pelo_celular: "IA pausada — atendimento pelo celular (#on religa)",
+  atendente_no_comando: "IA pausada — alguém assumiu",
+  contato_travado: "IA pausada para este cliente",
+  pausado: "IA pausada",
   resposta_humana_recente: "Automático volta em instantes",
   contato_descadastrado: "Cliente pediu para não receber mensagens",
 };

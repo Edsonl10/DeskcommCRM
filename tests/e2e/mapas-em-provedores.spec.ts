@@ -148,6 +148,8 @@ test.describe("Mapas em Provedores", () => {
     const conversaId = await insere("conversations", {
       organization_id: c.org_id,
       contact_id: contatoId,
+      assigned_to_user_id: c.users.agent!.id,
+      assignee_kind: "user",
       channel_session_id: sessaoId,
       status: "open",
       last_message_at: agora,

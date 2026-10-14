@@ -1,4 +1,6 @@
 "use client";
+import type { InboxPermissions } from "@/lib/inbox/visoes";
+
 import type { InterfaceSettings } from "@/lib/navigation/interface";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
@@ -9,6 +11,7 @@ export interface TeamInvite {
   organization_id: string;
   email: string;
   role: string;
+  inbox_permissions?: InboxPermissions;
   interface_settings: InterfaceSettings;
   invited_by: string | null;
   inviter_name: string | null;

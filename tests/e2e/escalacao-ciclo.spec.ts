@@ -171,6 +171,11 @@ test.describe("IA 360 W3 — o agente para, a pessoa continua, o agente retoma s
     page,
   }) => {
     const e = creds.escalacao;
+    const { error: routingError } = await admin.rpc("fn_conversation_assign", {
+      p_organization_id: creds.org_id, p_conversation_id: e.conversation_id,
+      p_to_user_id: creds.users.agent!.id, p_reason: "routing",
+    });
+    if (routingError) throw routingError;
     await login(page, creds.users.agent!.email, creds.password);
 
     // ---------------------------------------------------------------------
@@ -266,7 +271,7 @@ test.describe("IA 360 W3 — o agente para, a pessoa continua, o agente retoma s
             "soltar só o silêncio deixa o agente morto: force_human veta todo envio e o turno é NO-OP",
         },
       )
-      .toEqual({ silenciada: null, dono: null, kind: "ai", forcado: false });
+      .toEqual({ silenciada: null, dono: creds.users.agent!.id, kind: null, forcado: false });
 
     await expect(page.getByTestId("badge-atendimento-humano")).toHaveCount(0, { timeout: 20_000 });
     await captura(page, "04-devolvido-ao-automatico");

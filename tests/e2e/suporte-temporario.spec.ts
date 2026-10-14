@@ -128,7 +128,7 @@ test("suporte mantém identidade, opera B e encerra sem misturar A; readonly/exp
   await insert("user_organizations",{organization_id:orgs[0],user_id:actor,role:"admin",accepted_at:new Date().toISOString()});
   const pa=await db.from("platform_admins").insert({user_id:actor,granted_by:actor,scope:"full",mfa_required:false,reason:"E2E local support"});if(pa.error)throw pa.error;
   await login(page,email);await acknowledgeKnownAction(page,"/login");
-  const sameTab=await page.context().newPage();await sameTab.goto("/app/inbox");
+  const sameTab=await page.context().newPage();await sameTab.goto("/app/inbox?filter=all");
   await expect(sameTab.getByTestId("tenant-switcher")).toContainText(`Suporte A ${suffix}`);
   second=await browser.newContext();observeRequests(second);const other=await second.newPage();observeAuth(other);await login(other,email);await acknowledgeKnownAction(other,"/login");
   await start(page,orgs[1]!);
@@ -137,6 +137,7 @@ test("suporte mantém identidade, opera B e encerra sem misturar A; readonly/exp
   await expect(sameTab.locator("[data-conversation-id]").getByText(`Contato B ${suffix}`,{exact:true})).toBeVisible({timeout:20000});
   await expect(sameTab.locator("[data-conversation-id]").getByText(`Contato A ${suffix}`,{exact:true})).toHaveCount(0);
   await page.goto("/onboarding");await page.waitForURL("**/app/inbox");
+  await page.getByRole("tab",{name:/^Todos/}).click();
   await expect(page.getByRole("alert").filter({hasText:/edição permitida/i})).toContainText(`Suporte B ${suffix}`);
   await expect(page.locator("[data-conversation-id]").getByText(`Contato B ${suffix}`,{exact:true})).toBeVisible({timeout:20000});
   await expect(page.locator("[data-conversation-id]").getByText(`Contato A ${suffix}`,{exact:true})).toHaveCount(0);
@@ -169,12 +170,12 @@ test("suporte mantém identidade, opera B e encerra sem misturar A; readonly/exp
   await acknowledgeKnownAction(page,"/app/settings/tenant");
   await db.from("platform_admins").update({scope:"full"}).eq("user_id",actor);
 
-  // Org A fresca não tem automático: a consulta final da fila inclui ambos
-  // os comandos depois de automatico-ativo resolver. Observa antes do reload.
+  // A aba Todos da segunda página deve voltar à empresa A, sem conservar
+  // dados do acompanhamento de B. Observa o novo contrato de visão do Inbox.
   const returnedToA=sameTab.waitForResponse(async response=>{
    const url=new URL(response.url());
    if(response.request().method()!=="GET" || url.pathname!=="/api/v1/conversations"
-    || url.searchParams.get("comando")!=="aguardando,automatico" || response.status()!==200)return false;
+    || url.searchParams.get("view")!=="all" || response.status()!==200)return false;
    const body=await response.json().catch(()=>null) as {data?:Array<{organization_id?:string;contacts?:{name?:string}}> } | null;
    return body?.data?.some(conversation=>conversation.organization_id===orgs[0]
     && conversation.contacts?.name===`Contato A ${suffix}`)===true;
@@ -200,6 +201,7 @@ test("suporte mantém identidade, opera B e encerra sem misturar A; readonly/exp
   await start(page,orgs[1]!,true);
   await expect(sameTab.getByTestId("tenant-switcher")).toContainText(`Suporte B ${suffix}`);
   await page.goto("/onboarding");await page.waitForURL("**/app/inbox");
+  await page.getByRole("tab",{name:/^Todos/}).click();
   const writes:string[]=[];page.on("request",request=>{if(request.method()!=="GET"&&/mark-read|availability|messages/.test(request.url()))writes.push(request.url());});
   await page.locator(`[data-conversation-id="${convs[1]}"]`).click();
   await expect(page.getByRole("alert").filter({hasText:/somente leitura/i})).toBeVisible();

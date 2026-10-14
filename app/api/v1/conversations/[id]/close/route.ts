@@ -46,6 +46,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     .eq("organization_id", authz.org.orgId).maybeSingle();
   if (readError) return fail("internal_error", readError.message, 500, { requestId });
   if (!visible) return fail("not_found", t("Conversa não encontrada."), 404, { requestId });
+  const { data: canWrite, error: permissionError } = await supabase.rpc("fn_can_write_inbox", { p_org: authz.org.orgId, p_conversation: id });
+  if (permissionError || !canWrite) return fail("forbidden", "A permissão de consulta não permite alterar outro atendimento.", 403, { requestId });
   const { data, error } = await createAdminClient().rpc("fn_service_status", {
     p_org: visible.organization_id, p_conversation: id, p_status: "closed",
     p_expected: parsed.data.expected_revision ?? visible.service_revision,

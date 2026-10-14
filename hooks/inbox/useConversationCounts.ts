@@ -7,6 +7,10 @@ import {
 } from "@/lib/inbox/marcador-da-conversa";
 
 export interface ConversationCounts {
+  active?: number;
+  waiting?: number;
+  ai?: number;
+  needs_assignment?: number;
   /**
    * OPCIONAIS de propósito: um cache de react-query gravado antes deste deploy
    * não tem estes campos, e a tela lê o cache antes da primeira resposta nova.
@@ -27,6 +31,8 @@ export interface ConversationCounts {
 
 /** Os filtros auxiliares ligados na barra, que a contagem tem de aplicar junto. */
 export interface FiltrosDaContagem {
+  search?: string;
+  is_group?: boolean;
   unread?: boolean;
   /**
    * A etiqueta, ou VÁRIAS (#1274).
@@ -59,6 +65,8 @@ export function useConversationCounts(
   // Só `ou` viaja: `e` é o padrão, e mandar `&modo=e` num link de hoje mudaria a
   // URL sem mudar o sentido do filtro.
   if (filtros.tagMode === "ou") qs.set("modo", "ou");
+  if (filtros.search) qs.set("search", filtros.search);
+  if (filtros.is_group) qs.set("is_group", "true");
   if (filtros.channel_session_id) qs.set("channel_session_id", filtros.channel_session_id);
   const sufixo = qs.toString();
 

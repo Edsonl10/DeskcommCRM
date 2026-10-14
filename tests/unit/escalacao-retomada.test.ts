@@ -226,28 +226,16 @@ describe("devolver o atendimento ao agente", () => {
       bot_silenced_until: null,
       last_handoff_at: null,
       last_handoff_reason: null,
-      assignee_kind: "ai",
+      assignee_kind: null,
       status: "ai_handling",
     });
   });
 
-  it("solta o dono humano pela regra que já existe, em vez de escrever a coluna na mão", async () => {
+  it("preserva o responsável indicado sem liberar a conversa no meio da devolução", async () => {
     const cap = novaCaptura();
     await retomar(cenarioComAtendimentoHumano(), cap);
 
-    expect(cap.rpc.filter((r) => r.fn === "fn_conversation_assign")).toEqual([
-      {
-        fn: "fn_conversation_assign",
-        args: {
-          p_organization_id: ORG,
-          p_conversation_id: CONV,
-          p_to_user_id: null,
-          p_reason: "release",
-          p_expected_assignee: null,
-          p_enforce_expected: false,
-        },
-      },
-    ]);
+    expect(cap.rpc.filter((r) => r.fn === "fn_conversation_assign")).toEqual([]);
     // A coluna do dono NUNCA é escrita direto: quem escreve é a função, que grava
     // o evento de atribuição na mesma transação.
     const naConversa = cap.updates.find((u) => u.tabela === "conversations");
@@ -349,7 +337,7 @@ describe("devolver o atendimento ao agente", () => {
     // As três travas saem do mesmo jeito que no clique.
     expect(cap.updates.find((u) => u.tabela === "conversations")?.valores).toMatchObject({
       bot_silenced_until: null,
-      assignee_kind: "ai",
+      assignee_kind: null,
     });
     // E a linha do tempo diz o prazo, como ato do sistema.
     const atividade = cap.inserts.find((i) => i.tabela === "crm_lead_activities");

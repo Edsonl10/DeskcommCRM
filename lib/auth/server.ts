@@ -1,3 +1,4 @@
+import { lerPermissoesInbox } from "@/lib/inbox/visoes";
 import { cache } from "react";
 import { combinarInterfaces } from "@/lib/navigation/interface";
 /**
@@ -28,6 +29,7 @@ import type { AuthUser, Role, UserOrgMembership, ActiveOrg } from "./types";
 const ACTIVE_ORG_COOKIE = "active_org";
 
 interface RawMembershipRow {
+  inbox_permissions?: unknown;
   interface_settings?: unknown;
   organization_id: string;
   role: string;
@@ -202,7 +204,7 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
           // issue #1341 acabou de engordar), e o alias traz só as portas da EMPRESA.
           // `timezone` veio do main (fuso da organização nas listas, #1290) e convive
           // com o alias: um embed por relação, sem renomear o que já existia.
-          "organization_id, role, interface_settings, accepted_at, organizations(display_name, locale, timezone, currency, country, status, suspended_kind), interface_da_empresa:organizations(interface_settings)",
+          "organization_id, role, inbox_permissions, interface_settings, accepted_at, organizations(display_name, locale, timezone, currency, country, status, suspended_kind), interface_da_empresa:organizations(interface_settings)",
         )
         .eq("user_id", user.id)
         .is("revoked_at", null)
@@ -255,6 +257,7 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
       // EMPRESA ∩ VÍNCULO (migration 0367): a empresa escolhe o universo de
       // portas da instalação, o vínculo escolhe menos dentro dele. Até aqui o
       // vínculo decidia sozinho, então a escolha da empresa não existia.
+      inbox_permissions: lerPermissoesInbox(row.inbox_permissions),
       interface_settings: combinarInterfaces(empresa?.interface_settings, row.interface_settings),
       locale: org?.locale ?? null,
       timezone: org?.timezone ?? null,
@@ -326,6 +329,8 @@ export const orgAtivaSemPortao = cache(async (authUser: AuthUser): Promise<Activ
       orgId: authUser.support.organization_id,
       name: authUser.support.name,
       role: authUser.support.access_mode === "full" ? "admin" : "viewer",
+      // Espelha a leitura global já autorizada pelo acompanhamento ativo.
+      inbox_permissions: { all: true, ai: true, closed: true },
       timezone: orgDoSuporte?.timezone ?? null,
       currency: orgDoSuporte?.currency ?? null,
       country: orgDoSuporte?.country ?? null,
@@ -343,6 +348,7 @@ export const orgAtivaSemPortao = cache(async (authUser: AuthUser): Promise<Activ
     name: ativo.organization_name,
     role: ativo.role,
     interface_settings: ativo.interface_settings,
+    inbox_permissions: ativo.inbox_permissions,
     timezone: ativo.timezone ?? null,
     currency: ativo.currency ?? null,
     country: ativo.country ?? null,

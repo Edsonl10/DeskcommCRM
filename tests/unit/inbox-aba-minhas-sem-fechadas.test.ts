@@ -24,56 +24,13 @@ import { CONVERSATION_TERMINAL_STATUSES, listConversationsQuerySchema } from "@/
 // elo 1 — o significado da aba
 // ---------------------------------------------------------------------------
 
-describe("tabToFilter — o que cada aba significa", () => {
-  it("Minhas pede as minhas SEM as terminais", () => {
-    expect(tabToFilter("mine")).toEqual({ assigned_to: "me", exclude_finished: true });
-  });
-
-  it("Fechadas continua mostrando as fechadas — senão não sobra onde vê-las", () => {
-    expect(tabToFilter("closed")).toEqual({ status: "closed" });
-  });
-
-  it("a Fila pergunta QUEM MANDA, não o status — e o valor mudou por medição", () => {
-    // ESTE `toEqual` MUDOU EM 2026-08-30, e o motivo fica escrito para a próxima
-    // sessão não "consertar" de volta.
-    //
-    // O par anterior (`assigned_to=unassigned` + os dois estados de espera) tinha
-    // consertado um defeito real: a conversa escalada é `pending` e sumia de toda
-    // aba. Só que ele carregava outro: "sem dono e aberta" é TAMBÉM a conversa
-    // que o robô está atendendo agora. Medido na VPS: a Fila mostrava 83 e o
-    // automático comandava 47 delas — o atendente via como trabalho seu quase
-    // tudo que já estava sendo respondido.
-    //
-    // `comandosDaFila` responde a pergunta certa e continua cobrindo a conversa
-    // escalada (ela é `aguardando`, por causa do silêncio, não do status).
-    expect(tabToFilter("unassigned")).toEqual({ comando: ["aguardando"] });
-  });
-
-  it("numa org SEM automático, a Fila também traz o que ninguém está atendendo", () => {
-    // O controle do caso acima. Sem ele, a Fila de uma instalação recém-instalada
-    // — que ainda não publicou agente — nasceria VAZIA com clientes esperando,
-    // que é o pior estado possível na primeira impressão.
-    expect(tabToFilter("unassigned", false)).toEqual({
-      comando: ["aguardando", "automatico"],
-    });
-  });
-
-  it("a aba do automático pergunta a régua do MOTOR, não `ai_handling`", () => {
-    // `ai_handling` é escrito por UM caminho só em produção (a volta pelo botão
-    // "Devolver ao automático"), e por isso a aba mostrava 2 enquanto o robô
-    // atendia 47.
-    expect(tabToFilter("ai")).toEqual({ comando: ["automatico"] });
-  });
-
-  it("as outras abas não ganham o filtro de tabela", () => {
-    expect(tabToFilter("unassigned").exclude_finished).toBeUndefined();
-    expect(tabToFilter("all").exclude_finished).toBeUndefined();
-    expect(tabToFilter("ai").exclude_finished).toBeUndefined();
+describe("abas usam a régua compartilhada de estado", () => {
+  it.each([ ["mine","active"], ["unassigned","waiting"], ["archived","closed"], ["ai","ai"], ["all","all"], ["closed","closed"] ] as const)("%s aponta para %s", (old, view) => {
+    expect(tabToFilter(old)).toEqual({view});
   });
 });
 
-// ---------------------------------------------------------------------------
-// elo 2 — a query string
+// // elo 2 — a query string
 // ---------------------------------------------------------------------------
 
 describe("schema da rota", () => {
@@ -179,8 +136,8 @@ describe("contador de Minhas", () => {
     const { readFileSync } = await import("node:fs");
     const fonte = readFileSync("app/api/v1/conversations/counts/route.ts", "utf8");
 
-    expect(fonte).toContain("CONVERSATION_TERMINAL_STATUSES");
-    expect(fonte).toMatch(/assigned_to_user_id[\s\S]{0,200}not\(\s*"status"\s*,\s*"in"/);
+    expect(fonte).toContain("aplicarVisaoInbox(countExact(), view");
+    expect(fonte).toContain('countView("active")');
   });
 });
 

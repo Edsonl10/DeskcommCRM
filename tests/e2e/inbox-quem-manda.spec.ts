@@ -123,6 +123,12 @@ test.describe("Inbox — quem manda nesta conversa", () => {
       .maybeSingle();
     const agenteDefault = agente as { id: string; published_version_id: string | null } | null;
     if (!agenteDefault) throw new Error("a org de teste não tem agente default");
+    if (agenteDefault.published_version_id) {
+      const version = await admin.from("ai_agent_versions").select("channel_session_id")
+        .eq("organization_id", creds.org_id).eq("id", agenteDefault.published_version_id).single();
+      if (version.error) throw version.error;
+      if (version.data.channel_session_id) sessaoId = version.data.channel_session_id;
+    }
     if (!agenteDefault.published_version_id) {
       // `version_number` é único por agente: numerar a partir do que já existe,
       // senão um rascunho deixado por outra spec faz colidir em vez de publicar.
@@ -189,6 +195,11 @@ test.describe("Inbox — quem manda nesta conversa", () => {
       .single();
     if (erroConversa) throw new Error(`conversations: ${erroConversa.message}`);
     conversaId = (conversa as { id: string }).id;
+    const routed = await admin.rpc("fn_conversation_assign", {
+      p_organization_id: creds.org_id, p_conversation_id: conversaId,
+      p_to_user_id: creds.users.agent!.id, p_reason: "routing",
+    });
+    if (routed.error) throw routed.error;
 
     // UM NEGÓCIO ABERTO, porque `crm_lead_activities.lead_id` é NOT NULL.
     //
@@ -230,7 +241,7 @@ test.describe("Inbox — quem manda nesta conversa", () => {
     await page.goto(`/app/inbox/${conversaId}`);
     const comando = page.getByTestId("comando-da-conversa");
     await expect(comando).toBeVisible({ timeout: 30_000 });
-    await expect(comando).toContainText(/autom/i);
+    await expect(comando).toContainText(/IA/);
     // O CONTROLE: sem silêncio no banco, nada de selo de pausa na tela. Sem esta
     // asserção, o selo do passo (3) não distinguiria "apareceu agora" de "já
     // estava lá desde o começo".
@@ -292,7 +303,7 @@ test.describe("Inbox — quem manda nesta conversa", () => {
     await voltar.click();
 
     await expect.poll(async () => silencioNoBanco(), { timeout: 30_000 }).toBe("(null)");
-    await expect(comando).toContainText(/autom/i, { timeout: 30_000 });
+    await expect(comando).toContainText(/IA/, { timeout: 30_000 });
     await expect(page.getByTestId("badge-atendimento-humano")).toHaveCount(0);
     await captura(page, "3-devolvido-ao-automatico");
   });
@@ -320,6 +331,11 @@ test.describe("Inbox — quem manda nesta conversa", () => {
     if (escalada.error) throw new Error(`escalar: ${escalada.error.message}`);
     expect((escalada.data as { status: string } | null)?.status).toBe("pending");
 
+    const { error: routingError } = await admin.rpc("fn_conversation_assign", {
+      p_organization_id: creds.org_id, p_conversation_id: conversaId,
+      p_to_user_id: creds.users.agent!.id, p_reason: "routing",
+    });
+    if (routingError) throw routingError;
     await login(page, creds.users.agent!.email, creds.password);
     await page.goto("/app/inbox?filter=unassigned");
 
@@ -330,13 +346,14 @@ test.describe("Inbox — quem manda nesta conversa", () => {
 
     // E o BADGE da aba a conta — badge que não bate com a lista manda o atendente
     // procurar um trabalho que a aba não mostra (ou o contrário, que é este caso).
-    const abaFila = page.getByRole("tab", { name: /Fila/i }).first();
+    const abaFila = page.getByRole("tab", { name: /Aguardando/i }).first();
     await expect(abaFila).toContainText(/[1-9]/, { timeout: 30_000 });
 
-    // Abrindo, a tela diz que ninguém está no comando — nem pessoa, nem automático.
+    // O responsável está indicado, mas ainda precisa aceitar o atendimento.
     await naFila.click();
-    await expect(page.getByTestId("comando-da-conversa")).toContainText(/sem respons/i, {
+    await expect(page.getByTestId("comando-da-conversa")).toContainText("E2E Agent", {
       timeout: 30_000,
     });
+    await expect(page.getByTestId("badge-atendimento-humano")).not.toContainText(/assumiu/i);
   });
 });

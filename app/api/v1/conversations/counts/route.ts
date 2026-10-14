@@ -6,6 +6,7 @@
  * em modo own* recebe a contagem do SEU escopo, NUNCA o total da org — a mesma
  * garantia do listing. Head count (count:'exact', head:true) não devolve linhas.
  */
+import { aplicarVisaoInbox, permissaoGlobalInbox, type InboxView } from "@/lib/inbox/visoes";
 import { randomUUID } from "node:crypto";
 
 import type { NextRequest } from "next/server";
@@ -15,12 +16,9 @@ import { idsDosCanaisDesativados } from "@/lib/channels/desativado";
 import { loadAuthUser } from "@/lib/auth/server";
 import { orgAtivaDaApi } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
-import { CONVERSATION_TERMINAL_STATUSES } from "@/lib/schemas";
-import { orgTemAutomatico } from "@/lib/ai/agents/org-tem-automatico";
-import { comandosDaFila } from "@/lib/inbox/comando-da-conversa";
 import { aplicarMarcadores, modoDeEtiqueta } from "@/lib/inbox/marcador-da-conversa";
 import { createClient } from "@/lib/supabase/server";
-import { idsDeContatosPessoais } from "../_handler";
+import { idsDeContatosPessoais, aplicarBuscaDeConversas, filtroDeBuscaDeConversas } from "../_handler";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +60,7 @@ export function filtrosAuxiliaresDaContagem(
   // INTEIRA respondia 500 — com um marcador filtrado, toda aba do Inbox ficava
   // sem número, a "Fechadas" inclusive (#1223). Quem aplica o marcador é
   // `aplicarMarcador`, a mesma régua que a lista usa.
+  if (sp.get("is_group") === "true") filtros.push(["is_group", true]);
   return filtros;
 }
 
@@ -132,74 +131,22 @@ export async function GET(req: NextRequest): Promise<Response> {
     return q;
   };
 
-  // Espelha tabToFilter (InboxLayout): unassigned = fila aberta sem dono;
-  // mine = atribuídas a mim e ainda ABERTAS; all = tudo que o usuário VÊ.
-  //
-  // O `not in (terminais)` do `mine` espelha o `exclude_finished` da aba, e o
-  // espelhamento é o ponto: um badge que conta o que a aba não mostra é pior
-  // que badge nenhum — manda o atendente procurar um trabalho que não existe.
-  // O fato ORG-WIDE resolvido ANTES das contagens, porque ele escolhe QUAL
-  // conjunto de comandos a Fila pede. `undefined` (não deu para saber) segue a
-  // convenção da regra: assume que há automático.
-  const automaticoDaOrg = await orgTemAutomatico(supabase, org);
-
-  const [fila, automatico, mine, all, closed, archived] = await Promise.all([
-    // A FILA DEIXOU DE SER "sem dono + status de espera".
-    //
-    // Aquele par contava como trabalho humano pendente tudo que o robô estava
-    // atendendo: medido na VPS em 2026-08-30, o badge dizia 83 enquanto 47
-    // daquelas conversas tinham o automático no comando. Agora ele conta o mesmo
-    // predicado que a aba pede — e o espelhamento entre badge e aba é vigiado
-    // por `tests/e2e/inbox-abas-espelham-o-comando.spec.ts`,
-    // `tests/unit/fila-tem-uma-definicao-so.test.ts` e
-    // `tests/invariants/gov-5b-inbox-scope-counts.test.ts`, porque um badge que conta o
-    // que a aba não mostra manda o atendente procurar trabalho que não existe.
-    countExact().in("comando_da_conversa", comandosDaFila(automaticoDaOrg)),
-    // A aba "Automático". Antes ela pedia `status='ai_handling'`, escrito por UM
-    // caminho só em produção — por isso vivia quase vazia.
-    countExact().eq("comando_da_conversa", "automatico"),
-    countExact()
-      .eq("assigned_to_user_id", user.id)
-      .not("status", "in", `(${CONVERSATION_TERMINAL_STATUSES.join(",")})`),
-    countExact(),
-    // A aba "Fechadas" existia SEM número nenhum. Num inbox antigo, é o número
-    // que diz o tamanho do arquivo — e a sua ausência fazia a aba parecer um
-    // lugar vazio. Mesma fábrica: herda organização e filtros.
-    //
-    // ⚠️ `eq("closed")`, e NÃO `in(TERMINAIS)` como antes. O par
-    // fechada/arquivada agora tem DUAS abas, e cada badge tem de contar
-    // exatamente a lista da sua aba: `in(TERMINAIS)` somava arquivadas (e, antes
-    // da 0222, resolvidas) no número de "Fechadas", que lista só
-    // `status='closed'` — o badge dizia 120 e a lista mostrava 40. Era a mesma
-    // classe de defeito que este arquivo já conserta desde a Fila, encontrada
-    // aqui no caminho (#923).
-    countExact().eq("status", "closed"),
-    // A aba "Arquivadas" (#923): a pasta do histórico, separada de "Fechadas"
-    // para que arquivar seja reversível e auditável sem se confundir com o
-    // encerramento do atendimento.
-    countExact().eq("status", "archived"),
+  const search = sp.get("search") ?? undefined;
+  const busca = await filtroDeBuscaDeConversas(supabase, org, search);
+  const countView = (view: InboxView) => aplicarBuscaDeConversas(aplicarVisaoInbox(countExact(), view, user.id, activeOrg.role, activeOrg.inbox_permissions), busca);
+  const allowedAll = permissaoGlobalInbox(activeOrg.role, activeOrg.inbox_permissions, "all");
+  const [active, waiting, ai, all, closed, needsAssignment] = await Promise.all([
+    countView("active"), countView("waiting"), countView("ai"),
+    allowedAll ? countView("all") : Promise.resolve({ count: 0, error: null }),
+    countView("closed"),
+    allowedAll ? aplicarBuscaDeConversas(countExact().eq("inbox_state", "unassigned"), busca) : Promise.resolve({ count: 0, error: null }),
   ]);
-
-  const firstErr =
-    fila.error ?? automatico.error ?? mine.error ?? all.error ?? closed.error ?? archived.error;
-  if (firstErr) {
-    return fail("internal_error", firstErr.message, 500, { requestId });
-  }
-
-  return ok(
-    {
-      fila: fila.count ?? 0,
-      automatico: automatico.count ?? 0,
-      // `unassigned` continua respondendo, com o MESMO valor de `fila`. É rota
-      // `/api/v1/` versionada: campo não some de uma versão para outra, e um
-      // cliente com a página aberta desde antes do deploy segue lendo o nome
-      // velho até recarregar.
-      unassigned: fila.count ?? 0,
-      mine: mine.count ?? 0,
-      all: all.count ?? 0,
-      closed: closed.count ?? 0,
-      archived: archived.count ?? 0,
-    },
-    { requestId },
-  );
+  const firstErr = active.error ?? waiting.error ?? ai.error ?? all.error ?? closed.error ?? needsAssignment.error;
+  if (firstErr) return fail("internal_error", firstErr.message, 500, { requestId });
+  return ok({
+    active: active.count ?? 0, waiting: waiting.count ?? 0, ai: ai.count ?? 0,
+    all: all.count ?? 0, closed: closed.count ?? 0, needs_assignment: needsAssignment.count ?? 0,
+    mine: active.count ?? 0, fila: waiting.count ?? 0, unassigned: waiting.count ?? 0,
+    automatico: ai.count ?? 0, archived: closed.count ?? 0,
+  }, { requestId });
 }

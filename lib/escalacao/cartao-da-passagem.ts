@@ -76,6 +76,7 @@ export interface PassagemDaConversa {
 
 /** Quem abriu a conversa, e com quem ela está. */
 export interface QuemOlha {
+  aceito?: boolean;
   usuarioId: string;
   /** `conversations.assigned_to_user_id` — a VERDADE sobre haver dono. */
   donoId: string | null;
@@ -183,7 +184,7 @@ function acaoDe(input: {
   if (anonimizada || estado !== "aberta" || !ultima) return { tipo: "nenhuma" };
   if (optOut) return { tipo: "abrir_contato" };
   if (quem.donoId === null) return { tipo: "assumir_e_responder" };
-  if (quem.donoId === quem.usuarioId) return { tipo: "nenhuma" };
+  if (quem.donoId === quem.usuarioId) return { tipo: quem.aceito === false ? "assumir_e_responder" : "nenhuma" };
   return { tipo: "avisa_quem_atende", donoNome: quem.donoNome };
 }
 

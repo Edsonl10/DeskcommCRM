@@ -228,7 +228,7 @@ describe("eco do próprio envio — a IA não se cala por ter falado", () => {
 
     expect(
       conversa.bot_silenced_until,
-      "a IA se calou por três horas por ter falado — e a tela mostra 'Automático pausado', um estado legítimo que ninguém investiga",
+      "a IA se calou por três horas por ter falado — e a tela mostra 'IA pausada', um estado legítimo que ninguém investiga",
     ).toBeNull();
   });
 
@@ -331,7 +331,7 @@ describe("eco do próprio envio — a IA não se cala por ter falado", () => {
  * Depois de o carimbo da automação virar `'automation'`, a linha do envio deixa
  * de casar com o filtro de `sent_via` desta checagem — e o eco do próprio envio
  * da regra passa a ser lido como "o atendente respondeu pelo celular". O
- * desfecho é a IA pausada na conversa (a tela mostra "Automático pausado", um
+ * desfecho é a IA pausada na conversa (a tela mostra "IA pausada", um
  * estado legítimo que ninguém investiga), causado por uma mensagem que o CRM
  * mandou sozinho.
  *

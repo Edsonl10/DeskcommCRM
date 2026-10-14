@@ -58,7 +58,7 @@ export function ConversationList({
   // A Fila deixou de mandar `assigned_to=unassigned` (agora pede `comando`), e
   // sem esta linha a numeração "1º, 2º…" e o tempo de espera sumiriam da única
   // visão em que servem para alguma coisa — sem erro nenhum, só sumiriam.
-  const isQueue = ehAFila(filters);
+  const isQueue = filters.view === "waiting" || ehAFila(filters);
   // Uma leitura por lista, compartilhada por todas as linhas (react-query dedupa
   // com o cabeçalho, que faz a mesma pergunta).
   const automaticoDaOrg = useAutomaticoAtivo();

@@ -145,6 +145,11 @@ beforeAll(() => {
 beforeEach(() => semear());
 
 describe("0293 — o gatilho de reconhecimento", () => {
+  it.each(["routing", "transfer"])("%s indica o responsável mas mantém a passagem e o aviso aguardando aceite", (reason) => {
+    sql(`select public.fn_conversation_assign('${ORG}', '${CONVERSA}', '${DONO}', '${reason}', null, false);`);
+    expect(reconhecidas()).toBe(0);
+    expect(avisosAbertos()).toBe(1);
+  });
   it("CONTROLE POSITIVO: a semente nasce aberta nos dois lados", () => {
     // Sem isto, um gatilho que apagasse tudo passaria nos casos seguintes por
     // vacuidade: zero abertas é verdade quando não há nada.

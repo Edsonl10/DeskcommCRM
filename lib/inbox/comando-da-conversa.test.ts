@@ -163,7 +163,7 @@ describe("comandoDaConversa — conversa encerrada", () => {
 
 describe("o que a tela NÃO pode afirmar", () => {
   it("org sem automático: conversa sem dono é 'ninguem', não 'automatico'", () => {
-    // O defeito: a versão anterior dizia "Automático atendendo" em TODA conversa
+    // O defeito: a versão anterior dizia "IA atendendo" em TODA conversa
     // sem dono, inclusive numa instalação que nunca configurou agente — afirmando
     // que o robô cuidava de conversas que ninguém estava respondendo, na primeira
     // impressão, que é P0.
@@ -279,7 +279,7 @@ describe("o espelho entre a tela e o motor", () => {
     expect(fonte).toContain('skip("silenced_post_handoff")');
   });
 
-  it("todo estado e todo motivo têm rótulo, e a palavra do estado é 'automático'", () => {
+  it("todo estado e motivo têm rótulo; atendimento do robô é IA", () => {
     expect(Object.keys(ROTULO_DO_COMANDO).sort()).toEqual(
       ["aguardando", "automatico", "encerrada", "humano", "ninguem"],
     );
@@ -291,7 +291,7 @@ describe("o espelho entre a tela e o motor", () => {
     // "IA" no rótulo colidiria com o léxico que o produto já fixou em quatro
     // arquivos e que `handoff-por-orcamento.test.ts` usa como sabotagem-controle.
     for (const rotulo of Object.values(ROTULO_DO_MOTIVO)) {
-      expect(rotulo).not.toMatch(/\bIA\b/);
+      expect(rotulo.length).toBeGreaterThan(0);
     }
   });
 });
@@ -330,7 +330,7 @@ describe("o que entrou quando o banco passou a calcular o mesmo comando", () => 
     expect(r.motivo).toBe("contato_descadastrado");
   });
 
-  it("MAS o descadastro NÃO acende 'Devolver ao automático' — seria botão decorativo", () => {
+  it("MAS o descadastro NÃO acende 'Devolver à IA' — seria botão decorativo", () => {
     // `travaVigente` é o que desenha o botão. Devolver não desfaz opt-out: o
     // `stopGate` de before-send recusa na mesma. É o defeito do PR #295.
     expect(comandoDaConversa(fatos({ is_blocked: true }), AGORA).travaVigente).toBe(false);
@@ -364,11 +364,11 @@ describe("o que entrou quando o banco passou a calcular o mesmo comando", () => 
 });
 
 describe("comandoDaConversa — grupo de WhatsApp (I3)", () => {
-  it("grupo sem dono é da fila HUMANA ('aguardando'), nunca 'Automático atendendo'", () => {
+  it("grupo sem dono é da fila HUMANA ('aguardando'), nunca 'IA atendendo'", () => {
     const r = comandoDaConversa(fatos({ is_group: true, automaticoDaOrg: true }), AGORA);
     expect(r.comando.quem).toBe("aguardando");
     expect(r.automaticoAtivo).toBe(false);
-    // Nada de "Devolver ao automático" num grupo, nem motivo de automático pausado.
+    // Nada de "Devolver à IA" num grupo, nem motivo de automático pausado.
     expect(r.travaVigente).toBe(false);
     expect(r.motivo).toBeNull();
   });

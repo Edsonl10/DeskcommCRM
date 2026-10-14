@@ -104,7 +104,6 @@ export async function devolverAtendimentoAoAgente(
   const conv = convData as unknown as ConversaRow;
 
   const jaEstavaComOAgente =
-    conv.assigned_to_user_id === null &&
     conv.bot_silenced_until === null &&
     conv.assignee_kind !== "user";
 
@@ -117,44 +116,29 @@ export async function devolverAtendimentoAoAgente(
     input.conversationId,
   );
 
-  // (1) Solta o dono humano pela regra que já existe (UPDATE + evento de
-  // atribuição na MESMA transação). `p_enforce_expected: false` porque soltar é
-  // idempotente por natureza: se outro release ganhou a corrida, o estado final
-  // é o mesmo que queríamos.
-  if (conv.assigned_to_user_id !== null) {
-    const { error: releaseErr } = await supabase.rpc("fn_conversation_assign", {
-      p_organization_id: organizationId,
-      p_conversation_id: input.conversationId,
-      p_to_user_id: null,
-      p_reason: "release",
-      p_expected_assignee: null,
-      p_enforce_expected: false,
-    });
-    if (releaseErr) {
-      return { ok: false, erro: "assignment_conflict", detalhe: releaseErr.message };
-    }
-  }
-
-  // (2) Devolve o comando. `assignee_kind='ai'` exige `assigned_to_user_id is
-  // null` (CHECK conversations_assignee_kind_coherence) — o filtro `.is(...)` é o
-  // guarda otimista: se alguém assumiu entre o release e aqui, 0 linhas e a gente
-  // reporta o conflito em vez de estourar a constraint.
+  // O responsável continua indicado; quem volta a responder é a IA. Soltar o
+  // dono antes deste UPDATE faria a sessão perder acesso pela RLS no meio do
+  // gesto. Limpar o silêncio invalida o aceite no trigger da migration 9003.
+  // Kind nulo permite responsável indicado sem afirmar que alguém já assumiu.
   const proximoStatus = STATUS_REATIVAVEIS.has(conv.status ?? "")
     ? "ai_handling"
     : (conv.status ?? "open");
-  const { data: atualizada, error: updErr } = await supabase
+  let update = supabase
     .from("conversations")
     .update({
       bot_silenced_until: null,
       last_handoff_at: null,
       last_handoff_reason: null,
-      assignee_kind: "ai",
+      assignee_kind: conv.assigned_to_user_id === null ? "ai" : null,
       status: proximoStatus,
       status_changed_at: new Date().toISOString(),
     })
     .eq("id", input.conversationId)
-    .eq("organization_id", organizationId)
-    .is("assigned_to_user_id", null)
+    .eq("organization_id", organizationId);
+  update = conv.assigned_to_user_id === null
+    ? update.is("assigned_to_user_id", null)
+    : update.eq("assigned_to_user_id", conv.assigned_to_user_id);
+  const { data: atualizada, error: updErr } = await update
     .select("id")
     .maybeSingle();
   if (updErr) return { ok: false, erro: "assignment_conflict", detalhe: updErr.message };

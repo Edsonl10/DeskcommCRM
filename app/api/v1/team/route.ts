@@ -1,3 +1,4 @@
+import type { InboxPermissions } from "@/lib/inbox/visoes";
 import type { InterfaceSettings } from "@/lib/navigation/interface";
 /**
  * GET /api/v1/team — list members of the active organization.
@@ -19,6 +20,7 @@ import { isServiceRoleConfigured } from "@/lib/audit";
 export const dynamic = "force-dynamic";
 
 interface MembershipRow {
+  inbox_permissions?: InboxPermissions;
   interface_settings?: InterfaceSettings;
   user_id: string;
   role: string;
@@ -44,7 +46,7 @@ export async function GET(_req: NextRequest): Promise<Response> {
   const supabase = await createClient();
   const { data: rows, error } = await supabase
     .from("user_organizations")
-    .select("user_id, role, interface_settings, invited_at, accepted_at, revoked_at, created_at")
+    .select("user_id, role, inbox_permissions, interface_settings, invited_at, accepted_at, revoked_at, created_at")
     .eq("organization_id", activeOrg.orgId)
     // Revogado CONTINUA na lista, com `revoked_at` preenchido — a tela o
     // distingue. Filtrá-lo aqui fazia a revogação sumir com a pessoa, e sem a

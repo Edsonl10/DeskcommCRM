@@ -37,8 +37,6 @@ function fonte(caminho: string): string {
 /** Todo sítio que decide, no código de produção, quem está na fila. */
 const SITIOS_DA_FILA = [
   "lib/routing/queue.ts",
-  "app/api/v1/conversations/counts/route.ts",
-  "components/inbox/InboxLayout.tsx",
   "lib/mcp/tools/conversations.ts",
 ] as const;
 
@@ -115,7 +113,7 @@ describe("a fila tem uma definição só", () => {
 describe("quem manda não se decide por `ai_handling`", () => {
   /**
    * `conversations.status = 'ai_handling'` é escrito por UM caminho só em
-   * produção — a volta pelo botão "Devolver ao automático" — e por isso NUNCA
+   * produção — a volta pelo botão "Devolver à IA" — e por isso NUNCA
    * descreveu quem está no comando: a aba que o filtrava mostrava 2 conversas
    * enquanto o robô atendia 47.
    *

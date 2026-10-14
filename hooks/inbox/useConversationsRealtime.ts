@@ -1,4 +1,6 @@
 "use client";
+import type { InboxView } from "@/lib/inbox/visoes";
+
 import { hashKey, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useRealtimeChannel } from "@/hooks/realtime/useRealtimeChannel";
@@ -82,6 +84,7 @@ export type StatusDeConversa =
   | "archived";
 
 export interface ConversationsFilters {
+  view?: InboxView;
   /** Um status ou vários — a aba Fila precisa de dois (open + pending). */
   status?: StatusDeConversa | readonly StatusDeConversa[];
   /** Esconde fechadas/arquivadas — ver `exclude_finished` no schema da rota. */
@@ -160,6 +163,7 @@ export function useConversationsRealtime(
       if (filters.comando && filters.comando.length > 0) {
         qs.set("comando", filters.comando.join(","));
       }
+      if (filters.view) qs.set("view", filters.view);
       if (filters.exclude_finished) qs.set("exclude_finished", "true");
       if (filters.assigned_to) qs.set("assigned_to", filters.assigned_to);
       if (filters.search) qs.set("search", filters.search);

@@ -1,9 +1,12 @@
 "use client";
+import type { InboxPermissions } from "@/lib/inbox/visoes";
+
 import type { InterfaceSettings } from "@/lib/navigation/interface";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 
 export interface TeamMember {
+  inbox_permissions?: InboxPermissions;
   interface_settings?: InterfaceSettings;
   user_id: string;
   role: string;

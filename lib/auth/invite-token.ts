@@ -10,6 +10,7 @@
  * Production deployments MUST set one of the first two. Verification uses
  * `timingSafeEqual` to avoid timing oracles.
  */
+import { inboxPermissionsSchema, type InboxPermissions } from "@/lib/inbox/visoes";
 import { z } from "zod";
 import { interfaceSettingsSchema, type InterfaceSettings } from "@/lib/navigation/interface";
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -18,6 +19,7 @@ const SECRET = (): string =>
   process.env.INVITE_TOKEN_SECRET ?? process.env.INTERNAL_SECRET ?? "dev-fallback";
 
 export interface InvitePayload {
+  inbox_permissions?: InboxPermissions;
   interface_settings?: InterfaceSettings;
   invite_id: string;
   email: string;
@@ -71,6 +73,7 @@ export function verifyInviteToken(token: string): InvitePayload | null {
       exp: z.number().int().positive(),
       iat: z.number().int().positive().optional(),
       invited_by: z.string().uuid().optional(),
+      inbox_permissions: inboxPermissionsSchema.optional(),
       interface_settings: interfaceSettingsSchema.optional(),
     })
     .safeParse(payload);

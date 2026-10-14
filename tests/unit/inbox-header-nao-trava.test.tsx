@@ -152,7 +152,7 @@ describe("header do inbox — não trava a largura da tela", () => {
     const linhaDoNome = screen.getByRole("heading", { name: "Fulana" }).parentElement as HTMLElement;
     expect(linhaDoNome.contains(selo), "o selo voltou para a linha do nome").toBe(false);
 
-    for (const rotulo of ["Devolver ao automático", "Transferir", "Lembrar", "Fechar"]) {
+    for (const rotulo of ["Devolver à IA", "Transferir", "Lembrar", "Fechar"]) {
       const botao = screen.getByRole("button", { name: rotulo });
       expect(barra.contains(botao), `a ação "${rotulo}" saiu da barra`).toBe(true);
     }

@@ -1,3 +1,4 @@
+import { inboxPermissionsSchema } from "@/lib/inbox/visoes";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { NextRequest } from "next/server";
@@ -16,7 +17,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ user_id: 
   if (!authz.ok) return authz.response;
   const { user_id } = await ctx.params;
   const parsed = z
-    .object({ interface_settings: interfaceSettingsSchema })
+    .object({ interface_settings: interfaceSettingsSchema, inbox_permissions: inboxPermissionsSchema.optional() })
     .strict()
     .safeParse(await req.json().catch(() => null));
   if (!z.string().uuid().safeParse(user_id).success || !parsed.success)
@@ -39,13 +40,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ user_id: 
     });
   const { data, error } = await db
     .from("user_organizations")
-    .update({ interface_settings: parsed.data.interface_settings })
+    .update({ interface_settings: parsed.data.interface_settings, ...(parsed.data.inbox_permissions ? { inbox_permissions: parsed.data.inbox_permissions } : {}) })
     .eq("organization_id", authz.org.orgId)
     .eq("user_id", user_id)
     .eq("role", member.role)
     .is("revoked_at", null)
     .not("accepted_at", "is", null)
-    .select("id, user_id, interface_settings")
+    .select("id, user_id, interface_settings, inbox_permissions")
     .maybeSingle();
   if (error)
     return fail("internal_error", "Não foi possível salvar a interface.", 500, { requestId });
@@ -58,7 +59,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ user_id: 
     resourceType: "membership",
     resourceId: data.id,
     requestId,
-    metadata: { user_id, interface_settings: parsed.data.interface_settings },
+    metadata: { user_id, interface_settings: parsed.data.interface_settings, inbox_permissions: parsed.data.inbox_permissions },
   });
   return ok(data, { requestId });
 }

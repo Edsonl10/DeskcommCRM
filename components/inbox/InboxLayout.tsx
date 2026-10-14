@@ -33,7 +33,6 @@ import { CaretLeft, ChatCircle, IdentificationCard, MagnifyingGlass, X } from "@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { comandosDaFila } from "@/lib/inbox/comando-da-conversa";
 import type { AvisoDeRascunho } from "@/lib/inbox/rascunho-sugerido";
 import { buscaValeConsulta } from "@/lib/inbox/termo-de-busca";
 import { useAutomaticoAtivo } from "@/hooks/ai/useAutomaticoAtivo";
@@ -81,59 +80,12 @@ export function colunasDoCelular(temSelecao: boolean): { lista: string; conversa
  * que este mapa já teve (Minhas mostrando tudo que o atendente fechou) não
  * aparece em nenhuma tela até alguém reclamar, então vale prender por teste.
  */
-export function tabToFilter(
-  tab: InboxFiltersValue["tab"],
-  automaticoDaOrg?: boolean,
-): Partial<ConversationsFilters> {
-  switch (tab) {
-    case "unassigned":
-      // A FILA PERGUNTA POR QUEM MANDA, NÃO POR STATUS.
-      //
-      // Antes ela pedia `assigned_to=unassigned` + os dois estados de espera. Só
-      // que "sem dono e aberta" é também a conversa que o robô está atendendo
-      // agora — medido na VPS em 2026-08-30, a aba dizia 83 e 47 daquelas tinham
-      // o automático no comando. O atendente abria a Fila e via como trabalho
-      // dele quase tudo que já estava sendo respondido.
-      //
-      // `comandosDaFila` é quem cruza isso com o fato org-wide: numa instalação
-      // sem nenhum agente no ar, `automatico` também é "esperando gente".
-      return { comando: comandosDaFila(automaticoDaOrg) };
-    case "mine":
-      // Sem `exclude_finished` a aba mostra tudo que o atendente JÁ atendeu —
-      // `Fechar` muda o status mas não solta o dono (de propósito: quem atendeu
-      // é histórico). O lugar de "minhas fechadas" é a aba Fechadas.
-      return { assigned_to: "me", exclude_finished: true };
-    case "closed":
-      return { status: "closed" };
-    case "archived":
-      // O ARQUIVO É UM ESTADO SÓ ELE, não `in(terminais)`.
-      //
-      // `CONVERSATION_TERMINAL_STATUSES` responde outra pergunta ("o que sai do
-      // fluxo vivo", usada pelo `exclude_finished` de Minhas). Reaproveitá-la
-      // aqui faria a aba Arquivadas listar também as fechadas — duas abas com a
-      // mesma lista e badges diferentes, que é a mentira de tela que o mapa
-      // abaixo existe para impedir.
-      return { status: "archived" };
-    case "ai":
-      // `ai_handling` é escrito por UM caminho só em produção (a volta pelo botão
-      // "Devolver ao automático"), então a aba vivia mostrando 2 enquanto o robô
-      // atendia 47. Agora ela pergunta a régua do MOTOR.
-      return { comando: ["automatico"] };
-    case "all":
-    default:
-      return {};
-  }
-}
+import { normalizarVisaoInbox, permissaoGlobalInbox } from "@/lib/inbox/visoes";
 
-const FILTER_TABS: InboxTab[] = ["unassigned", "mine", "all", "closed", "archived", "ai"];
-
-/**
- * Lê ?filter= (G4-02, deep-link). ?filter=all é HONRADO mesmo para agent — a
- * lista volta RLS-scoped (a tab só some cosmeticamente); default: fila.
- */
-function parseFilterParam(v: string | null): InboxTab {
-  return v && FILTER_TABS.includes(v as InboxTab) ? (v as InboxTab) : "unassigned";
+export function tabToFilter(tab: InboxTab, _automaticoDaOrg?: boolean): ConversationsFilters {
+  return { view: normalizarVisaoInbox(tab) };
 }
+const parseFilterParam = normalizarVisaoInbox;
 
 /**
  * O getter de `window.localStorage` LANÇA (`SecurityError`) quando o navegador
@@ -163,7 +115,15 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const tab = parseFilterParam(searchParams.get("filter"));
+  const requestedTab = parseFilterParam(searchParams.get("filter"));
+  const tab = requestedTab === "all" && activeOrg && !permissaoGlobalInbox(activeOrg.role, activeOrg.inbox_permissions, "all") ? "active" : requestedTab;
+  useEffect(() => {
+    if (searchParams.get("filter") && searchParams.get("filter") !== tab) {
+      const params = new URLSearchParams(searchParams);
+      params.set("filter", tab);
+      router.replace(pathname + "?" + params, { scroll: false });
+    }
+  }, [tab, searchParams, pathname, router]);
   const idNaUrl = searchParams.get("id");
   /**
    * `?tag=` é o destino do link de cada linha do relatório Por etiqueta
@@ -330,9 +290,9 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
   // aí `inList` já a tem no primeiro render.
   const needsFetch = !!selectedId && !inList;
   const single = useConversation(selectedId, needsFetch);
-  const selectedConversation: ConversationWithContact | null = inList ?? single.data ?? null;
   const selectionNotFound =
-    needsFetch && !single.isPending && !single.data && isNotFound(single.error);
+    needsFetch && !single.isPending && isNotFound(single.error);
+  const selectedConversation: ConversationWithContact | null = selectionNotFound ? null : inList ?? single.data ?? null;
 
   const colunas = colunasDoCelular(Boolean(selectedId));
 
@@ -748,6 +708,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
                 dono={{
                   userId: selectedConversation.assigned_to_user_id ?? null,
                   nome: selectedConversation.assigned_to_user_name ?? null,
+                  aceito: selectedConversation.human_accepted_at != null,
                 }}
                 contatoId={selectedConversation.contacts?.id ?? null}
               />
@@ -779,7 +740,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
               conversationId={selectedConversation.id}
               blockedReason={supportReadonly ? "Acompanhamento somente leitura" : blockedReason}
               janelaFechada={motivoDaJanela}
-              disabled={selectedConversation.status === "closed"}
+              disabled={["closed", "archived", "resolved"].includes(selectedConversation.status ?? "") || (selectedConversation.assigned_to_user_id != null && selectedConversation.assigned_to_user_id !== user.id && activeOrg?.role !== "manager" && activeOrg?.role !== "admin")}
               contactName={selectedConversation.contacts?.name ?? null}
               respondendo={respondendo}
               onCancelarResposta={() => setRespondendo(null)}

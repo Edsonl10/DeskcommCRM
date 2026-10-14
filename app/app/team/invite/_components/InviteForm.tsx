@@ -1,4 +1,5 @@
 "use client";
+import { lerPermissoesInbox } from "@/lib/inbox/visoes";
 import { InterfaceEditor } from "@/components/team/InterfaceEditor";
 import {
   INTERFACE_COMPLETA,
@@ -31,6 +32,7 @@ interface ResultState {
 
 export function InviteForm() {
   const t = useT();
+  const [permissions, setPermissions] = useState(lerPermissoesInbox(undefined));
   const [emailsRaw, setEmailsRaw] = useState("");
   const [settings, setSettings] = useState(INTERFACE_COMPLETA);
   const [role, setRole] = useState<Role>("agent");
@@ -56,7 +58,7 @@ export function InviteForm() {
     setLimiteDoPlano(null);
     try {
       const res = await invite.mutateAsync({
-        invitations: unique.map((email) => ({ email, role, interface_settings: settings })),
+        invitations: unique.map((email) => ({ email, role, interface_settings: settings, inbox_permissions: permissions })),
       });
       setResult(res.data);
       const ok = res.data.sent.length;
@@ -101,6 +103,8 @@ export function InviteForm() {
           </Select>
         </div>
         <InterfaceEditor
+          inboxPermissions={permissions}
+          onInboxPermissionsChange={setPermissions}
           value={settings}
           onChange={setSettings}
           role={role}

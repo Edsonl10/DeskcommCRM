@@ -14,6 +14,7 @@
  * STATUS é derivado, nunca coluna: `statusConvite()` decide a partir de
  * `revoked_at` / `accepted_at` / `expires_at`.
  */
+import { lerPermissoesInbox, type InboxPermissions } from "@/lib/inbox/visoes";
 import type { EmailDeliveryError } from "@/lib/email/roteador";
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -42,6 +43,7 @@ export interface ConviteDeTime {
   organization_id: string;
   email: string;
   role: Role;
+  inbox_permissions?: InboxPermissions;
   interface_settings: InterfaceSettings;
   invited_by: string | null;
   inviter_name: string | null;
@@ -70,6 +72,7 @@ export function linkDeAceite(row: ConviteDeTime): string {
     exp: Math.floor(Date.parse(row.expires_at) / 1000),
     invited_by: row.invited_by ?? undefined,
     interface_settings: row.interface_settings,
+    inbox_permissions: lerPermissoesInbox(row.inbox_permissions),
   });
   return `${env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/team/accept-invite/${token}`;
 }
@@ -79,6 +82,7 @@ interface EmitirParams {
   orgName: string;
   email: string;
   role: Role;
+  inboxPermissions?: InboxPermissions;
   interfaceSettings?: InterfaceSettings;
   inviterId: string;
   inviterName: string;
@@ -131,6 +135,7 @@ export async function emitirConvite(
     email,
     role: params.role,
     interfaceSettings,
+    inboxPermissions: params.inboxPermissions,
     organizationId: params.organizationId,
     orgName: params.orgName,
     inviterId: params.inviterId,
@@ -146,6 +151,7 @@ export async function emitirConvite(
     email,
     role: params.role,
     interface_settings: interfaceSettings,
+    inbox_permissions: lerPermissoesInbox(params.inboxPermissions),
     invited_by: params.inviterId,
     inviter_name: params.inviterName,
     email_dispatched: emitido.email_dispatched,
@@ -202,6 +208,7 @@ export async function reenviarConvite(
     email: convite.email,
     role: convite.role,
     interfaceSettings: convite.interface_settings,
+    inboxPermissions: convite.inbox_permissions,
     organizationId: convite.organization_id,
     orgName: params.orgName,
     inviterId: params.actorId,

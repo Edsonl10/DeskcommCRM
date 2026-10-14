@@ -33,6 +33,17 @@ function linha(over: Record<string, unknown> = {}) {
 }
 
 describe("decidirElegibilidadeDaConversaViaSupabase", () => {
+  it.each([
+    [null, null, true, "gate_aberto"],
+    [AGORA.toISOString(), null, false, "conversa_de_humano"],
+    [null, "infinity", false, "conversa_silenciada"],
+  ])("aceite %s e silêncio %s definem o comando, independente da indicação", async (aceite, silencio, permite, motivo) => {
+    const d = await decidirElegibilidadeDaConversaViaSupabase(adminStub({
+      data: linha({ assignee_kind: "user", human_accepted_at: aceite, bot_silenced_until: silencio }), error: null,
+    }), { organizationId: ORG, conversationId: CONV, agora: AGORA, ttlMs: TTL });
+    expect(d).toMatchObject({ permite, motivo });
+  });
+
   it("canal 'open' (sem ai_gate): permite mesmo sem autorização", async () => {
     const d = await decidirElegibilidadeDaConversaViaSupabase(adminStub({ data: linha(), error: null }), {
       organizationId: ORG,
