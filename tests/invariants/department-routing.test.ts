@@ -39,6 +39,8 @@ beforeEach(async () => {
   await q("delete from department_members where organization_id=$1",[org]);
   await q("delete from channel_routing_policies where organization_id=$1",[org]);
   await q("update user_organizations set revoked_at=null where organization_id=$1",[org]);
+  // O índice de padrão ativo é imediato: retire o anterior antes de trocar.
+  await q("update departments set is_default=false where organization_id=$1",[org]);
   await q("update departments set is_active=true,distribution_method='round_robin',only_online=true,contact_stickiness=false,schedule='{}',is_default=(id=$2) where organization_id=$1",[org,department]);
   for (const user of [ana,bruno]) {
     await q("insert into department_members(organization_id,department_id,user_id) values($1,$2,$3)",[org,department,user]);
