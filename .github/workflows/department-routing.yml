@@ -30,3 +30,5 @@ jobs:
         run: pnpm test:db tests/invariants/department-routing.test.ts
         env:
           TEST_DB_IMAGE: pgvector/pgvector:pg17
+          CONFERENCIA_KIT_RELEASE: ${{ vars.CONFERENCIA_KIT_RELEASE }}
+          GH_TOKEN: ${{ github.token }}
