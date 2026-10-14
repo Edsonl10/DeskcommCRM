@@ -446,9 +446,15 @@ test.describe("ciclo de vida do convite (ponta a ponta + adversarial)", () => {
     const page = await ctx.newPage();
     await loginAdminTotp(page);
     await page.goto("/app/team");
+    // Membros e convites carregam em paralelo. A tabela de membros pode
+    // empurrar o convite para baixo depois que seu menu já foi aberto.
+    await expect(page.getByRole("row", { name: new RegExp(base.users.admin!.email, "i") })).toBeVisible();
     const row = page.getByRole("row", { name: new RegExp(FRESH_EMAIL, "i") });
+    await row.scrollIntoViewIfNeeded();
     await row.getByRole("button", { name: /Ações/i }).click();
-    await page.getByRole("menuitem", { name: /Reenviar/i }).click();
+    const reenviar = page.getByRole("menuitem", { name: /Reenviar/i });
+    await expect(reenviar).toBeInViewport({ ratio: 1 });
+    await reenviar.click();
     await expect(page.getByText(/Convite reenviado/i)).toBeVisible();
 
     const { data } = await svc
@@ -475,9 +481,13 @@ test.describe("ciclo de vida do convite (ponta a ponta + adversarial)", () => {
     expect(linkAntes).toContain("/team/accept-invite/");
 
     await adminPage.goto("/app/team");
+    await expect(adminPage.getByRole("row", { name: new RegExp(base.users.admin!.email, "i") })).toBeVisible();
     const row = adminPage.getByRole("row", { name: new RegExp(FRESH_EMAIL, "i") });
+    await row.scrollIntoViewIfNeeded();
     await row.getByRole("button", { name: /Ações/i }).click();
-    await adminPage.getByRole("menuitem", { name: /Revogar/i }).click();
+    const revogar = adminPage.getByRole("menuitem", { name: /Revogar/i });
+    await expect(revogar).toBeInViewport({ ratio: 1 });
+    await revogar.click();
     await adminPage.getByRole("button", { name: /^Revogar$/ }).click();
     await expect(adminPage.getByText(/Convite revogado/i)).toBeVisible();
 
