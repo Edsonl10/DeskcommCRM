@@ -1,12 +1,14 @@
 # PROJECT_STATE
 
-## Em validação — atendimento centralizado na Equipe
+## Pronto para publicação — atendimento centralizado na Equipe
 - Pedido de 14/10/2026: retirar a distribuição em Configurações se duplicasse Equipe.
 - CONFIRMADO: os dois formulários escreviam mode, max_retries e backoff_seconds na mesma API. Responsáveis por canal e participantes do departamento são filtros complementares.
 - Todos os ajustes existentes de atendimento foram reunidos em Equipe → Atendimento; removidos o RoutingCard repetido e a entrada Distribuição de atendimento no hub de Configurações. O endereço antigo redireciona para a aba Atendimento.
 - Responsáveis por número, visibilidade do CRM, ajustes da IA e assinatura continuam acessíveis. APIs, dados, permissões e algoritmo de distribuição preservados.
 - Validação local: 41 testes relevantes passaram, typecheck e verificações de canal/papel passaram; lint completo terminou sem erros, com avisos preexistentes. A suíte completa no Windows foi interrompida após falhas de ferramentas/caminhos nas cercas; a validação completa e a prova visual serão feitas pelo CI Linux.
-- Publicação e instalação pendentes nesta revisão; a produção ainda não recebeu esta alteração.
+- Código `a15092f9c0fcb3d5fd5b9b0a4d05ea707d0362d0` validado no PR #14: verify completo em quatro partes (run 38639861760), invariantes PostgreSQL 17, build (38639861767), imagens AMD64/ARM64 (38639861748) e todas as seis partes E2E (38639861803) aprovados. Não houve falhas; 23 checks concluíram com sucesso e quatro passos condicionais foram ignorados. Registro posterior altera apenas este estado e a captura, sem mudar código executável ou testes.
+- Controle de regressão: reintroduzir a porta duplicada fez falhar exatamente 1 de 7 casos de navegação; restaurado o conserto, os 7 passaram. Evidência com dados fictícios em `evidence/comunidade-360/task10-routing-policies-desktop.png`, gerada pelo teste de roteamento por número no CI.
+- Publicação e instalação pendentes; a produção não recebeu esta alteração. A revisão automática rejeitou o acesso root via SSH por faltar autorização explícita de produção. Próximo passo: obter autorização específica para acesso administrativo, backup e instalação; depois integrar o PR #14 e publicar a versão compatível do CRM preservando configurações, dados e WhatsApp. Não contornar essa recusa por outro terminal ou ferramenta.
 - Destino: núcleo, pois a organização continua operando sem extensões.
 
 ## Integrado — atendimento sem limite de quantidade
