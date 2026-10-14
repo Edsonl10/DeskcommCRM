@@ -5,6 +5,9 @@ Capturas originais da bancada isolada, com dados fictícios, no run
 artifact `evidencia-parte-3` (11934640106), head
 `f59c9895ead04a4abdb5276bd36c83a4455326f0`.
 
+Código integrado pelo [PR #13](https://github.com/Edsonl10/DeskcommCRM/pull/13),
+sem diferenças de árvore entre esse head aprovado e o commit de integração.
+
 A spec `tests/e2e/roteamento-por-canal.spec.ts` configura departamentos e membros
 pela API autenticada, processa o worker real, confere os campos no banco e abre
 a fila do atendente. A transferência para o segundo departamento é feita pelo
