@@ -76,8 +76,8 @@ A paleta tem **dois temas desenhados independentemente**, não invertidos. Light
 | 50 | `#f5f4ef` | `--ds-text` — texto primary em dark |
 | 100 | `#e6e4dc` | Texto sobre surface escuro (alta hierarquia) |
 | 200 | `#bbb8ac` | Texto importante em dark |
-| 300 | `#8e8b7f` | `--ds-text-muted` — texto secundário |
-| 400 | `#605e54` | Placeholder, helper |
+| 300 | `#8e8b7f` | Neutro intermediário; texto secundário usa o papel semântico abaixo |
+| 400 | `#605e54` | Neutro intermediário; helpers usam o papel semântico abaixo |
 | 500 | `#444239` | Disabled |
 | 600 | `#33312a` | `--ds-border` — borders default |
 | 700 | `#272620` | `--ds-surface-elevated` — header, dropdown |
@@ -89,7 +89,12 @@ A paleta tem **dois temas desenhados independentemente**, não invertidos. Light
 - `bg`: `#161510` — página (NÃO `#000` nem `#0a0a0a`; warm-tinted)
 - `surface`: `#1d1c17` — cards
 - `surfaceElevated`: `#272620` — header, dropdown
-- `text`: `#f5f4ef` / `textMuted`: `#8e8b7f` / `border`: `#33312a`
+- `text`: `#f5f4ef` / `textMuted`: `#b9b6ab` / `textSubtle`: `#9d998e` / `border`: `#33312a`
+
+Os papéis de texto secundário e sutil são mais claros que as paradas 300/400
+da rampa neutra, para manter a leitura sobre as superfícies escuras. A conversa
+selecionada na Inbox usa a cor de destaque a 12% de opacidade, inclusive no hover,
+com indicador lateral, sem preencher a linha com uma parada clara da rampa.
 
 ## Estados (success / warning / error / info)
 

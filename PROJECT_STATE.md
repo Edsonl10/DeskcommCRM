@@ -1,5 +1,12 @@
 # PROJECT_STATE
 
+## Em preparação — legibilidade global e seleção no modo escuro
+- Pedido de 14/10/2026: clarear os textos cinza, aumentar fontes maiores em 10% e menores em 15% em todo o sistema, e substituir a seleção branca da Inbox escura por transparência discreta.
+- Implementação: escala global `--text-*` (+15% até 14px, +10% nos tamanhos maiores), utilitários arbitrários e fontes dos gráficos. Raiz em 16px; textos secundários escuros `#b9b6ab`/`#9d998e`; fundo selecionado semântico a 12% de opacidade no escuro, com espelho claro e indicador lateral.
+- Validação local: typecheck passou com limite de 8 GB; lint completo terminou sem erros (528 avisos existentes, arquivos funcionais alterados sem avisos); 51 testes relacionados passaram. Compilação Tailwind e navegador confirmaram 11px → 12,65px, 12px → 13,8px, 14px → 16,1px e 20px → 22px. Componente real da Inbox conferido em ambos os temas e em largura de celular, com conversas fictícias e sem transbordo horizontal.
+- Evidências locais do componente em `evidence/legibilidade-global/`; não são conferência do aplicativo completo com banco fresco. E2E completo, suíte unitária integral e build ficam a cargo do CI; não foram declarados aprovados localmente.
+- Produção ainda usa a imagem anterior. A revisão automática bloqueou abrir o painel Hostinger por falta de autorização explícita para acesso à infraestrutura. Próximo passo: concluir os checks da branch e, após autorização do usuário, publicar a imagem do fork e instalar somente o app na VPS, com backup e pins por digest.
+
 ## Em produção — Inbox por aceite e permissões individuais
 - PR #6 integrado e publicado em 13/10/2026 (14/10 em UTC), código `864bd67ee6d525416ff6bcdc666de96477fd25c3`. App, worker e scheduler saudáveis, com as imagens do fork fixadas por digest. Ativos, Aguardando, IA, Todos e Fechadas; histórico arquivado incorporado sem exclusão.
 - Permissões `all`, `ai`, `closed` separadas do perfil visual, editáveis em Personalizar áreas visíveis na Equipe e nos convites. Gestores/admin têm visão global; supervisores sem concessão veem suas conversas.

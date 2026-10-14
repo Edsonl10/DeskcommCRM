@@ -38,6 +38,14 @@ Itálico disponível em ambos. Não há 500/600 — quando precisar de "semibold
 
 ## Escala tipográfica
 
+Na interface operacional, `app/globals.css` aplica o ajuste global de legibilidade:
+as fontes de até 14px crescem 15%, e as maiores crescem 10%. Por exemplo, `text-sm`
+passa de 14px para 16,1px, `text-xs` de 12px para 13,8px e `text-xl` de 20px para
+22px. Os utilitários arbitrários, como `text-[11px]`, acompanham o ajuste, e os
+gráficos consomem os mesmos tokens. O tamanho da raiz permanece igual, preservando
+os espaçamentos e as alturas em rem. A tabela abaixo registra a escala de referência
+anterior ao ajuste; a escala executada pode ser conferida nos tokens `--text-*` do CSS.
+
 Modular ratio: **1.250 (minor third)**, com ajustes manuais em alguns stops para alinhar pixel-grid.
 
 | Token | Tamanho | Line-height | Peso | Tracking | Uso |
