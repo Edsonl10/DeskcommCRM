@@ -115,6 +115,17 @@ async function alturaDoCard(page: Page, nodeId: string): Promise<number> {
   return page.locator(`[data-testid="node-card-${nodeId}"]`).evaluate((el) => el.getBoundingClientRect().height);
 }
 
+/** Com fontes maiores, editar as regras pode rolar a página. O ponto vazio
+ * precisa ficar abaixo da barra fixa, que cobre o topo do canvas nessa posição. */
+async function fecharPainelPeloCanvas(page: Page): Promise<void> {
+  const pane = page.locator(".react-flow__pane");
+  const box = await pane.boundingBox();
+  const header = await page.locator("header").first().boundingBox();
+  if (!box) throw new Error("canvas sem área visível");
+  const y = Math.max(20, (header ? header.y + header.height : 0) + 24 - box.y);
+  await pane.click({ position: { x: 20, y } });
+}
+
 test.describe("condição com várias regras — uma bolinha por regra", () => {
   test.use({ viewport: { width: 1600, height: 1000 } });
   test.setTimeout(420_000);
@@ -205,7 +216,7 @@ test.describe("condição com várias regras — uma bolinha por regra", () => {
     await painel.getByRole("button", { name: "Condição", exact: true }).click();
     await preencherRegra(1, "Tem a etiqueta atrasado", "atrasado");
 
-    await page.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
+    await fecharPainelPeloCanvas(page);
     await expect(page.getByTestId("node-config-sheet")).toHaveCount(0);
 
     // ─── 4. A QUEIXA, respondida na tela ─────────────────────────────────
@@ -232,7 +243,7 @@ test.describe("condição com várias regras — uma bolinha por regra", () => {
     for (let i = 2; i < 5; i++) {
       await painel.getByRole("button", { name: "Condição", exact: true }).click();
     }
-    await page.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
+    await fecharPainelPeloCanvas(page);
     await expect(saidas).toHaveCount(6); // 5 regras + "nenhuma delas"
     const alturaCom5Regras = await alturaDoCard(page, condicaoId);
     console.info(
@@ -250,7 +261,7 @@ test.describe("condição com várias regras — uma bolinha por regra", () => {
     for (let i = 0; i < 3; i++) {
       await painel.getByRole("button", { name: "Remover condição" }).last().click();
     }
-    await page.locator(".react-flow__pane").click({ position: { x: 20, y: 20 } });
+    await fecharPainelPeloCanvas(page);
     await expect(saidas).toHaveCount(3);
 
     // ─── 6. uma aresta por saída, para destinos diferentes ───────────────

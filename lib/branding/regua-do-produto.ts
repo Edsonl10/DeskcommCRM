@@ -55,6 +55,14 @@ export const REGUA_DO_PRODUTO: Regua = {
     ],
     tingidas: [
       {
+        chave: "--color-conversation-selected-soft",
+        fonte: {
+          tipo: "grau",
+          indice: 0,
+          alfa: 1,
+        },
+      },
+      {
         chave: "--color-accent-soft",
         fonte: {
           tipo: "grau",
@@ -319,4 +327,4 @@ export const REGUA_DO_PRODUTO: Regua = {
     },
     alfaDoSoft: 0.16,
   },
-} as const;
+};
