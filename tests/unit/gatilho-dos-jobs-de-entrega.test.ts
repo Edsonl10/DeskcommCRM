@@ -64,6 +64,10 @@ const DIR = join(process.cwd(), ".github/workflows");
  * que desliga um job de entrega fica visível em code review.
  */
 const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string }> = {
+  "department-routing.yml::department-routing": {
+    condicao: null,
+    efeito: "Valida entrada, reserva concorrente, regras e fila pessoal de cada departamento em banco isolado.",
+  },
   // --- a cadeia que leva o conserto até a VPS ---------------------------------
   "release.yml::abrir-pr-de-release": {
     condicao: "github.event_name == 'workflow_dispatch'",
