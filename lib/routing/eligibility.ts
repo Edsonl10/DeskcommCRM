@@ -2,7 +2,7 @@
  * Elegibilidade de atendente para roteamento (spec 13 §5).
  *
  * Elegível = disponível ∧ dentro do horário (schedule tz-aware) ∧ abaixo da
- * capacidade. Lógica PURA e testável — o worker de G5-02 (cron TS) importa daqui
+ * capacidade, quando configurado um limite positivo. Lógica PURA e testável — o worker de G5-02 (cron TS) importa daqui
  * e passa o `now` + a carga atual (conversas abertas atribuídas). Sem acesso a
  * DB, sem relógio implícito: o `now` é sempre injetado (teste usa clock mockado).
  *
@@ -119,17 +119,23 @@ export function estaDePlantao(
 
 export interface AttendantEligibilityInput {
   isAvailable: boolean;
+  /** 0 = sem limite de conversas; valores positivos limitam a carga. */
   capacity: number;
   /** Conversas abertas atribuídas ao atendente (carga atual). */
   currentLoad: number;
   schedule?: Pick<AvailabilitySchedule, "timezone" | "windows"> | null;
 }
 
+/** Capacidade zero desativa somente o limite por quantidade. */
+export function isAtCapacity(currentLoad: number, capacity: number): boolean {
+  return capacity > 0 && currentLoad >= capacity;
+}
+
 /** disponível ∧ com folga (carga < capacidade) ∧ dentro do horário (§5). */
 export function isAttendantEligible(input: AttendantEligibilityInput, now: Date): boolean {
   return (
     input.isAvailable &&
-    input.currentLoad < input.capacity &&
+    !isAtCapacity(input.currentLoad, input.capacity) &&
     isWithinSchedule(input.schedule ?? null, now)
   );
 }

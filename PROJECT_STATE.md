@@ -1,5 +1,12 @@
 # PROJECT_STATE
 
+## Em validação — atendimento sem limite de quantidade
+- Pedido de 14/10/2026: retirar o limite de conversas dos atendentes.
+- Capacidade zero significa Sem limite na tela Equipe → Atendimento, no carregador de elegíveis e na reserva atômica do banco. Disponibilidade, jornada, responsáveis por canal e limites positivos continuam vigentes.
+- Migration exclusiva 9004 e apêndice idempotente no baseline preservam os valores existentes; a ativação na organização deve ocorrer depois de app e worker compatíveis.
+- Diagnóstico confirmado em produção: responsáveis do Comercial com disponibilidade desligada; eventos aguardam por nenhum elegível. O fluxo de entrada também não atribui o departamento padrão — problema separado ainda sem correção neste pedido.
+- Próximo passo: concluir testes e publicação das imagens, validar backup, atualizar app/worker/scheduler, ativar Sem limite na equipe e conferir pela tela.
+
 ## Em produção — legibilidade global e seleção no modo escuro
 - Pedido de 14/10/2026: clarear os textos cinza, aumentar fontes maiores em 10% e menores em 15% em todo o sistema, e substituir a seleção branca da Inbox escura por transparência discreta.
 - Implementação: escala global `--text-*` (+15% até 14px, +10% nos tamanhos maiores), utilitários arbitrários e fontes dos gráficos. Raiz em 16px; textos secundários escuros `#b9b6ab`/`#9d998e`; fundo selecionado semântico a 12% de opacidade no escuro, com espelho claro e indicador lateral.

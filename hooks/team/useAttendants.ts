@@ -13,7 +13,7 @@ export interface AttendantAvailability {
   name: string | null;
   email: string | null;
   is_available: boolean;
-  /** null = atendente ainda sem linha de availability (nunca configurado). */
+  /** 0 = sem limite; null = disponibilidade ainda não configurada. */
   capacity: number | null;
   schedule: AvailabilitySchedule;
   updated_at: string | null;

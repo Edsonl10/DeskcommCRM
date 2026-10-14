@@ -231,7 +231,8 @@ export type AvailabilitySchedule = z.infer<typeof availabilityScheduleSchema>;
 export const availabilityPatchSchema = z
   .object({
     is_available: z.boolean(),
-    capacity: z.number().int().min(1).max(1000),
+    // 0 = sem limite; mantém os limites positivos já configurados.
+    capacity: z.number().int().min(0).max(1000),
     schedule: availabilityScheduleSchema,
   })
   .partial()

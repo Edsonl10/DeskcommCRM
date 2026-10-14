@@ -29,6 +29,14 @@ beforeEach(async () => {
 });
 
 describe("roteamento instalado e transacional", () => {
+  it("sem limite permite novas atribuições com carga existente; desligado continua bloqueando", async () => {
+    await query("update attendant_availability set capacity=0 where organization_id=$1 and user_id=$2", [org, ana]);
+    expect(await claim()).toBe("assigned");
+    expect(await claim(second)).toBe("assigned");
+    await query("update conversations set assigned_to_user_id=null,assignee_kind=null,status='open' where organization_id=$1 and id=$2", [org, second]);
+    await query("update attendant_availability set is_available=false where organization_id=$1 and user_id=$2", [org, ana]);
+    expect(await claim(second)).toBe("capacity_changed");
+  });
   it("ausência de policy usa legado; CAS de replay conserva dono", async () => {
     expect(await claim()).toBe("assigned"); expect(await claim()).toBe("already_assigned");
     const r = await query("select assignee_kind,assigned_to_user_id,assigned_to_user_name,status from conversations where organization_id=$1 and id=$2", [org, conv]);

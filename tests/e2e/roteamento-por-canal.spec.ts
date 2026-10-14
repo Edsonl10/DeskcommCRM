@@ -353,6 +353,29 @@ test("configura responsáveis por canal e o cron distribui sem misturar números
       fullPage: true,
     });
 
+    // Ana já atingiu o limite 1. O gestor remove o limite pela tela e o
+    // MESMO cron distribui outra conversa, provando UI → API → worker → RPC.
+    await page.goto("/app/team");
+    await page.getByRole("tab", { name: "Atendimento", exact: true }).click();
+    const semLimite = page.getByRole("switch", { name: "Sem limite — Ana Canal Norte", exact: true });
+    await expect(semLimite).toBeVisible();
+    await semLimite.check();
+    await expect(semLimite).toBeChecked();
+    await expect(page.getByRole("spinbutton", { name: "Capacidade de Ana Canal Norte", exact: true })).toHaveCount(0);
+    await page.reload();
+    await page.getByRole("tab", { name: "Atendimento", exact: true }).click();
+    await expect(semLimite).toBeChecked();
+    await page.screenshot({ path: `${evidence}/atendimento-sem-limite.png`, fullPage: true });
+    const extra = await conversation(north, "Cliente Sem Limite", "+5511999000033");
+    await deferForeignRoutingDue(org);
+    const extraDrain = await drain(page);
+    expect(extraDrain.errors).toEqual([]);
+    expect(extraDrain.outcomes.assigned).toBe(1);
+    const extraAssigned = await db.from("conversations").select("assigned_to_user_id")
+      .eq("organization_id", org).eq("id", extra).single();
+    if (extraAssigned.error) throw extraAssigned.error;
+    expect(extraAssigned.data.assigned_to_user_id).toBe(ana.id);
+
     expect(receiverHits.some((hit) => hit.includes("sendText"))).toBe(false);
   } finally {
     await context?.close();

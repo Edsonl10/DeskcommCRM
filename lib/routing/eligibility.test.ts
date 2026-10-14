@@ -59,6 +59,13 @@ describe("isAttendantEligible (§5: disponível ∧ horário ∧ folga)", () => 
     expect(isAttendantEligible({ ...base, currentLoad: 6 }, MON_1400_BRT)).toBe(false);
   });
 
+  it("sem limite aceita carga alta, mas continua respeitando disponibilidade e horário", () => {
+    const semLimite = { ...base, capacity: 0, currentLoad: 10_000 };
+    expect(isAttendantEligible(semLimite, MON_1400_BRT)).toBe(true);
+    expect(isAttendantEligible({ ...semLimite, isAvailable: false }, MON_1400_BRT)).toBe(false);
+    expect(isAttendantEligible(semLimite, MON_1900_BRT)).toBe(false);
+  });
+
   it("offline (is_available=false), mesmo com folga e no horário ⇒ NÃO elegível", () => {
     expect(isAttendantEligible({ ...base, isAvailable: false }, MON_1400_BRT)).toBe(false);
   });

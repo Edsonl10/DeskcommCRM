@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { decideRouting, type RoutingCandidate } from "./decide";
 import { isAttendantEligible } from "./eligibility";
-import { routingConfigSchema } from "@/lib/schemas/routing";
+import { availabilityPatchSchema, routingConfigSchema } from "@/lib/schemas/routing";
 
 /**
  * G5-04 acceptance 4: quando o manager altera modo/capacidade pelo painel, o
@@ -25,6 +25,13 @@ function workerDecisionForMode(mode: string, eligibles: RoutingCandidate[]) {
 }
 
 describe("config do painel → comportamento do worker (G5-04 acceptance 4)", () => {
+  it("o painel aceita sem limite, preserva limites positivos e recusa valores inválidos", () => {
+    expect(availabilityPatchSchema.parse({ capacity: 0 }).capacity).toBe(0);
+    expect(availabilityPatchSchema.parse({ capacity: 5 }).capacity).toBe(5);
+    for (const capacity of [-1, 0.5, 1001, null]) {
+      expect(availabilityPatchSchema.safeParse({ capacity }).success).toBe(false);
+    }
+  });
   it("mode='manual' (default do painel) ⇒ worker NÃO atribui", () => {
     const action = workerDecisionForMode("manual", [cand("agent-a")]);
     expect(action).toEqual({ kind: "skip", reason: "manual_mode" });
