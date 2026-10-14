@@ -834,6 +834,12 @@
     text-rendering: optimizeLegibility;
   }
 
+  /* Os eixos dos gráficos usam um cinza fixo por padrão no Recharts.
+     Acompanham os mesmos textos secundários do restante da interface. */
+  .recharts-cartesian-axis-tick-value {
+    fill: var(--color-text-muted);
+  }
+
   code,
   kbd,
   pre,
