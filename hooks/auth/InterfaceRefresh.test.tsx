@@ -13,6 +13,14 @@ const fetcher = vi.fn();
 beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal("fetch", fetcher); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const response = (org: string, preset = "simplificada") => ({ ok: true, json: async () => ({ data: { organization_id: org, signature: JSON.stringify({ preset }) } }) });
+it.each([401, 403])("perda da sessão ou vínculo (%s) também remove os dados do cache", async (status) => {
+  fetcher.mockResolvedValue({ ok: false, status });
+  render(<InterfaceRefresh userId="user" org={a} support={false} />);
+  await act(async () => { mocks.realtime.mock.lastCall![0].onChange({}); });
+  expect(queryMocks.cancel).toHaveBeenCalledOnce();
+  expect(queryMocks.clear).toHaveBeenCalledOnce();
+  expect(mocks.refresh).toHaveBeenCalledOnce();
+});
 it("revogação de permissão cancela respostas antigas e limpa os dados antes do refresh", async () => {
   fetcher.mockResolvedValue({ ok: true, json: async () => ({ data: {
     organization_id: "a", signature: JSON.stringify({preset:"completa"}),

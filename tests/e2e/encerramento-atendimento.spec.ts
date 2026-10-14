@@ -238,7 +238,7 @@ test("fechar canal preserva demanda, desfecho explícito e nova entrada volta à
     // pedidos que nunca são cancelados — causa não explicada, issue #2399.
     // O prazo explícito ainda reprova o painel que nunca atualiza.
     await expect(panel.getByText("Demanda vigente neste canal")).toBeVisible(PRAZO_DA_RECARGA);
-    await page.goto("/app/inbox?filter=unassigned");
+    await page.goto("/app/inbox?filter=all");
     await page.getByText("Voltei para novo atendimento", { exact: true }).first().click();
     await expect(
       page.getByTestId("inbox-demandas").getByText("Demanda vigente neste canal"),

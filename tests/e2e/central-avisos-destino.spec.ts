@@ -92,7 +92,8 @@ test("agent abre contexto, volta ainda aberto, resolve e reabre; RLS e menu ocul
   await expect(navigation.getByRole("link", { name: "Inbox", exact: true })).toHaveCount(0);
   for (const prefix of ["Conversa", "Negócio"]) {
     await expect(row(page, `${prefix} própria`).getByRole("link")).toBeVisible();
-    await expect(row(page, `${prefix} sem responsável`).getByRole("link")).toBeVisible();
+    if (prefix === "Negócio") await expect(row(page, `${prefix} sem responsável`).getByRole("link")).toBeVisible();
+    else await expect(row(page, `${prefix} sem responsável`).getByRole("link")).toHaveCount(0);
     for (const suffix of ["outro atendente", "outra organização"]) await expect(row(page, `${prefix} ${suffix}`).getByRole("link")).toHaveCount(0);
   }
   await expect(row(page, "Referência removida").getByRole("link")).toHaveCount(0);

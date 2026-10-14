@@ -134,6 +134,7 @@ test("org única oferece criação, responsável aceita e A→B→A não mistura
     await conversation(orgB, `Cliente B ${suffix}`);
     await page.getByRole("link", { name: "Voltar ao aplicativo" }).click();
     await page.waitForURL("**/app/inbox", { waitUntil: "load" });
+    await page.getByRole("tab", { name: /^Todos/ }).click();
     await expect(page.locator("[data-conversation-id]").getByText(`Cliente A ${suffix}`, { exact: true })).toBeVisible();
     const cookieBeforeFailure = (await page.context().cookies()).find(cookie => cookie.name === "active_org")?.value;
     await page.route("**/app/**", async route => {
@@ -172,6 +173,7 @@ test("org única oferece criação, responsável aceita e A→B→A não mistura
       } finally { release(); }
       await navigation;
       await page.waitForURL("**/app/inbox", { waitUntil: "load" });
+      await page.getByRole("tab", { name: /^Todos/ }).click();
       await page.unroute("**/app/**");
       await expect(page.getByTestId("tenant-switcher")).toContainText(`Empresa ${own} ${suffix}`);
       expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__oldDocument)).toBeUndefined();
@@ -187,6 +189,7 @@ test("org única oferece criação, responsável aceita e A→B→A não mistura
     await guest.goto(new URL(link).pathname);
     await guest.getByRole("button", { name: "Aceitar convite", exact: true }).click();
     await expect(guest.getByTestId("tenant-switcher")).toContainText(`Empresa B ${suffix}`);
+    await guest.getByRole("tab", { name: /^Todos/ }).click();
     await expect(guest.locator("[data-conversation-id]").getByText(`Cliente B ${suffix}`, { exact: true })).toBeVisible();
     const membership = await db.from("user_organizations").select("invited_by,role").eq("organization_id", orgB).eq("user_id", users[1]).single();
     expect(membership.data).toEqual({ invited_by: users[0], role: "admin" });

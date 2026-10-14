@@ -708,6 +708,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
                 dono={{
                   userId: selectedConversation.assigned_to_user_id ?? null,
                   nome: selectedConversation.assigned_to_user_name ?? null,
+                  aceito: selectedConversation.human_accepted_at != null,
                 }}
                 contatoId={selectedConversation.contacts?.id ?? null}
               />
@@ -739,7 +740,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
               conversationId={selectedConversation.id}
               blockedReason={supportReadonly ? "Acompanhamento somente leitura" : blockedReason}
               janelaFechada={motivoDaJanela}
-              disabled={selectedConversation.status === "closed" || (selectedConversation.assigned_to_user_id != null && selectedConversation.assigned_to_user_id !== user.id && activeOrg?.role !== "manager" && activeOrg?.role !== "admin")}
+              disabled={["closed", "archived", "resolved"].includes(selectedConversation.status ?? "") || (selectedConversation.assigned_to_user_id != null && selectedConversation.assigned_to_user_id !== user.id && activeOrg?.role !== "manager" && activeOrg?.role !== "admin")}
               contactName={selectedConversation.contacts?.name ?? null}
               respondendo={respondendo}
               onCancelarResposta={() => setRespondendo(null)}

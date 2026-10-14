@@ -227,7 +227,7 @@ describe("grupo inbox/conversations (read agent 200, write viewer 403)", () => {
     // por ausência de import não se distingue de 403 por RBAC. Aqui o agent tem
     // de PASSAR do gate; o que acontece depois (404 da conversa inexistente no
     // stub) não é assunto deste caso.
-    session("agent");
+    session("agent", { conversations: null });
     const { POST } = await import("@/app/api/v1/conversations/[id]/media/route");
     const res = await POST(
       req("/api/v1/conversations/c1/media", { method: "POST" }),

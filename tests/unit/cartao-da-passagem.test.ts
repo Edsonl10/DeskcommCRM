@@ -67,6 +67,12 @@ function passagem(over: Partial<PassagemDaConversa> = {}): PassagemDaConversa {
 
 const NINGUEM_ATENDE: QuemOlha = { usuarioId: "u-eu", donoId: null, donoNome: null };
 
+it("conversa direcionada a mim ainda convida ao aceite; leitura de outro responsável não", () => {
+  const quem = { usuarioId: "u-eu", donoId: "u-eu", donoNome: "Eu", aceito: false };
+  expect(montarCartoesDaPassagem([passagem()], quem)[0]!.acao.tipo).toBe("assumir_e_responder");
+  expect(montarCartoesDaPassagem([passagem()], { ...quem, donoId: "u-outro" })[0]!.acao.tipo).toBe("avisa_quem_atende");
+});
+
 describe("cartão da passagem — o estado do episódio", () => {
   it("CONTROLE DE VACUIDADE: lista vazia devolve lista vazia, e não um cartão em branco", () => {
     // Sem isto, um bug que devolvesse `[{}]` para entrada vazia passaria em

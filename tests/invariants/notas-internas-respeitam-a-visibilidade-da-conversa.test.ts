@@ -114,12 +114,12 @@ describe("0478 — a tabela está na publicação (F1)", () => {
     expect(linha).toBe("1");
   });
 
-  it("a policy da nota cita fn_can_view_conversation", () => {
+  it("a policy da nota usa a autorização da conversa do Inbox", () => {
     const out = sql(`
       select count(*) from pg_policies
       where schemaname = 'public' and tablename = 'conversation_notes'
         and policyname = 'conversation_notes_select'
-        and qual like '%fn_can_view_conversation%';
+        and qual like '%fn_can_read_inbox%';
     `);
     const linha = out.trim().split("\n").pop() ?? "";
     expect(linha).toBe("1");

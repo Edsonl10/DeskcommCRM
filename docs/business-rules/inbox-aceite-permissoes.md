@@ -6,6 +6,8 @@ IA tem precedência enquanto um agente publicado pode responder, inclusive com r
 
 A disponibilidade considera o canal da conversa, roteador, agente já selecionado ou campanha de origem. Agentes pausados e modo assistido não contam como robô respondendo. O motor e o worker legado usam o aceite, além das travas de contato e silêncio, para distinguir indicação de atendimento humano.
 
+Devolver à IA mantém o responsável indicado e limpa o aceite. O cartão da passagem continua aberto após distribuição/transferência e oferece Assumir ao responsável indicado; somente um evento de aceite reconhece o briefing e resolve o aviso humano.
+
 `user_organizations.inbox_permissions` contém `all`, `ai`, `closed`, inicialmente falsos. Gestores e administradores têm visão global implícita. Supervisão de departamento e `organizations.settings.visibility_mode` não concedem leitura global de conversas. A configuração visual da navegação é independente. As permissões são editadas no cadastro de Equipe em Personalizar áreas visíveis e acompanham o convite assinado; o aceite é atômico e replays não alteram permissões posteriores.
 
 Todos inclui todas as conversas em andamento, inclusive IA. A permissão IA expande especificamente a aba IA; a permissão Fechadas expande o histórico. Fechadas inclui os estados `closed`, `archived` e `resolved`. Não há remoção de histórico. Links `mine`, `unassigned` e `archived` são normalizados para `active`, `waiting` e `closed`.

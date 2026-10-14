@@ -48,6 +48,14 @@ export function InterfaceRefresh({
         pending.current = false;
         try {
           const response = await fetch("/api/v1/auth/interface", { cache: "no-store" });
+          if (generation !== epoch.current) return;
+          if (response.status === 401 || response.status === 403) {
+            await qc.cancelQueries();
+            if (generation !== epoch.current) return;
+            qc.clear();
+            router.refresh();
+            return;
+          }
           if (response.ok) {
             const result = await response.json();
             if (generation !== epoch.current) return;

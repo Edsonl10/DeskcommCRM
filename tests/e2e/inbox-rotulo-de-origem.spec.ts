@@ -150,6 +150,7 @@ test.describe("Inbox — o balão diz de onde saiu a mensagem", () => {
         organization_id: creds.org_id,
         contact_id: contatoId,
         channel_session_id: sessaoId,
+        assigned_to_user_id: creds.users.agent!.id,
         status: "open",
         last_message_at: new Date().toISOString(),
         last_inbound_at: new Date().toISOString(),

@@ -50968,7 +50968,8 @@ begin
      or new.service_revision is distinct from old.service_revision
      or new.last_handoff_at is distinct from old.last_handoff_at
      or new.status in ('closed','archived','resolved')
-     or (old.bot_silenced_until is not null and new.bot_silenced_until is null) then
+     or (old.bot_silenced_until is not null and new.bot_silenced_until is null)
+     or (old.assignee_kind = 'user' and new.assignee_kind is null and new.bot_silenced_until is null) then
     new.human_accepted_at := null;
   end if;
   return new;
@@ -50977,6 +50978,22 @@ revoke all on function public.fn_reset_human_acceptance() from public, anon, aut
 drop trigger if exists trg_reset_human_acceptance on public.conversations;
 create trigger trg_reset_human_acceptance before insert or update on public.conversations
 for each row execute function public.fn_reset_human_acceptance();
+
+-- Direcionamento e transferência não reconhecem o briefing antes do aceite.
+create or replace function public.fn_passagem_reconhecida() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if new.to_user_id is null or new.reason <> 'claim' then return new; end if;
+  if not exists (select 1 from public.conversations c where c.id = new.conversation_id
+    and c.organization_id = new.organization_id and c.assigned_to_user_id = new.to_user_id) then return new; end if;
+  update public.passagens_de_atendimento set reconhecido_por = new.to_user_id, reconhecido_em = now()
+    where organization_id = new.organization_id and conversation_id = new.conversation_id and reconhecido_em is null;
+  update public.agent_inbox_items set status = 'resolved', resolved_at = now()
+    where organization_id = new.organization_id and kind = 'handoff' and ref_kind = 'conversation'
+      and ref_id = new.conversation_id and status = 'open';
+  return new;
+end $$;
+revoke all on function public.fn_passagem_reconhecida() from public, anon, authenticated;
 
 drop function if exists public.fn_accept_inbox_invite(uuid,uuid,text,uuid,timestamptz,timestamptz,jsonb,jsonb);
 create or replace function public.fn_accept_inbox_invite(
