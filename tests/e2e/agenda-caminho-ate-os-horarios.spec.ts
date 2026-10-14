@@ -170,7 +170,7 @@ test("o selo de plantão distingue de plantão, fora do horário e desligado", a
 
   // ── 1. DESLIGADO ─────────────────────────────────────────────────────────
   // A decisão de gente vence tudo: com a chave desligada não importa jornada.
-  const chave = linha.getByRole("switch");
+  const chave = linha.getByRole("switch", { name: /^Disponibilidade de / });
   if (await chave.isChecked()) await chave.click();
   await expect(linha.getByText("Desligado", { exact: true })).toBeVisible({ timeout: 15_000 });
 
@@ -197,7 +197,7 @@ test("o selo de plantão distingue de plantão, fora do horário e desligado", a
     "fora da jornada o selo tem de dizer isso, e não se confundir com desligado",
   ).toBeVisible({ timeout: 15_000 });
   await expect(
-    linha.getByRole("switch"),
+    chave,
     "a chave foi DESLIGADA por estar fora do horário — ela é a decisão da pessoa, " +
       "e sair da janela não pode mexer nela",
   ).toBeChecked();
