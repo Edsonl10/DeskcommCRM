@@ -29,6 +29,46 @@ function fixture(over: Record<string, unknown> = {}) {
 const scope = { kind: "conversation_channel", channelSessionId: "channel" } as const;
 const now = new Date("2026-09-06T15:00:00Z");
 describe("elegibilidade com origem explícita", () => {
+  it("o setor define os participantes, mesmo quando o número tem outra política", async () => {
+    const { db, filters } = fixture({
+      departments: { only_online: true, schedule: {} },
+      department_members: [{ user_id: "ana" }],
+      channel_routing_policies: { id: "policy" },
+    });
+    expect(await loadEligibleAttendants(db, "org", now, {
+      kind: "conversation_department", channelSessionId: "channel", departmentId: "financeiro",
+    })).toMatchObject([{ userId: "ana" }]);
+    expect(filters.some(([table]) => table === "channel_routing_policies")).toBe(false);
+    expect(filters).toContainEqual(["department_members", "receives_auto_distribution", true]);
+    expect(filters).toContainEqual(["conversation_assignment_events", "conversations.assigned_department_id", "financeiro"]);
+  });
+  it("Só online desligado permite o membro offline, com a sua capacidade e jornada", async () => {
+    const { db, filters } = fixture({
+      departments: { only_online: false, schedule: {} }, department_members: [{ user_id: "ana" }],
+      attendant_availability: [{ user_id: "ana", capacity: 0, schedule: {}, is_available: false }],
+      conversations: Array.from({ length: 25 }, () => ({ assigned_to_user_id: "ana" })),
+    });
+    expect(await loadEligibleAttendants(db, "org", now, {
+      kind: "conversation_department", channelSessionId: "channel", departmentId: "financeiro",
+    })).toMatchObject([{ userId: "ana", currentLoad: 25 }]);
+    expect(filters).not.toContainEqual(["attendant_availability", "is_available", true]);
+  });
+  it("Só online ligado bloqueia offline; setor sem participantes não usa outro setor", async () => {
+    const departmentScope = { kind: "conversation_department", channelSessionId: "channel", departmentId: "financeiro" } as const;
+    const offline = fixture({ departments: { only_online: true, schedule: {} }, department_members: [{ user_id: "ana" }],
+      attendant_availability: [{ user_id: "ana", capacity: 0, schedule: {}, is_available: false }] });
+    expect(await loadEligibleAttendants(offline.db, "org", now, departmentScope)).toEqual([]);
+    const empty = fixture({ departments: { only_online: false, schedule: {} }, department_members: [] });
+    expect(await loadEligibleAttendants(empty.db, "org", now, departmentScope)).toEqual([]);
+  });
+  it("setor fora da jornada espera, mesmo com atendente elegível", async () => {
+    const { db } = fixture({ departments: { only_online: false, schedule: {
+      timezone: "UTC", windows: [{ dow: 1, start: "08:00", end: "09:00" }],
+    } }, department_members: [{ user_id: "ana" }] });
+    expect(await loadEligibleAttendants(db, "org", now, {
+      kind: "conversation_department", channelSessionId: "channel", departmentId: "financeiro",
+    })).toEqual([]);
+  });
   it("sem limite mantém a carga para o rodízio e permite receber acima do antigo teto", async () => {
     const { db } = fixture({
       attendant_availability: [{ user_id: "ana", capacity: 0, schedule: {} }],

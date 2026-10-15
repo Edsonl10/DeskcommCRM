@@ -10390,6 +10390,14 @@ export type Database = {
       }
 
 
+      fn_prepare_conversation_department: {
+        Args: { p_org: string; p_conversation: string }
+        Returns: string | null
+      }
+      fn_department_routing_claim: {
+        Args: { p_org: string; p_conversation: string; p_channel: string; p_department: string; p_candidates: Json; p_department_snapshot: Json }
+        Returns: Json
+      }
       fn_channel_routing_claim: {
         Args: {
           p_channel: string

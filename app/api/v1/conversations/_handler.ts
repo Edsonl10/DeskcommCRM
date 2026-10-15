@@ -95,7 +95,8 @@ const SELECT_COLS = `
   bot_silenced_until, last_handoff_at, last_handoff_reason,
   comando_da_conversa,
   inbox_state,
-  human_accepted_at,
+  human_accepted_at, assigned_department_id,
+  departments:assigned_department_id (id, name),
   contacts:contact_id (id, display_name, name, phone_number, is_anonymized, tags, is_blocked, is_personal, avatar_storage_path, force_human),
   channel_sessions:channel_session_id (phone_number, display_name, provider, social_platform:metadata->>social_platform)
 `;

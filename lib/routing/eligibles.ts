@@ -12,12 +12,13 @@
 import type { Json } from "@/lib/database.types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { isAttendantEligible, OPEN_LOAD_STATUSES } from "./eligibility";
+import { isAttendantEligible, isWithinSchedule, OPEN_LOAD_STATUSES } from "./eligibility";
 import type { RoutingCandidate } from "./decide";
 import { availabilityScheduleSchema } from "@/lib/schemas/routing";
 
 export type RoutingScope =
   | { kind: "conversation_channel"; channelSessionId: string }
+  | { kind: "conversation_department"; channelSessionId: string; departmentId: string }
   | { kind: "organization_summary" };
 export class InvalidRoutingChannel extends Error {
   constructor() { super("routing_channel_invalid"); }
@@ -31,11 +32,28 @@ export async function loadEligibleAttendants(
   scope: RoutingScope,
 ): Promise<RoutingCandidate[]> {
   let allowed: Set<string> | null = null;
-  if (scope.kind === "conversation_channel") {
+  let onlyOnline = true;
+  if (scope.kind !== "organization_summary") {
     const { data: channel, error: channelError } = await supabase.from("channel_sessions")
       .select("id").eq("organization_id", organizationId).eq("id", scope.channelSessionId).maybeSingle();
     if (channelError) throw new Error(channelError.message);
     if (!channel) throw new InvalidRoutingChannel();
+  }
+  if (scope.kind === "conversation_department") {
+    const { data: department, error } = await supabase.from("departments")
+      .select("only_online, schedule").eq("organization_id", organizationId)
+      .eq("id", scope.departmentId).eq("is_active", true).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!department) return [];
+    onlyOnline = department.only_online;
+    if (!isWithinSchedule(availabilityScheduleSchema.parse(department.schedule ?? {}), now)) return [];
+    const { data: departmentMembers, error: membersError } = await supabase.from("department_members")
+      .select("user_id").eq("organization_id", organizationId).eq("department_id", scope.departmentId)
+      .eq("receives_auto_distribution", true);
+    if (membersError) throw new Error(membersError.message);
+    allowed = new Set((departmentMembers ?? []).map((member: { user_id: string }) => member.user_id));
+    if (allowed.size === 0) return [];
+  } else if (scope.kind === "conversation_channel") {
     const { data: policy, error: policyError } = await supabase.from("channel_routing_policies")
       .select("id").eq("organization_id", organizationId).eq("channel_session_id", scope.channelSessionId).maybeSingle();
     if (policyError) throw new Error(policyError.message);
@@ -53,12 +71,22 @@ export async function loadEligibleAttendants(
     .in("role", ["agent", "manager", "admin"]);
   if (memberError) throw new Error(memberError.message);
   const active = new Set((members ?? []).map((r: { user_id: string }) => r.user_id));
-  const { data: avail, error: availabilityError } = await supabase
-    .from("attendant_availability").select("user_id, capacity, schedule")
-    .eq("organization_id", organizationId).eq("is_available", true);
+  let availability = supabase.from("attendant_availability")
+    .select("user_id, capacity, schedule, is_available").eq("organization_id", organizationId);
+  if (onlyOnline) availability = availability.eq("is_available", true);
+  const { data: avail, error: availabilityError } = await availability;
   if (availabilityError) throw new Error(availabilityError.message);
-  const rows = ((avail ?? []) as Array<{ user_id: string; capacity: number; schedule: unknown }>)
-    .filter((r) => active.has(r.user_id) && (allowed === null || allowed.has(r.user_id)));
+  const rows = ((avail ?? []) as Array<{ user_id: string; capacity: number; schedule: unknown; is_available?: boolean }>)
+    .filter((r) => active.has(r.user_id) && (allowed === null || allowed.has(r.user_id))
+      && (!onlyOnline || r.is_available !== false));
+  // Só online desligado: membros ainda sem disponibilidade usam o padrão da tela.
+  if (!onlyOnline && allowed) {
+    for (const userId of allowed) {
+      if (active.has(userId) && !rows.some((row) => row.user_id === userId)) {
+        rows.push({ user_id: userId, capacity: 5, schedule: {}, is_available: false });
+      }
+    }
+  }
   if (rows.length === 0) return [];
 
   const userIds = rows.map((r) => r.user_id);
@@ -88,6 +116,9 @@ export async function loadEligibleAttendants(
   if (scope.kind === "conversation_channel") {
     history = history.eq("conversations.organization_id", organizationId)
       .eq("conversations.channel_session_id", scope.channelSessionId);
+  } else if (scope.kind === "conversation_department") {
+    history = history.eq("conversations.organization_id", organizationId)
+      .eq("conversations.assigned_department_id", scope.departmentId);
   }
   const { data: assignEvents, error: historyError } = await history;
   if (historyError) throw new Error(historyError.message);

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Responsáveis por canal e conexão recuperável",
+    "title": "Distribuição por departamento ou canal e conexão recuperável",
     "subtitle": "Capacidade global, origem preservada e falha visível",
     "output": "roteamento-por-canal.html",
     "quality_profile": "standard"
@@ -34,35 +34,35 @@
       "lane": "humano",
       "col": 0,
       "type": "ui",
-      "label": "Equipe › Atendimento: responsáveis por número"
+      "label": "Equipe › Atendimento e Departamentos: responsáveis e regras"
     },
     {
       "id": "policy",
       "lane": "db",
       "col": 1,
       "type": "database",
-      "label": "Policy + membros ativos por organização"
+      "label": "Setor padrão/vigente ou policy do número; membros ativos da organização"
     },
     {
       "id": "loader",
       "lane": "app",
       "col": 2,
       "type": "service",
-      "label": "Escopo do canal; carga global, limite opcional e rodízio local"
+      "label": "Escopo do setor/canal; Só online, jornada, carga global e limite opcional"
     },
     {
       "id": "claim",
       "lane": "db",
       "col": 3,
       "type": "database",
-      "label": "Advisories → canal → conversa; claim atômico"
+      "label": "Locks do setor/pessoa; escolha atômica, fidelização e aceite nulo"
     },
     {
       "id": "notice",
       "lane": "app",
       "col": 4,
       "type": "service",
-      "label": "Fila durável e aviso acionável"
+      "label": "Aguardando do responsável e setor no cabeçalho; aviso sem elegível"
     },
     {
       "id": "connect",

@@ -18,6 +18,7 @@ import { logger } from "@/lib/logger";
 import { decideRouting, type RoutingCandidate } from "@/lib/routing/decide";
 import { loadEligibleAttendants, InvalidRoutingChannel } from "@/lib/routing/eligibles";
 import { routingConfigSchema } from "@/lib/schemas/routing";
+import type { Json } from "@/lib/database.types";
 
 export const ROUTING_WORKER_KEY = "worker.routing.v1";
 export const ROUTING_EVENT_TYPE = "conversation.routing_requested";
@@ -83,7 +84,7 @@ export async function runRoutingWorker(opts: RoutingWorkerOptions = {}): Promise
   // Recupera execução interrompida sem criar outro evento. O timestamp do
   // claim cerca o fechamento: um worker antigo não conclui a nova tentativa.
   const { data: abandoned, error: recoveryError } = await admin.from("event_log")
-    .select("id, organization_id, updated_at").eq("event_type", ROUTING_EVENT_TYPE)
+    .select("id, organization_id, updated_at").in("event_type", [ROUTING_EVENT_TYPE, DEPARTMENT_ROUTING_EVENT_TYPE])
     .eq("status", "processing").lte("updated_at", new Date(now.getTime() - 300_000).toISOString()).limit(batchSize);
   if (recoveryError) { summary.errors.push("routing_recovery_failed"); return summary; }
   for (const previous of abandoned ?? []) {
@@ -146,13 +147,13 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
 
   const { data: conv, error: convError } = await admin
     .from("conversations")
-    .select("id, organization_id, contact_id, channel_session_id, assigned_to_user_id, status")
+    .select("id, organization_id, contact_id, channel_session_id, assigned_to_user_id, assigned_department_id, status, is_group")
     .eq("id", conversationId)
     .eq("organization_id", orgId)
     .maybeSingle();
 
   if (convError) throw new Error(convError.message);
-  if (!conv || !["open", "pending", "claimed", "ai_handling"].includes(conv.status)) {
+  if (!conv || conv.is_group || !["open", "pending", "claimed", "ai_handling"].includes(conv.status)) {
     await markDone(event, "skipped_conv_missing");
     return "skipped_conv_missing";
   }
@@ -182,13 +183,22 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
   const config = routingConfigSchema.parse(settings.routing ?? {});
 
   const alreadyAssigned = Boolean(conv.assigned_to_user_id);
-  const departmentId = strOrNull(payload.department_id);
+  // O vínculo vigente prevalece sobre eventos antigos e sobre o nome do setor.
+  let departmentId = strOrNull(conv.assigned_department_id);
+  if (!alreadyAssigned && !departmentId) {
+    const { data, error } = await admin.rpc("fn_prepare_conversation_department", {
+      p_org: orgId, p_conversation: conversationId,
+    });
+    if (error) throw new Error(error.message);
+    departmentId = strOrNull(data);
+  }
+  let departmentSnapshot: Json | null = null;
   let mode: string = config.mode;
   let eligibles: RoutingCandidate[] = [];
   if (!alreadyAssigned && departmentId) {
     const { data: department, error: departmentError } = await admin
       .from("departments")
-      .select("distribution_method")
+      .select("distribution_method, only_online, contact_stickiness, schedule")
       .eq("id", departmentId)
       .eq("organization_id", orgId)
       .eq("is_active", true)
@@ -199,28 +209,21 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
       return "skipped_invalid_payload";
     }
     mode = department.distribution_method;
+    departmentSnapshot = {
+      distribution_method: department.distribution_method, only_online: department.only_online,
+      contact_stickiness: department.contact_stickiness, schedule: department.schedule ?? {},
+    };
   }
   if (!alreadyAssigned && mode !== "manual" && (departmentId || mode === "round_robin" || mode === "load")) {
     try {
-      eligibles = await loadEligibleAttendants(admin, orgId, now, {
-        kind: "conversation_channel", channelSessionId: conv.channel_session_id,
-      });
+      eligibles = await loadEligibleAttendants(admin, orgId, now, departmentId ? {
+        kind: "conversation_department", channelSessionId: conv.channel_session_id, departmentId,
+      } : { kind: "conversation_channel", channelSessionId: conv.channel_session_id });
     } catch (error) {
       if (!(error instanceof InvalidRoutingChannel)) throw error;
       await notice(orgId, conversationId, "invalid_channel");
       await markDone(event, "skipped_invalid_channel");
       return "skipped_invalid_channel";
-    }
-    if (departmentId) {
-      const { data: memberRows, error: membersError } = await admin
-        .from("department_members")
-        .select("user_id")
-        .eq("organization_id", orgId)
-        .eq("department_id", departmentId)
-        .eq("receives_auto_distribution", true);
-      if (membersError) throw new Error(membersError.message);
-      const memberIds = new Set((memberRows ?? []).map((member) => member.user_id));
-      eligibles = eligibles.filter((candidate) => memberIds.has(candidate.userId));
     }
   }
 
@@ -235,18 +238,29 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
 
   switch (action.kind) {
     case "assign": {
-      const { data: result, error } = await admin.rpc("fn_channel_routing_claim", {
+      let assignedUserId = action.userId;
+      const response = departmentId ? await admin.rpc("fn_department_routing_claim", {
+        p_org: orgId, p_conversation: conversationId, p_channel: conv.channel_session_id,
+        p_department: departmentId, p_department_snapshot: departmentSnapshot!,
+        p_candidates: eligibles.map((candidate) => ({
+          user_id: candidate.userId, schedule: candidate.scheduleSnapshot ?? {},
+        })),
+      }) : await admin.rpc("fn_channel_routing_claim", {
         p_org: orgId, p_conversation: conversationId, p_channel: conv.channel_session_id,
         p_user: action.userId, p_reason: "routing",
         p_schedule: eligibles.find((candidate) => candidate.userId === action.userId)?.scheduleSnapshot ?? {},
       });
-      if (error) throw new Error(`fn_channel_routing_claim: ${error.message}`);
+      const { data, error } = response;
+      if (error) throw new Error(`${departmentId ? "fn_department_routing_claim" : "fn_channel_routing_claim"}: ${error.message}`);
+      const departmentResult = departmentId ? data as { result: string; user_id?: string } : null;
+      const result = departmentResult?.result ?? data;
+      if (departmentResult?.user_id) assignedUserId = departmentResult.user_id;
       if (result === "already_assigned" || result === "conversation_changed") {
         await markDone(event, "assign_lost_race");
         return "assign_lost_race";
       }
       if (result !== "assigned") {
-        if (!["candidate_revoked", "candidate_not_allowed", "capacity_changed"].includes(String(result))) {
+        if (!["candidate_revoked", "candidate_not_allowed", "capacity_changed", "department_changed", "no_eligible"].includes(String(result))) {
           throw new Error("routing_claim_invalid_result");
         }
         await requeueEvent(event, now, Math.min(event.attempts + 1, config.max_retries), { reason: result });
@@ -256,10 +270,11 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
         admin,
         orgId,
         strOrNull((conv as { contact_id?: unknown }).contact_id),
-        action.userId,
+        assignedUserId,
       );
       await markDone(event, "assigned", {
-        assigned_to_user_id: action.userId,
+        assigned_to_user_id: assignedUserId,
+        ...(departmentId ? { department_id: departmentId } : {}),
         leads_adotados: leads,
       });
       return "assigned";
@@ -274,7 +289,7 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
       if (action.reason.startsWith("unsupported_mode")) {
         logger.warn("[routing-worker] modo não suportado (post-MVP) — no-op", {
           organization_id: orgId,
-          mode: config.mode,
+          mode,
         });
       }
       await markDone(event, outcome);
