@@ -350,7 +350,7 @@ const DA_EMPRESA: RecursoOpcional[] = [
     nivel: "organizacao",
     padrao: "desligado",
     quemDecide: "manager",
-    href: "/app/settings/atendimento",
+    href: "/app/team?aba=atendimento",
     ler: peloSettings((s) => conversaFicaComQuemAtendeu(s)),
   },
   {
@@ -360,7 +360,7 @@ const DA_EMPRESA: RecursoOpcional[] = [
     nivel: "organizacao",
     padrao: "desligado",
     quemDecide: "manager",
-    href: "/app/settings/atendimento",
+    href: "/app/team?aba=atendimento",
     ler: peloSettings((s) => typeof objeto(s.routing)?.handoff_return_after_minutes === "number"),
   },
   {
@@ -370,7 +370,7 @@ const DA_EMPRESA: RecursoOpcional[] = [
     nivel: "organizacao",
     padrao: "desligado",
     quemDecide: "manager",
-    href: "/app/settings/atendimento",
+    href: "/app/team?aba=atendimento",
     ler: peloSettings((s) => s.visibility_mode === "own" || s.visibility_mode === "own_and_unassigned"),
   },
   {
@@ -380,7 +380,7 @@ const DA_EMPRESA: RecursoOpcional[] = [
     nivel: "organizacao",
     padrao: "desligado",
     quemDecide: "manager",
-    href: "/app/settings/atendimento",
+    href: "/app/team?aba=atendimento",
     ler: peloSettings((s) => {
       const c = configAssinatura(s);
       return c.humanos || c.ia;

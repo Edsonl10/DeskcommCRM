@@ -511,7 +511,7 @@
       "lane": "humano",
       "col": 2,
       "type": "frontend",
-      "label": "Configurações › Distribuição de atendimento",
+      "label": "Equipe › Atendimento",
       "sublabel": "settings.routing.handoff_return_after_minutes — null = IA-06 (nunca); settings.routing.manual_reply_silence_minutes — null = 60 min"
     },
     {

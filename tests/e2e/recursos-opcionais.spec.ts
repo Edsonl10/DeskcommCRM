@@ -28,12 +28,17 @@ function evidencia(nome: string): string {
 
 test.describe.configure({ timeout: 120_000 });
 
-test("admin da empresa acha os recursos opcionais e o Ajustar leva à tela certa", async ({ page }) => {
+test("admin da empresa acha os recursos opcionais e o Ajustar leva à tela certa", async ({
+  page,
+}) => {
   await loginComoAdmin(page, lerCreds());
 
   // Pela porta, como o usuário: o hub de Configurações.
   await page.goto("/app/settings");
-  await page.getByRole("link", { name: /Recursos opcionais/ }).first().click();
+  await page
+    .getByRole("link", { name: /Recursos opcionais/ })
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/app\/settings\/recursos$/);
 
   await expect(page.getByRole("heading", { level: 1, name: "Recursos opcionais" })).toBeVisible();
@@ -48,11 +53,15 @@ test("admin da empresa acha os recursos opcionais e o Ajustar leva à tela certa
   await page.screenshot({ path: evidencia("empresa.png"), fullPage: true });
 
   await linha.getByRole("link", { name: /Ajustar/ }).click();
-  await expect(page).toHaveURL(/\/app\/settings\/atendimento$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Distribuição de atendimento" })).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/team\?aba=atendimento$/);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Distribuição de atendimento" }),
+  ).toBeVisible();
 });
 
-test("dono do servidor vê a porta Recursos opcionais e os três blocos no Admin", async ({ page }) => {
+test("dono do servidor vê a porta Recursos opcionais e os três blocos no Admin", async ({
+  page,
+}) => {
   // O `e2e-dono` só é platform admin se um seed anterior o promoveu; sem esta
   // afirmação a spec mediria a ordem de execução em vez do produto.
   await afirmarDonoDoServidor(lerCreds().users.dono!.email);

@@ -105,7 +105,7 @@ function explicacaoDoEstado(s: Status, t: (texto: string) => string): string {
 
 /**
  * Um cartão de escolha — a MESMA forma que o resto do produto já usa
- * (`app/app/settings/atendimento/_form.tsx`): `<label>` embrulhando um radio
+ * (`app/app/team/_components/AtendimentoForm.tsx`): `<label>` embrulhando um radio
  * nativo. Não é `RadioGroup` porque esse componente não existe neste repo, e
  * trazê-lo criaria um quarto dialeto de escolha ao lado de três iguais.
  */

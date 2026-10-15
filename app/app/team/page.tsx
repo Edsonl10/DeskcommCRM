@@ -10,6 +10,7 @@ import { TeamMembersClient } from "./_components/TeamMembersClient";
 import { TeamInvitesClient } from "./_components/TeamInvitesClient";
 import { AttendantsClient } from "./_components/AttendantsClient";
 import { DepartmentsClient } from "./_components/DepartmentsClient";
+import { ConfiguracaoAtendimento } from "./_components/ConfiguracaoAtendimento";
 import { fusoUtilizavel } from "@/lib/tempo/fusos";
 
 export const dynamic = "force-dynamic";
@@ -46,9 +47,11 @@ export default async function TeamPage({
   const activeOrg = await resolveActiveOrg(user);
   const isAdmin = !!activeOrg && ROLE_RANK[activeOrg.role] >= ROLE_RANK.admin;
   const isManager = !!activeOrg && ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager;
+  const podeConfigurarAtendimento =
+    !!activeOrg && (isManager || (user.is_platform_admin && !user.support));
 
   return (
-    <div className="flex h-full flex-col gap-6 p-6">
+    <div className="flex h-full flex-col gap-6 overflow-y-auto p-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">{t("Equipe")}</h1>
@@ -80,8 +83,16 @@ export default async function TeamPage({
           {isManager ? <TeamInvitesClient canManage={isAdmin} /> : null}
         </TabsContent>
         <TabsContent value="attendants" className="mt-4">
-          {isManager ? (
-            <AttendantsClient canManage={isManager} organizationTimezone={fusoUtilizavel(activeOrg?.timezone)} />
+          {podeConfigurarAtendimento ? (
+            <div className="space-y-6">
+              <AttendantsClient
+                canManage={podeConfigurarAtendimento}
+                organizationTimezone={fusoUtilizavel(activeOrg?.timezone)}
+              />
+              {activeOrg ? (
+                <ConfiguracaoAtendimento orgId={activeOrg.orgId} idioma={user.idioma} />
+              ) : null}
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">
               {/*
@@ -103,8 +114,12 @@ export default async function TeamPage({
           )}
         </TabsContent>
         <TabsContent value="departments" className="mt-4">
-          {isManager ? <DepartmentsClient canManage={isManager} /> : (
-            <p className="text-sm text-muted-foreground">{t("A gestão de departamentos está disponível para gerentes e administradores.")}</p>
+          {isManager ? (
+            <DepartmentsClient canManage={isManager} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {t("A gestão de departamentos está disponível para gerentes e administradores.")}
+            </p>
           )}
         </TabsContent>
       </Tabs>

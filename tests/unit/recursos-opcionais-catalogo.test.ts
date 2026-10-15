@@ -29,7 +29,9 @@ import {
  */
 
 const PORTAS = NAV_CATALOG as readonly NavMetadata[];
-const MODULOS_NO_CATALOGO = new Set(RECURSOS_OPCIONAIS.flatMap((r) => (r.modulo ? [r.modulo] : [])));
+const MODULOS_NO_CATALOGO = new Set(
+  RECURSOS_OPCIONAIS.flatMap((r) => (r.modulo ? [r.modulo] : [])),
+);
 const CAPACIDADES_NO_CATALOGO = new Set(
   RECURSOS_OPCIONAIS.flatMap((r) => (r.capacidade ? [r.capacidade] : [])),
 );
@@ -37,7 +39,10 @@ const CAPACIDADES_NO_CATALOGO = new Set(
 describe("o catálogo de recursos opcionais não deixa recurso de fora", () => {
   it("todo módulo de MODULOS_OPCIONAIS tem a sua linha, com nome e o que faz", () => {
     const semLinha = MODULOS_OPCIONAIS.filter(
-      (m) => !RECURSOS_OPCIONAIS.some((r) => r.nivel === "instalacao" && r.modulo === m && r.nome && r.oQueFaz),
+      (m) =>
+        !RECURSOS_OPCIONAIS.some(
+          (r) => r.nivel === "instalacao" && r.modulo === m && r.nome && r.oQueFaz,
+        ),
     );
     expect(
       semLinha,
@@ -69,22 +74,25 @@ describe("o catálogo de recursos opcionais não deixa recurso de fora", () => {
   });
 
   it("todo 'Ajustar' leva a uma tela que existe", () => {
-    const mortos = RECURSOS_OPCIONAIS.flatMap((r) => (r.href ? [r.href] : [])).filter(
-      (href) => {
-        const [raiz, ...resto] = href.replace(/^\//, "").split("/");
-        const dir =
-          raiz === "admin"
-            ? path.join(process.cwd(), "app", "admin", "(protected)", ...resto)
-            : path.join(process.cwd(), "app", raiz ?? "", ...resto);
-        return !fs.existsSync(path.join(dir, "page.tsx"));
-      },
-    );
+    const mortos = RECURSOS_OPCIONAIS.flatMap((r) => (r.href ? [r.href] : [])).filter((href) => {
+      const pathname = new URL(href, "https://crm.example").pathname;
+      const [raiz, ...resto] = pathname.replace(/^\//, "").split("/");
+      const dir =
+        raiz === "admin"
+          ? path.join(process.cwd(), "app", "admin", "(protected)", ...resto)
+          : path.join(process.cwd(), "app", raiz ?? "", ...resto);
+      return !fs.existsSync(path.join(dir, "page.tsx"));
+    });
     expect(mortos, `Link morto no catálogo:\n  ${[...new Set(mortos)].join("\n  ")}`).toEqual([]);
   });
 
   it("todo texto do catálogo tem espanhol", () => {
     const textos = [
-      ...RECURSOS_OPCIONAIS.flatMap((r) => [r.nome, r.oQueFaz, ...(r.comoLigar ? [r.comoLigar] : [])]),
+      ...RECURSOS_OPCIONAIS.flatMap((r) => [
+        r.nome,
+        r.oQueFaz,
+        ...(r.comoLigar ? [r.comoLigar] : []),
+      ]),
       ...Object.values(ROTULO_DO_ESTADO),
       ...Object.values(ROTULO_DE_QUEM_DECIDE),
       ...Object.values(ROTULO_DO_PADRAO),
@@ -139,7 +147,9 @@ describe("o estado nunca lança e nunca inventa 'desligado'", () => {
     const propostas = RECURSOS_OPCIONAIS.find((r) => r.id === "propostas_da_empresa")!;
     const chaveLigada = { proposals: { enabled: true } };
     expect(estadoDoRecurso(propostas, { ...vazio, settings: chaveLigada })).toBe("desligado");
-    expect(estadoDoRecurso(propostas, { ...vazio, modulos: ["propostas"], settings: chaveLigada })).toBe("ligado");
+    expect(
+      estadoDoRecurso(propostas, { ...vazio, modulos: ["propostas"], settings: chaveLigada }),
+    ).toBe("ligado");
   });
 });
 
@@ -153,7 +163,10 @@ describe("o que é só de quem administra o servidor não aparece para a empresa
   });
 
   it("a tela da empresa lista os módulos por MODULOS_DA_EMPRESA", () => {
-    const tela = fs.readFileSync(path.join(process.cwd(), "app/app/settings/recursos/page.tsx"), "utf8");
+    const tela = fs.readFileSync(
+      path.join(process.cwd(), "app/app/settings/recursos/page.tsx"),
+      "utf8",
+    );
     expect(tela).toContain("MODULOS_DA_EMPRESA");
   });
 });

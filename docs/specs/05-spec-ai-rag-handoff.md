@@ -1106,7 +1106,7 @@ Default IA-06: bot **não reassume**. `conversations.bot_silenced_until` (timest
 Próxima conversation no mesmo contact (status=resolved + nova abertura) começa com bot, exceto `contacts.force_human=true`.
 
 **Retomada por prazo (opcional, por organização).** A IA-06 continua sendo o padrão, mas a
-organização pode ligar um prazo em Configurações › Distribuição de atendimento
+organização pode ligar um prazo em Equipe › Atendimento
 (`organizations.settings.routing.handoff_return_after_minutes`, 5 min – 24 h; `null` = nunca).
 Com o prazo ligado, o cron `app/api/v1/cron/handoff-devolucao` (a cada 5 min) devolve ao agente
 a conversa que está com humano de forma durável — `bot_silenced_until = 'infinity'`,
