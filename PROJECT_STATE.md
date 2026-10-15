@@ -5,7 +5,7 @@
 - Cada setor usa seus participantes e método; Só online, jornadas, capacidade e fidelização são respeitados. Sem setor, preserva-se a política do canal.
 - Migration 9005 e baseline fornecem preparação e reserva privadas; rodízio serializado por setor e capacidade global por pessoa. Distribuição mantém aceite nulo, pausa IA e aparece em Aguardando; cabeçalho mostra o departamento.
 - Cobertura: carregador de elegíveis, cabeçalho, invariantes de entrada/concorrência/configuração/ACL e E2E de fila pessoal com transferência a outro setor.
-- Validação do PR #13: verify, invariants em PostgreSQL 15/17 (3.340 testes aprovados por versão), seis partes de E2E, perf e builds AMD64/ARM64 passaram no head `f59c9895ead04a4abdb5276bd36c83a4455326f0`. Integrado em `868c906c606bdd098a7214f1667030283fa40c98`. Capturas fictícias em `evidence/distribuicao-por-departamento/`; jornada J41 no mapa de testes.
+- Validação do PR #13: verify, invariants em PostgreSQL 15/17 (3.340 testes aprovados por versão), seis partes de E2E, perf e builds AMD64/ARM64 passaram no head `f59c9895ead04a4abdb5276bd36c83a4455326f0`. Integrado em `868c906c606bdd098a7214f1667030283fa40c98`. Capturas fictícias em `evidence/distribuicao-por-departamento/`; jornada J44 no mapa de testes.
 
 ## Integrado — atendimento sem limite de quantidade
 - Pedido de 14/10/2026: retirar o limite de conversas dos atendentes.

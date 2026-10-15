@@ -24,4 +24,4 @@ As seis partes de E2E passaram. A parte 3 aprovou 85 testes. O teste de banco
 suíte completa aprovou 3.340 testes por versão, com os skips e o expected fail
 preexistentes. O caminho sem departamento também é exercitado na mesma spec.
 
-Jornada documentada: J41 em `docs/testing/user-journey-map.md`.
+Jornada documentada: J44 em `docs/testing/user-journey-map.md`.
