@@ -1,15 +1,18 @@
 # PROJECT_STATE
 
-## Pronto para publicação — atendimento centralizado na Equipe
+## Em produção — atendimento centralizado na Equipe
 - Pedido de 14/10/2026: retirar a distribuição em Configurações se duplicasse Equipe.
 - CONFIRMADO: os dois formulários escreviam mode, max_retries e backoff_seconds na mesma API. Responsáveis por canal e participantes do departamento são filtros complementares.
 - Todos os ajustes existentes de atendimento foram reunidos em Equipe → Atendimento; removidos o RoutingCard repetido e a entrada Distribuição de atendimento no hub de Configurações. O endereço antigo redireciona para a aba Atendimento.
 - Responsáveis por número, visibilidade do CRM, ajustes da IA e assinatura continuam acessíveis. APIs, dados, permissões e algoritmo de distribuição preservados.
-- Validação local: 41 testes relevantes passaram, typecheck e verificações de canal/papel passaram; lint completo terminou sem erros, com avisos preexistentes. A suíte completa no Windows foi interrompida após falhas de ferramentas/caminhos nas cercas; a validação completa e a prova visual serão feitas pelo CI Linux.
-- Código `a15092f9c0fcb3d5fd5b9b0a4d05ea707d0362d0` validado no PR #14: verify completo em quatro partes (run 38639861760), invariantes PostgreSQL 17, build (38639861767), imagens AMD64/ARM64 (38639861748) e todas as seis partes E2E (38639861803) aprovados. Não houve falhas; 23 checks concluíram com sucesso e quatro passos condicionais foram ignorados. Registro posterior altera apenas este estado e a captura, sem mudar código executável ou testes.
-- Revisão integrada `72fa42f332998d7a1dfde0b3668eb537d732d58a` aprovada em 15/10/2026: CI completo e invariantes PostgreSQL 17 (38721673644), build (38721673765), imagens AMD64/ARM64 (38721673649) e seis partes E2E (38721673795); 23 checks aprovados e três passos condicionais ignorados. Integração documental posterior do PR #15 preserva o mesmo código executável e testes.
+- Validação local: 41 testes relevantes, typecheck e verificações de canal/papel passaram; lint completo terminou sem erros, com avisos preexistentes. A suíte completa foi validada no CI Linux após limitações das ferramentas/caminhos no Windows.
+- Head final `78b955011b85b286b12d1f158812dfc2f04feab5` aprovado nos 23 checks em 15/10/2026: CI completo e invariantes PostgreSQL 17 (38725248170), build (38725248316), imagens AMD64/ARM64 (38725248147) e seis partes E2E (38725248219); três passos condicionais ignorados. PR #14 integrado em `0ac8ae1728bac76c954538fd6f29bfdbd96444db`, com árvore idêntica ao head validado.
 - Controle de regressão: reintroduzir a porta duplicada fez falhar exatamente 1 de 7 casos de navegação; restaurado o conserto, os 7 passaram. Evidência com dados fictícios em `evidence/comunidade-360/task10-routing-policies-desktop.png`, gerada pelo teste de roteamento por número no CI.
-- Usuário autorizou explicitamente em 15/10/2026 o acesso administrativo, backup e instalação. Publicação pendente; integração da main atual preserva a distribuição por departamento do PR #13. Instalar a versão compatível preservando configurações, dados e WhatsApp.
+- Publicação e instalação autorizadas explicitamente pelo usuário em 15/10/2026. Imagem do head final publicada pelo workflow 38725418019 e instalada por digest: `ghcr.io/edsonl10/deskcommcrm@sha256:3e06647aca1bcc8394fc0165c696183086ec84d3d1534018a151400847dd1625`.
+- Backup imediatamente anterior validado em `/opt/backups/crm-atendimento-20261015-113938`: banco, sessões WhatsApp e configurações; gzip/tar conferidos. Script, recibo `result.txt`, logs e imagens antes/depois estão na pasta. Execução encerrou com `DEPLOY_UI_OK` e código zero.
+- Apenas `APP_IMAGE` mudou no `.env` (comparação de bytes aprovada). Caddy preservado por SHA-256; todos os demais IDs de serviços permaneceram iguais, incluindo WhatsApp, worker e scheduler. Banco já compatível com a migration 9005; nenhuma migration ou configuração de atendimento foi aplicada neste deploy. Worker e scheduler permanecem na revisão `868c906`.
+- Conferência real pelo navegador: entrada duplicada ausente em Configurações, um único editor em Equipe → Atendimento, quatro atendentes e cinco departamentos preservados. O endereço antigo abre `/app/team?aba=atendimento` com a aba correta selecionada. Testes de saúde e HTTP `/` 200 e `/app` 307 passaram; nenhum dado real foi alterado na conferência.
+- Checkout da VPS avançado por fast-forward para `0ac8ae1`, preservando o Caddyfile e seus backups locais. Captura real mantida apenas no workspace privado; a evidência versionada usa dados fictícios.
 - Destino: núcleo, pois a organização continua operando sem extensões.
 
 ## Integrado — entrada e distribuição por departamento
