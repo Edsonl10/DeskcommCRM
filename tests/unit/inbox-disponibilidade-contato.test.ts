@@ -8,7 +8,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/auth/require-role", () => ({ requireRole: async () => ({ ok: true, user: { id: "me" }, org: { orgId: "org" } }) }));
 vi.mock("@/lib/users/com-nome-do-atendente", () => ({ comNomeDoAtendente: async (rows: unknown[]) => rows }));
 function chain(data: unknown) {
-  const q = { select: () => q, eq: (...args: unknown[]) => { state.filters.push(args); return q; }, maybeSingle: async () => ({ data, error: null }) };
+  const q = { select: () => q, is: (...args: unknown[]) => { state.filters.push(args); return q; }, eq: (...args: unknown[]) => { state.filters.push(args); return q; }, maybeSingle: async () => ({ data, error: null }) };
   return q;
 }
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from: () => chain(state.conversation) }) }));
@@ -25,6 +25,9 @@ describe("disponibilidade do atalho de contatos", () => {
     const res = await request(); expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ error: { message: "Este contato já está em atendimento com Maria." } });
     expect(state.filters).toContainEqual(["organization_id", "org"]);
+    expect(state.filters).toContainEqual(["is_personal", false]);
+    expect(state.filters).toContainEqual(["is_anonymized", false]);
+    expect(state.filters).toContainEqual(["is_merged_into", null]);
   });
   it("não dá o nome se o contato estiver fora do acesso", async () => {
     state.contact = null; const res = await request(); expect(res.status).toBe(404);

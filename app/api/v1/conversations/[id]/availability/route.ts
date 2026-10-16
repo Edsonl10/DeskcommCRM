@@ -9,7 +9,7 @@ import { ok, fail } from "@/lib/api/wrappers";
 /** Só o aviso de ocupação. Nunca retorna mensagens ou dados do contato. */
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
   const requestId = randomUUID();
-  const authz = await requireRole("agent", { requestId, resource: "conversations" });
+  const authz = await requireRole("viewer", { requestId, resource: "conversations" });
   if (!authz.ok) return authz.response;
   const { id } = await ctx.params;
   if (!z.uuid().safeParse(id).success) return fail("not_found", "Conversa não encontrada.", 404, { requestId });
@@ -22,7 +22,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   // O contato deve ser acessível ao operador, mesmo que a conversa seja privada.
   const supabase = await createClient();
   const { data: contact, error: contactError } = await supabase.from("contacts").select("id")
-    .eq("organization_id", authz.org.orgId).eq("id", conv.contact_id).maybeSingle();
+    .eq("organization_id", authz.org.orgId).eq("id", conv.contact_id)
+    .eq("is_personal", false).eq("is_anonymized", false).is("is_merged_into", null).maybeSingle();
   if (contactError) return fail("internal_error", "Não foi possível consultar o contato.", 500, { requestId });
   if (!contact) return fail("not_found", "Contato não encontrado.", 404, { requestId });
   if (!["closed", "archived", "resolved"].includes(conv.status) && conv.assigned_to_user_id && conv.assigned_to_user_id !== authz.user.id) {
