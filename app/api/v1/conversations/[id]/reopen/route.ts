@@ -28,8 +28,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (error.code === "42501") return fail("forbidden", "Sem permissão para reabrir este atendimento.", 403, { requestId });
     return fail("internal_error", "Não foi possível reabrir o atendimento.", 500, { requestId });
   }
+  const conv = Array.isArray(data) ? data[0] : data;
+  if (!conv) return fail("internal_error", "Não foi possível confirmar a reabertura do atendimento.", 500, { requestId });
   await audit({ action: "conversation.reopened", actorUserId: authz.user.id, organizationId: authz.org.orgId, resourceType: "conversation", resourceId: id, requestId });
-  await registrarTrocaDeComando({ supabase, organizationId: authz.org.orgId, conversationId: id, contactId: data.contact_id,
+  await registrarTrocaDeComando({ supabase, organizationId: authz.org.orgId, conversationId: id, contactId: conv.contact_id,
     tipo: "conversation_claimed", actor: { type: "user", id: authz.user.id, role: authz.org.role }, motivo: "Reabriu e assumiu o atendimento desta conversa" });
-  return ok(data, { requestId });
+  return ok(conv, { requestId });
 }
