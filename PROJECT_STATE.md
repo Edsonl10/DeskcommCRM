@@ -2,13 +2,12 @@
 
 ## Em revisão — reabrir e assumir / aviso de contato ocupado
 - Pedido de 16/10/2026: mostrar Reabrir aos atendentes com acesso à conversa fechada. Decisão explícita: quem reabre assume o novo atendimento.
-- RPC 9006 faz reabertura, atribuição, pausa da IA, aceite e evento de troca em uma transação; revalida papel, leitura, revisão e estado terminal. Não toma conversa aberta. Migration + baseline precisam preceder a aplicação compatível.
-- Contatos: tanto o atalho existente quanto Iniciar conversa informam o nome de outro responsável em atendimento aberto, sem navegar para a tela vazia ou transferir. A consulta retorna apenas o aviso; RLS de mensagens preservada.
-- Cobertura adicionada: botão de atendente, aviso nos dois caminhos, endpoint de disponibilidade, invariantes de acesso/atribuição/revisão/isolamento e E2E com dados sintéticos na parte 1.
-- Bloqueio local: pnpm 9.15.9 respeitou o lockfile, mas o registro recusou typescript-6.0.3.tgz com HTTP 403. Sem Docker neste ambiente. Unit/typecheck/lint/invariantes/E2E não executados; precisam ser validados no CI antes de integrar/publicar. Navegador conectado também não pôde ser utilizado nesta sessão.
-- Sintaxe: os 15 arquivos TypeScript/TSX alterados passaram pelo parser. `git diff --check` passou. O teste de banco foi recusado antes de executar por ausência do Vitest no PATH após a instalação incompleta.
-- Envio da branch ao GitHub bloqueado pela revisão automática: exige autorização explícita do usuário para publicar o código no remoto. Commit local `2de1f84` contém a implementação.
-- Produção não alterada. Próximo passo: validar CI e prova visual, revisar e publicar com backup e banco compatível.
+- RPC 9006 reúne reabertura, atribuição, pausa da IA, aceite e evento em uma transação; revalida papel, suporte, MFA comprovada, leitura, revisão e estado terminal. Não toma conversa aberta. Migration + baseline precedem a aplicação compatível.
+- Contatos: atalho existente e Iniciar conversa informam o nome de outro responsável em atendimento aberto, sem navegar para a tela vazia ou transferir. Consulta exclui pessoal/anonimizado/mesclado e preserva RLS do histórico.
+- PR #17 publicado com autorização explícita do usuário. Fonte funcional `91e5aa7d2a6ecf1620387ed12008f1fb42e2098c`: verify completo (38934562151), build (38934562236), imagens AMD64/ARM64 (38934562112) e distribuição (38934562273) aprovados. Unitários novos passaram; não houve controle negativo local.
+- No mesmo código, os quatro testes de reabertura passaram em PostgreSQL 15/17. A suíte teve 3343 casos aprovados e 1 falha por versão: faltava declarar a função no inventário das RPCs legitimamente usadas pela sessão. Registro corrigido com a rota nomeada; acrescentada prova de viewer/revogação/MFA e guarda SQL de MFA para a chamada direta. Essa revisão precisa ser validada pelo CI.
+- Prova pela interface ainda em execução no run 38934562197; uma das seis partes já passou. Evidências sintéticas previstas em `evidence/reabertura-contato-ocupado/`.
+- Local: instalação interrompida por HTTP 403 em TypeScript; sem Docker. Sintaxe e diff conferidos; validação executada no GitHub. Produção não alterada. Próximo passo: concluir CI/prova visual, revisar e publicar com backup e banco compatível.
 
 ## Pronto para publicação — atendimento centralizado na Equipe
 - Pedido de 14/10/2026: retirar a distribuição em Configurações se duplicasse Equipe.

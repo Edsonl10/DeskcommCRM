@@ -51426,7 +51426,7 @@ returns public.conversations language plpgsql security definer set search_path =
 declare c public.conversations; pre_contact uuid; previous_owner uuid;
 begin
  if auth.uid() is null or not public.fn_role_at_least(p_org,'agent')
-    or not public.fn_support_write_allowed(p_org) then
+    or not public.fn_support_write_allowed(p_org) or not public.fn_session_mfa_proven() then
    raise exception 'caller_not_authorized' using errcode='42501'; end if;
  select * into c from public.conversations where id=p_conversation and organization_id=p_org;
  if not found or not public.fn_can_read_inbox(c) then

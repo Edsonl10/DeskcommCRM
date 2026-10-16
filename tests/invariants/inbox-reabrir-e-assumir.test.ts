@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { sql, lastLine } from "./gov-helpers";
 const id = (n: number) => `90060000-0000-4000-8000-${String(n).padStart(12,"0")}`;
 const org=id(1), eu=id(2), outro=id(3), canal=id(4), contato=id(5), conversa=id(6);
-const asEu = (query: string) => sql(`set role authenticated; select set_config('request.jwt.claims','{"sub":"${eu}"}',false); ${query}`);
+const asEu = (query: string, aal = "aal1") => sql(`set role authenticated; select set_config('request.jwt.claims','{"sub":"${eu}","aal":"${aal}"}',false); ${query}`);
 beforeAll(() => {
   sql(`insert into auth.users(id,email,raw_user_meta_data) values('${eu}','reabre@invariant.test','{"full_name":"Maria"}'),('${outro}','anterior@invariant.test','{}');
     insert into public.organizations(id,slug,legal_name,display_name) values('${org}','reabre9006','Reabre','Reabre');
@@ -19,6 +19,26 @@ describe("Reabrir assume o novo episódio", () => {
     expect(() => asEu(`select public.fn_reopen_inbox('${org}','${conversa}',${revision()});`)).toThrow();
     expect(lastLine(sql(`select status from public.conversations where id='${conversa}';`))).toBe("closed");
     sql(`update public.user_organizations set inbox_permissions='{"closed":true,"all":false,"ai":false}' where organization_id='${org}' and user_id='${eu}';`);
+  });
+  it("viewer e membro revogado não reabrem", () => {
+    try {
+      sql(`update public.user_organizations set role='viewer' where organization_id='${org}' and user_id='${eu}';`);
+      expect(() => asEu(`select public.fn_reopen_inbox('${org}','${conversa}',${revision()});`)).toThrow();
+      sql(`update public.user_organizations set role='agent',revoked_at=now() where organization_id='${org}' and user_id='${eu}';`);
+      expect(() => asEu(`select public.fn_reopen_inbox('${org}','${conversa}',${revision()});`)).toThrow();
+    } finally {
+      sql(`update public.user_organizations set role='agent',revoked_at=null where organization_id='${org}' and user_id='${eu}';`);
+    }
+  });
+  it("quem ativou MFA precisa comprovar na sessão, inclusive pela RPC direta", () => {
+    sql(`insert into auth.mfa_factors(id,user_id,status,factor_type) values('${id(90)}','${eu}','verified','totp');`);
+    try {
+      expect(() => asEu(`select public.fn_reopen_inbox('${org}','${conversa}',${revision()});`)).toThrow();
+      // A aprovação aal2 ocorre numa transação descartada: os próximos casos
+      // ainda começam no mesmo episódio fechado, sem eventos de preparação.
+      expect(() => asEu(`begin; select public.fn_reopen_inbox('${org}','${conversa}',${revision()}); rollback;`, "aal2")).not.toThrow();
+      expect(lastLine(sql(`select status from public.conversations where id='${conversa}';`))).toBe("closed");
+    } finally { sql(`delete from auth.mfa_factors where id='${id(90)}';`); }
   });
   it("reabre, troca o dono, aceita, pausa a IA e registra a troca na mesma operação", () => {
     asEu(`select public.fn_reopen_inbox('${org}','${conversa}',${revision()});`);
