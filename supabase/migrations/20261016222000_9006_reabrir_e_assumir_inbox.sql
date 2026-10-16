@@ -34,3 +34,4 @@ begin
 end $$;
 revoke all on function public.fn_reopen_inbox(uuid,uuid,bigint) from public,anon;
 grant execute on function public.fn_reopen_inbox(uuid,uuid,bigint) to authenticated;
+notify pgrst,'reload schema';

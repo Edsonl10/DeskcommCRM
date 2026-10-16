@@ -182,16 +182,16 @@ describe("reabertura pelo atendente", () => {
     authState.role = "agent";
     try {
       renderHeader({ ...conversation, status, assigned_to_user_id: "outro", service_revision: 9 });
-      fireEvent.click(screen.getByRole("button", { name: "Reabrir", exact: true }));
+      fireEvent.click(screen.getByRole("button", { name: /^Reabrir$/ }));
       expect(reopenMock).toHaveBeenCalledWith({ conversation_id: conversation.id, expected_revision: 9 });
-      expect(screen.queryByRole("button", { name: "Transferir", exact: true })).toBeNull();
+      expect(screen.queryByRole("button", { name: /^Transferir$/ })).toBeNull();
     } finally { authState.role = "manager"; }
   });
   it("não oferece Reabrir para conversa aberta de outro atendente", () => {
     authState.role = "agent";
     try {
       renderHeader({ ...conversation, status: "claimed", assigned_to_user_id: "outro" });
-      expect(screen.queryByRole("button", { name: "Reabrir", exact: true })).toBeNull();
+      expect(screen.queryByRole("button", { name: /^Reabrir$/ })).toBeNull();
     } finally { authState.role = "manager"; }
   });
 });

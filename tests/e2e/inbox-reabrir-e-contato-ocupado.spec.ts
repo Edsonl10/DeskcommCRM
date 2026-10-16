@@ -14,7 +14,7 @@ async function insert(table: string, row: Record<string, unknown>) {
   return data.id as string;
 }
 test.beforeAll(async () => {
-  org = await insert("organizations", { slug: `reabre-${suffix}`, legal_name: "Teste Reabertura", display_name: "Teste Reabertura" });
+  org = await insert("organizations", { slug: `reabre-${suffix}`, legal_name: "Teste Reabertura", display_name: "Teste Reabertura", onboarded_at: new Date().toISOString() });
   for (const [mail, name] of [[email, "Ana Teste"], [`outro-${suffix}@invariant.test`, "Maria Teste"]]) {
     const { data, error } = await db.auth.admin.createUser({ email: mail, password, email_confirm: true, user_metadata: { full_name: name } });
     if (error || !data.user) throw error ?? new Error("Usuário ausente");
