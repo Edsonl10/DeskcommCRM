@@ -57,9 +57,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   try {
     const admin = createAdminClient();
-    const result = await openSharedContactConversation(admin, authz.organizationId, input);
+    const result = await openSharedContactConversation(admin, authz.organizationId, input, authz.actor.type === "user" ? authz.actor.id : undefined);
     return ok(result, { requestId });
   } catch (err) {
+    if (err instanceof ApiError) return fail(err.code, err.message, err.status, { requestId });
     const msg = err instanceof Error ? err.message : "open_failed";
     if (msg === "contact_not_found") {
       return fail("not_found", t("Contato não encontrado."), 404, { requestId });

@@ -300,7 +300,10 @@ test("fechar canal preserva demanda, desfecho explícito e nova entrada volta à
     await expect(page.getByTestId("inbox-memoria")).toContainText("Resuelto");
     await page.screenshot({ path: `${evidence}/task4-historico-es.png`, fullPage: true });
     await page.getByRole("button", { name: "Reabrir", exact: true }).click();
-    await expect.poll(async () => (await db.from("conversations").select("status").eq("organization_id",org).eq("id",conversation).single()).data?.status).toBe("open");
+    await expect.poll(async () => {
+      const { data } = await db.from("conversations").select("status,assigned_to_user_id,human_accepted_at").eq("organization_id",org).eq("id",conversation).single();
+      return data && { status: data.status, owner: data.assigned_to_user_id, accepted: data.human_accepted_at != null };
+    }).toEqual({ status: "claimed", owner: user, accepted: true });
     await page.getByRole("button", { name: "Cerrar", exact: true }).click();
     await page
       .getByRole("alertdialog")

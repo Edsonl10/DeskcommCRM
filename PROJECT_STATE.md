@@ -1,5 +1,14 @@
 # PROJECT_STATE
 
+## Pronto para revisão e publicação — reabrir e assumir / aviso de contato ocupado
+- Pedido de 16/10/2026: mostrar Reabrir aos atendentes com acesso à conversa fechada. Decisão explícita: quem reabre assume o novo atendimento.
+- RPC 9006 reúne reabertura, atribuição, pausa da IA, aceite e evento em uma transação; revalida papel, suporte, MFA comprovada, leitura, revisão e estado terminal. Não toma conversa aberta. Migration + baseline precedem a aplicação compatível.
+- Contatos: atalho existente e Iniciar conversa informam o nome de outro responsável em atendimento aberto, sem navegar para a tela vazia ou transferir. Consulta exclui pessoal/anonimizado/mesclado e preserva RLS do histórico.
+- PR #17 publicado com autorização explícita do usuário. Fonte funcional `18088e5317c5303c5539c2a6cf9b5c978e132906`: verify completo (38937587829), build (38937587732), imagens AMD64/ARM64 (38937587892) e distribuição (38937587894) aprovados. Unitários novos passaram; não houve controle negativo local. O registro posterior altera apenas documentação e capturas, sem mudar código executável ou testes.
+- PostgreSQL 15/17 aprovados no run 38937587829: 426 arquivos, 3346 casos aprovados, 1 falha esperada e 2 ignorados por versão. Os seis casos da RPC cobrem reabertura/aceite, revisão/estado, leitura, papel/revogação, MFA e isolamento. Inventário da RPC de sessão e atualização do kit sobre banco com dados também aprovados.
+- As seis partes E2E passaram no run 38937587757, com 484 casos aprovados. O novo caso passou em 11 s: atendente reabre e assume; contato ocupado avisa o nome, preserva o responsável e mantém o operador em Contatos. Capturas sintéticas conferidas e versionadas em `evidence/reabertura-contato-ocupado/`: conversa aberta com Ana Teste como responsável e aviso de atendimento com Maria Teste em Contatos. O teste existente de encerramento/reabertura também passou.
+- Local: instalação interrompida por HTTP 403 em TypeScript; sem Docker. Sintaxe e diff conferidos; validação executada no GitHub. Produção não alterada. Próximo passo: revisar/integrar o PR e instalar com backup validado, migrations e imagens do fork compatíveis. Não usar a imagem oficial pura nem substituir os pins por tags móveis.
+
 ## Pronto para publicação — atendimento centralizado na Equipe
 - Pedido de 14/10/2026: retirar a distribuição em Configurações se duplicasse Equipe.
 - CONFIRMADO: os dois formulários escreviam mode, max_retries e backoff_seconds na mesma API. Responsáveis por canal e participantes do departamento são filtros complementares.

@@ -67,6 +67,16 @@ const ANON_PERMITIDO: readonly Excecao[] = [];
  */
 const AUTHENTICATED_PERMITIDO: readonly Excecao[] = [
   {
+    fn: "fn_reopen_inbox(uuid,uuid,bigint)",
+    razao:
+      "POST app/api/v1/conversations/[id]/reopen/route.ts usa createClient da sessão. " +
+      "A função exige auth.uid(), papel agent na organização, suporte de escrita, MFA " +
+      "comprovada e leitura da conversa fechada. Lock do contato e da conversa, revisão " +
+      "e estado terminal são revalidados antes da reabertura e do aceite pelo próprio ator. " +
+      "tests/invariants/inbox-reabrir-e-assumir.test.ts prova ACL, viewer, revogação, MFA, " +
+      "anon/cross-org, revisão e atribuição/aceite/evento sem tomar atendimento aberto.",
+  },
+  {
     fn: "fn_conversation_assign_department(uuid,uuid,uuid,uuid)",
     razao:
       "POST app/api/v1/conversations/[id]/transfer/route.ts chama com a sessão do usuário. " +

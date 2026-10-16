@@ -254,6 +254,19 @@ export function useConversaNovaComEscolhaDeCanal(opts: {
     }
   }
 
+  async function abrirConversaExistente(conversationId: string) {
+    if (abrindo) return;
+    setAbrindo(true);
+    try {
+      const res = await fetch(`/api/v1/conversations/${conversationId}/availability`);
+      const json = await res.json() as { error?: { message?: string } };
+      if (!res.ok) throw new Error(json.error?.message ?? t("Não foi possível abrir a conversa."));
+      await opts.aoAbrir(conversationId);
+    } catch (err) {
+      toast.error(err instanceof Error ? t(err.message) : t("Não foi possível abrir a conversa."));
+    } finally { setAbrindo(false); }
+  }
+
   async function iniciarConversa(alvo: AlvoDeConversa) {
     if (abrindo) return;
     setAbrindo(true);
@@ -286,6 +299,7 @@ export function useConversaNovaComEscolhaDeCanal(opts: {
 
   return {
     iniciarConversa,
+    abrirConversaExistente,
     /** Uma requisição em voo — quem renderiza desabilita o botão dela. */
     abrindo,
     /** Renderizar incondicionalmente; fica `null` quando não há escolha. */

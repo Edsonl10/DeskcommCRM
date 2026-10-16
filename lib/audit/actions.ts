@@ -117,6 +117,7 @@ export const AUDIT_ACTIONS = [
   "conversation.transferred",
   "conversation.released",
   "conversation.closed",
+  "conversation.reopened",
   // O arquivamento é terminal como o fechamento, e o evento é separado de
   // propósito: quem audita precisa distinguir "encerrou o atendimento" de
   // "mandou para o arquivo". Ver o corpo da issue #923.

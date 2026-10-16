@@ -10632,6 +10632,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fn_reopen_inbox: {
+        Args: { p_org: string; p_conversation: string; p_expected: number }
+        Returns: Database["public"]["Tables"]["conversations"]["Row"]
+      }
       fn_service_status: {
         Args: {
           p_conversation: string

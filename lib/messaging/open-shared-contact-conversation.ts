@@ -2,6 +2,8 @@
  * Abre (ou reabre) a conversa 1:1 com um contato compartilhado no cartão do inbox.
  * Usa a mesma sessão de canal da mensagem onde o cartão apareceu.
  */
+import { ApiError } from "@/lib/api/types";
+import { comNomeDoAtendente } from "@/lib/users/com-nome-do-atendente";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ensureConversation, sessaoProntaParaEnvio } from "@/lib/automation/start-conversation";
@@ -82,6 +84,7 @@ export async function openSharedContactConversation(
   admin: Admin,
   organizationId: string,
   input: OpenSharedContactInput,
+  humanUserId?: string,
 ): Promise<OpenSharedContactResult> {
   const sessionId = input.channel_session_id ?? (await sessaoProntaParaEnvio(admin, organizationId));
   if (!sessionId) throw new Error("session_not_found");
@@ -108,6 +111,24 @@ export async function openSharedContactConversation(
   if (alvoErr) throw new Error(alvoErr.message);
   if ((alvo as { is_personal?: boolean } | null)?.is_personal === true) {
     throw new Error("contact_personal");
+  }
+  // A ficha de contato é legível mesmo quando a conversa não é. Retorne só
+  // o responsável, antes de navegar para uma conversa que a RLS esconderia.
+  if (humanUserId) {
+    const { data: ocupadas, error: ocupadaErro } = await admin.from("conversations")
+      .select("id, assigned_to_user_id, assigned_to_user_name")
+      .eq("organization_id", organizationId).eq("contact_id", contactId)
+      .eq("channel_session_id", sessionId).eq("is_group", false)
+      .not("status", "in", "(closed,archived,resolved)")
+      .not("assigned_to_user_id", "is", null)
+      .neq("assigned_to_user_id", humanUserId).limit(1);
+    if (ocupadaErro) throw new Error(ocupadaErro.message);
+    if (ocupadas?.length) {
+      const [ocupada] = await comNomeDoAtendente(ocupadas);
+      const nome = ocupada?.assigned_to_user_name?.trim();
+      throw new ApiError(409, "state_conflict", undefined, "",
+        nome ? `Este contato já está em atendimento com ${nome}.` : "Este contato já está em atendimento com outro atendente.");
+    }
   }
   const conversationId = await ensureConversation(
     admin,

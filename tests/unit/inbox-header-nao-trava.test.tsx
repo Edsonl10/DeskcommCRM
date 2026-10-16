@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { ConversationHeader } from "@/components/inbox/ConversationHeader";
@@ -37,7 +37,7 @@ vi.mock("@/hooks/inbox/useClaimConversation", () => ({
 }));
 vi.mock("@/hooks/inbox/useCloseConversation", () => ({
   useCloseConversation: () => ({ mutate: vi.fn(), isPending: false }),
-  useReopenConversation: () => ({ mutate: vi.fn(), isPending: false }),
+  useReopenConversation: () => ({ mutate: reopenMock, isPending: false }),
   // O header passou a importar `useArchiveConversation` do MESMO módulo (issue
   // #923). Um dublê fechado que não acompanha a nova exportação não falha com
   // "faltou mock": falha com "useArchiveConversation is not a function", que
@@ -58,9 +58,11 @@ vi.mock("@/hooks/inbox/useResumeAiAttendance", () => ({
 // O header monta o discador (`DialButton`), que exige o `VoiceCallProvider` do
 // shell autenticado. Aqui só a largura importa: o discador fica fora da conta.
 vi.mock("@/components/voice/DialButton", () => ({ DialButton: () => null }));
+const authState = vi.hoisted(() => ({ role: "manager" }));
+const reopenMock = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   usePermission: () => true,
-  useAuth: () => ({ user: { id: "u-1" }, activeOrg: { orgId: "org-1", role: "manager" } }),
+  useAuth: () => ({ user: { id: "u-1" }, activeOrg: { orgId: "org-1", role: authState.role } }),
 }));
 
 const conversation = {
@@ -172,5 +174,24 @@ describe("header do inbox — não trava a largura da tela", () => {
       classes,
       "sem `xl:hidden`, a duplicata volta e o header ganha uma segunda linha em 1280px",
     ).toContain("xl:hidden");
+  });
+});
+
+describe("reabertura pelo atendente", () => {
+  it.each(["closed", "archived", "resolved"])("atendente vê Reabrir em %s de outro responsável", (status) => {
+    authState.role = "agent";
+    try {
+      renderHeader({ ...conversation, status, assigned_to_user_id: "outro", service_revision: 9 });
+      fireEvent.click(screen.getByRole("button", { name: /^Reabrir$/ }));
+      expect(reopenMock).toHaveBeenCalledWith({ conversation_id: conversation.id, expected_revision: 9 });
+      expect(screen.queryByRole("button", { name: /^Transferir$/ })).toBeNull();
+    } finally { authState.role = "manager"; }
+  });
+  it("não oferece Reabrir para conversa aberta de outro atendente", () => {
+    authState.role = "agent";
+    try {
+      renderHeader({ ...conversation, status: "claimed", assigned_to_user_id: "outro" });
+      expect(screen.queryByRole("button", { name: /^Reabrir$/ })).toBeNull();
+    } finally { authState.role = "manager"; }
   });
 });
