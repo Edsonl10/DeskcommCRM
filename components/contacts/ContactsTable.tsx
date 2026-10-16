@@ -122,6 +122,7 @@ export function ContactsTable({ contacts, orderBy, orderDir, onSort }: Props) {
   // abrir é daqui: invalidar a lista e navegar para o inbox.
   const {
     iniciarConversa: abrirConversa,
+    abrirConversaExistente,
     abrindo,
     seletor: seletorDeCanal,
   } = useConversaNovaComEscolhaDeCanal({
@@ -269,9 +270,9 @@ export function ContactsTable({ contacts, orderBy, orderDir, onSort }: Props) {
             <TableCell>
               <div className="flex items-center justify-end gap-0.5">
                 {c.conversa ? (
-                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                    <Link
-                      href={`/app/inbox?id=${c.conversa.id}`}
+                  <Button variant="ghost" size="icon" className="h-8 w-8"
+                      disabled={abrindo}
+                      onClick={() => void abrirConversaExistente(c.conversa!.id)}
                       title={t("Abrir conversa no Inbox")}
                       aria-label={`${t("Abrir conversa com")} ${displayName(c, t)} ${t("no Inbox")}`}
                     >
@@ -279,7 +280,6 @@ export function ContactsTable({ contacts, orderBy, orderDir, onSort }: Props) {
                       {c.conversa.unread > 0 && (
                         <span className="sr-only">{c.conversa.unread} {t("sem ler")}</span>
                       )}
-                    </Link>
                   </Button>
                 ) : c.phone_number ? (
                   <Button

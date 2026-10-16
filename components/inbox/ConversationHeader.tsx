@@ -405,7 +405,7 @@ export function ConversationHeader({
             {t("Fechar")}
           </Button>
         )}
-        {podeOperar && encerrada && <Button size="sm" variant="outline" disabled={reopen.isPending}
+        {activeOrg && ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent && encerrada && <Button size="sm" variant="outline" disabled={reopen.isPending}
           onClick={() => reopen.mutate({ conversation_id: conversation.id, expected_revision: conversation.service_revision })}>
           {t("Reabrir")}
         </Button>}

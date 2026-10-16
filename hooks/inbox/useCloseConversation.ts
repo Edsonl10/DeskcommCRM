@@ -61,9 +61,9 @@ export function useArchiveConversation() {
 export function useReopenConversation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (args: CloseArgs) => apiClient.patch<{ data: Conversation }>(
-      `/api/v1/conversations/${args.conversation_id}`,
-      { status: "open", expected_revision: args.expected_revision },
+    mutationFn: (args: CloseArgs) => apiClient.post<{ data: Conversation }>(
+      `/api/v1/conversations/${args.conversation_id}/reopen`,
+      { expected_revision: args.expected_revision },
     ),
     onError: showApiError,
     onSettled: (_data, _error, args) => {

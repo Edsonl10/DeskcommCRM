@@ -71,7 +71,7 @@ function canal(overrides: Partial<ChannelSession> & { id: string }): ChannelSess
 
 /** O mínimo que a tela de contatos faz depois de abrir: navegar para o inbox. */
 function Painel() {
-  const { iniciarConversa, seletor } = useConversaNovaComEscolhaDeCanal({
+  const { iniciarConversa, abrirConversaExistente, seletor } = useConversaNovaComEscolhaDeCanal({
     aoAbrir: aoAbrirMock,
   });
   return (
@@ -84,6 +84,7 @@ function Painel() {
       >
         iniciar
       </button>
+      <button type="button" onClick={() => void abrirConversaExistente("conv-existente")}>abrir existente</button>
       {seletor}
     </div>
   );
@@ -278,4 +279,23 @@ describe("Seletor de canal ao iniciar conversa nova (#2382)", () => {
     await waitFor(() => expect(aoAbrirMock).toHaveBeenCalledWith("conv-9"));
     expect(toastError).not.toHaveBeenCalled();
   });
+  it("contato ocupado: exibe o nome do responsável e não navega para o Inbox", async () => {
+    getMock.mockResolvedValue({ data: [] });
+    fetchMock.mockResolvedValue({ ok: false, json: async () => ({ error: {
+      code: "state_conflict", message: "Este contato já está em atendimento com Maria." } }) });
+    montar();
+    fireEvent.click(screen.getByRole("button", { name: "iniciar" }));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("Este contato já está em atendimento com Maria."));
+    expect(aoAbrirMock).not.toHaveBeenCalled();
+  });
+
+  it("atalho existente também avisa sem navegar nem reabrir", async () => {
+    getMock.mockResolvedValue({ data: [] });
+    fetchMock.mockResolvedValue({ ok: false, json: async () => ({ error: { message: "Este contato já está em atendimento com Maria." } }) });
+    montar(); fireEvent.click(screen.getByRole("button", { name: "abrir existente" }));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("Este contato já está em atendimento com Maria."));
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/conversations/conv-existente/availability");
+    expect(aoAbrirMock).not.toHaveBeenCalled();
+  });
+
 });

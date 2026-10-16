@@ -3402,3 +3402,7 @@ Controle negativo: retirada a seleção dos membros do departamento no carregado
 os quatro casos correspondentes de unidade reprovam; restaurado o código, passam.
 As capturas usam somente os dados fictícios da bancada E2E. A instalação por
 baseline e a atualização por migration exercitam a mesma reserva de departamento.
+
+## Reabrir e contato ocupado `[P1]`
+
+Cobertura em `tests/e2e/inbox-reabrir-e-contato-ocupado.spec.ts` (parte 1): atendente com permissão de histórico reabre conversa de outro responsável, torna-se responsável e aceita o novo episódio; ao iniciar contato com outra pessoa, vê o nome e permanece em Contatos. Capturas previstas em `evidence/reabertura-contato-ocupado/`. Execução pendente; não há prova visual local nesta alteração.
