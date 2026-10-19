@@ -1,5 +1,14 @@
 # PROJECT_STATE
 
+## Preparado localmente — autoria e clique nas citações (19/10/2026)
+- Pedido: mostrar o nome do usuário em vez de Atendente e preservar a autoria após transferência; clicar em citação do cliente ou usuário deve abrir a original.
+- A API do histórico enriquece linhas já autorizadas por RLS com o nome do emissor gravado em cada mensagem; não consulta o dono atual. Sem schema novo e sem reescrita de mensagens.
+- A citação mantém um botão mesmo fora das páginas carregadas. O clique carrega o histórico até a original, centraliza e destaca; oferece cancelamento e informa ausência/falha. Troca de conversa invalida pedidos anteriores.
+- Validação local: 53 casos em sete arquivos relacionados e 26 de idioma aprovados. Controle negativo: retirar o nome e o clique fez falhar os dois casos previstos; restaurados os consertos, os dois passaram. Lint dos arquivos funcionais sem avisos; lint completo sem erros, com avisos existentes; auditorias de canal/papel e fragmentos de versão aprovadas. Typecheck final aprovado com heap de 6 GB (o limite padrão de 2 GB esgotou).
+- E2E preparado na spec existente com dados sintéticos, histórico maior que 50 mensagens e transferência por RPC; não executado, pois não há Docker local e a publicação foi bloqueada. A suíte unitária completa foi interrompida; o recorte de idioma encontrado nessa execução foi corrigido e passou. Rodar CI completo, prova visual e build antes de integrar/instalar.
+- Publicação e instalação autorizadas explicitamente pelo usuário em 19/10/2026. O terminal não tem autenticação de escrita; publicar pela conexão GitHub da conta Edsonl10. Branch `fix/autoria-e-citacoes`; produção e banco ainda não alterados.
+- Destino: núcleo. Entrada: histórico autorizado e identidade do emissor; saída: MessageBubble/ChatThread em Inbox. Auditoria de envio/transferência existente preservada; navegação é leitura. Falha visível com nova tentativa fecha o retorno humano. Sem configuração ou nova peça de arquitetura.
+
 ## Em produção — reabrir e assumir / aviso de contato ocupado
 - Pedido de 16/10/2026: mostrar Reabrir aos atendentes com acesso à conversa fechada. Decisão explícita: quem reabre assume o novo atendimento.
 - RPC 9006 reúne reabertura, atribuição, pausa da IA, aceite e evento em uma transação; revalida papel, suporte, MFA comprovada, leitura, revisão e estado terminal. Não toma conversa aberta. Migration + baseline precedem a aplicação compatível.

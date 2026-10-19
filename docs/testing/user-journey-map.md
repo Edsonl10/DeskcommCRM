@@ -3406,3 +3406,10 @@ baseline e a atualização por migration exercitam a mesma reserva de departamen
 ## Reabrir e contato ocupado `[P1]`
 
 Cobertura em `tests/e2e/inbox-reabrir-e-contato-ocupado.spec.ts` (parte 1): atendente com permissão de histórico reabre conversa de outro responsável, torna-se responsável e aceita o novo episódio; ao iniciar contato com outra pessoa, vê o nome e permanece em Contatos. Capturas previstas em `evidence/reabertura-contato-ocupado/`. Execução pendente; não há prova visual local nesta alteração.
+
+## Autoria e navegação nas citações `[P1]` (2026-10-19)
+
+- CONFIRMADO no código anterior: `MessageBubble` rotulava o colega como Atendente; a citação era um `div` sem ação e sumia quando a original ficava fora das páginas carregadas.
+- A API do histórico resolve `sent_by_user_name` pelo `sent_by_user_id` de cada mensagem já autorizada por RLS. Transferência não modifica esse vínculo. Falta de nome mantém o fallback explícito, sem atribuir mensagens ao responsável atual.
+- `tests/e2e/inbox-responder-citando.spec.ts`: cliente cita a resposta de Maria Teste antes da transferência; o novo atendente clica, carrega a página antiga, vê Maria Teste e a original destacada no viewport. Resposta da equipe citando o cliente também leva à original. Execução pendente nesta revisão inicial.
+- `tests/unit/chat-thread-citacao.test.tsx`: citação carregada, paginação até a original, original ausente, falha e nova tentativa, troca de conversa durante a carga. Os 53 casos relacionados e 26 de idioma passaram localmente; controle negativo de nome/clique falhou nos dois casos previstos e passou após restauração. Evidência visual esperada em `evidence/autoria-e-citacoes/` após a execução real.

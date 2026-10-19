@@ -3,7 +3,7 @@
 import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 
 import type { Locale } from "date-fns";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import { format, isToday, isYesterday } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -81,7 +81,13 @@ function dayLabel(d: Date, t: (texto: string) => string = (texto) => texto, loca
   return format(d, "dd/MM/yyyy", { locale: locale });
 }
 
-export function ChatThread({
+export function ChatThread(props: Props) {
+  // O estado da navegação pertence a uma única conversa, inclusive ao voltar
+  // a uma conversa anterior depois de cancelar uma carga ainda em andamento.
+  return <ChatThreadDaConversa key={props.conversationId ?? "sem-conversa"} {...props} />;
+}
+
+function ChatThreadDaConversa({
   conversationId,
   provider,
   onResponder,
@@ -98,6 +104,15 @@ export function ChatThread({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const paginasVistas = useRef(0);
+  const pedidoDeCitacao = useRef(0);
+  const navegacaoEmCurso = useRef(false);
+  const [navegacao, setNavegacao] = useState<{
+    conversa: string; mensagem: string; carregando: boolean;
+  } | null>(null);
+  const [avisoCitacao, setAvisoCitacao] = useState<{ conversa: string; texto: string } | null>(null);
+  const [destaque, setDestaque] = useState<{ conversa: string; mensagem: string } | null>(null);
+  const navegacaoAtual = navegacao?.conversa === conversationId ? navegacao : null;
+
   /**
    * Esta conversa já ancorou no fim ALGUMA vez, com conteúdo na tela?
    *
@@ -150,15 +165,62 @@ export function ChatThread({
         ?.querySelector('[data-search-match="true"]')
         ?.scrollIntoView({ block: "nearest" });
   }, [termo]);
-  /**
-   * As mensagens por id, para resolver a CITADA sem ir ao servidor.
-   *
-   * Uma consulta por bolha citada seria uma cascata de requisições numa
-   * conversa longa. Aqui o fio sai da lista que já está na tela — e quando a
-   * citada ficou fora da página carregada, ele simplesmente não aparece, que é
-   * melhor que segurar a conversa esperando por um texto de enfeite.
-   */
   const porId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
+
+  // O cursor continua sendo o do histórico normal: não cria lacunas e não
+  // substitui as últimas mensagens por uma janela isolada do passado.
+  async function irParaMensagem(id: string) {
+    if (!conversationId) return;
+    const pedido = ++pedidoDeCitacao.current;
+    navegacaoEmCurso.current = true;
+    const conversa = conversationId;
+    setAvisoCitacao(null);
+    setDestaque(null);
+    setNavegacao({ conversa, mensagem: id, carregando: true });
+    let pagina = { data: q.data, hasNextPage: q.hasNextPage };
+    try {
+      while (!pagina.data?.pages.some((p) => p.data.some((m) => m.id === id))) {
+        if (!pagina.hasNextPage) throw new Error("ausente");
+        const cursorAnterior = pagina.data?.pages.at(-1)?.meta?.cursor;
+        const proxima = await q.fetchNextPage({ cancelRefetch: false });
+        if (pedido !== pedidoDeCitacao.current) return;
+        if (proxima.isError) throw new Error("carga");
+        pagina = proxima;
+        if (pagina.hasNextPage && pagina.data?.pages.at(-1)?.meta?.cursor === cursorAnterior)
+          throw new Error("carga");
+      }
+      if (pedido === pedidoDeCitacao.current)
+        setNavegacao({ conversa, mensagem: id, carregando: false });
+    } catch (erro) {
+      if (pedido !== pedidoDeCitacao.current) return;
+      navegacaoEmCurso.current = false;
+      setNavegacao(null);
+      setAvisoCitacao({ conversa, texto: erro instanceof Error && erro.message === "ausente"
+        ? t("A mensagem citada não está disponível neste histórico.")
+        : t("Não foi possível carregar a mensagem citada. Clique na citação para tentar novamente.") });
+    }
+  }
+
+  // Espera a pintura da página que contém a original antes de rolar. A troca
+  // de conversa cancela o pedido anterior; uma resposta atrasada não move outra conversa.
+  useEffect(() => {
+    return () => { pedidoDeCitacao.current += 1; navegacaoEmCurso.current = false; };
+  }, [conversationId]);
+  useEffect(() => {
+    if (!navegacaoAtual || navegacaoAtual.carregando || !porId.has(navegacaoAtual.mensagem)) return;
+    const elemento = Array.from(scrollerRef.current?.querySelectorAll<HTMLElement>("[data-message-id]") ?? [])
+      .find((el) => el.dataset.messageId === navegacaoAtual.mensagem);
+    if (!elemento) return;
+    elemento.scrollIntoView({ behavior: "auto", block: "center" });
+    navegacaoEmCurso.current = false;
+    setDestaque({ conversa: navegacaoAtual.conversa, mensagem: navegacaoAtual.mensagem });
+    setNavegacao(null);
+  }, [navegacaoAtual, porId]);
+  useEffect(() => {
+    if (!destaque) return;
+    const timer = setTimeout(() => setDestaque(null), 3000);
+    return () => clearTimeout(timer);
+  }, [destaque]);
 
   const cartoes: CartaoDaPassagem[] = useMemo(
     () =>
@@ -199,7 +261,7 @@ export function ChatThread({
   useEffect(() => {
     const carregouAntigas = paginasVistas.current !== 0 && paginas > paginasVistas.current;
     paginasVistas.current = paginas;
-    if (carregouAntigas) return;
+    if (carregouAntigas || navegacaoEmCurso.current) return;
 
     /**
      * A guarda de distância NÃO vale ENQUANTO A ABERTURA NÃO TERMINOU.
@@ -289,7 +351,7 @@ export function ChatThread({
     );
   }
 
-  if (q.isError) {
+  if (q.isError && !q.data) {
     return (
       <div
         {...sinalDoCanal}
@@ -326,6 +388,18 @@ export function ChatThread({
 
   return (
     <div {...sinalDoCanal} className="flex h-full min-w-0 flex-col">
+      {(navegacaoAtual?.carregando || avisoCitacao?.conversa === conversationId) && (
+        <div className="px-4 py-1 text-xs text-muted-foreground" role="status">
+          {navegacaoAtual?.carregando ? t("Carregando mensagem citada…") : avisoCitacao?.texto}
+          {navegacaoAtual?.carregando && (
+            <Button size="sm" variant="ghost" onClick={() => {
+              pedidoDeCitacao.current += 1;
+              navegacaoEmCurso.current = false;
+              setNavegacao(null);
+            }}>{t("Cancelar")}</Button>
+          )}
+        </div>
+      )}
       {termo && (
         <div className="px-4 py-1 text-xs text-muted-foreground" role="status">
           {t("Resultados nas mensagens carregadas")}: {resultados.size}
@@ -387,12 +461,12 @@ export function ChatThread({
                   key={`msg-${item.data.id}`}
                   message={item.data}
                   searchMatch={resultados.has(item.data.id)}
+                  destacada={destaque?.conversa === conversationId && destaque.mensagem === item.data.id}
+                  onIrParaMensagem={(id) => void irParaMensagem(id)}
                   debugCitations={debugCitations}
                   onResponder={onResponder}
-                  // A citada sai da MESMA lista já carregada: buscar no servidor
-                  // por cada citação faria uma consulta por bolha. Quando a
-                  // citada é antiga demais e ficou fora da página, o fio some —
-                  // que é melhor que segurar a conversa esperando.
+                  // Uma citação fora das páginas carregadas mantém o botão;
+                  // o clique pagina até alcançar a mensagem original.
                   citada={porId.get(item.data.reply_to_message_id ?? "") ?? null}
                   // Sem isto o balão diz "Você" em toda mensagem digitada no
                   // CRM — inclusive nas do colega, porque `sent_via='user'` só

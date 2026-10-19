@@ -1584,6 +1584,13 @@ export const DICIONARIO: Traducoes = {
   "Fuso horário da janela": { es: "Zona horaria de la ventana" },
 
   // ─── Estados e avisos que aparecem em várias telas ───
+  "Ir para a mensagem citada": { es: "Ir al mensaje citado" },
+  "Celular": { es: "Móvil" },
+  "Mensagem citada": { es: "Mensaje citado" },
+  "Ver mensagem no histórico": { es: "Ver mensaje en el historial" },
+  "Carregando mensagem citada…": { es: "Cargando mensaje citado…" },
+  "A mensagem citada não está disponível neste histórico.": { es: "El mensaje citado no está disponible en este historial." },
+  "Não foi possível carregar a mensagem citada. Clique na citação para tentar novamente.": { es: "No se pudo cargar el mensaje citado. Haz clic en la cita para volver a intentarlo." },
   "Carregando…": { es: "Cargando…" },
   "Nenhum resultado": { es: "Sin resultados" },
   Erro: { es: "Error" },

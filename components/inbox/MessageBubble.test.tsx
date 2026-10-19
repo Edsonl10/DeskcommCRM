@@ -186,6 +186,37 @@ describe("MessageBubble — ocultação local de recebida", () => {
 });
 
 describe("MessageBubble — rótulo de origem", () => {
+  it("mostra o nome do emissor, inclusive quando a conversa está com outra pessoa", () => {
+    const { rerender } = render(<MessageBubble message={msg({
+      sent_by_user_id: "u-colega", sent_by_user_name: "Maria Teste",
+    })} viewerUserId="u-eu" />);
+    expect(screen.getByText("Maria Teste")).toBeInTheDocument();
+    expect(screen.queryByText("Atendente")).not.toBeInTheDocument();
+    rerender(<MessageBubble message={msg({
+      sent_by_user_id: "u-colega", sent_by_user_name: "Maria Teste",
+    })} viewerUserId="u-colega" />);
+    expect(screen.getByText("Maria Teste")).toBeInTheDocument();
+    expect(screen.queryByText("Você")).not.toBeInTheDocument();
+  });
+
+  it("citação de mensagem do colega mostra o mesmo autor e navega até a original", () => {
+    const navegar = vi.fn();
+    render(<MessageBubble message={msg({ direction: "inbound", reply_to_message_id: "original" })}
+      citada={msg({ id: "original", sent_by_user_id: "colega", sent_by_user_name: "Maria Teste" })}
+      viewerUserId="eu" onIrParaMensagem={navegar} />);
+    expect(screen.getByText("Maria Teste")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ir para a mensagem citada" }));
+    expect(navegar).toHaveBeenCalledWith("original");
+  });
+
+  it("mantém o clique quando a original ainda não foi carregada", () => {
+    const navegar = vi.fn();
+    render(<MessageBubble message={msg({ reply_to_message_id: "antiga" })} onIrParaMensagem={navegar} />);
+    expect(screen.getByText("Ver mensagem no histórico")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ir para a mensagem citada" }));
+    expect(navegar).toHaveBeenCalledWith("antiga");
+  });
+
   it("resposta pelo celular (external_device) mostra 'Celular'", () => {
     render(<MessageBubble message={msg({ sent_via: "external_device" })} />);
     expect(screen.getByText("Celular")).toBeInTheDocument();

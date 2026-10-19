@@ -12,6 +12,7 @@ import { orgAtivaDaApi } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { listMessagesQuerySchema } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
+import { comNomesDosEmissores } from "@/lib/users/com-nomes-dos-emissores";
 
 import { listMessagesHandler } from "@/app/api/v1/messages/_handler";
 
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
       conversationId,
       qsParsed.data,
     );
-    return ok(messages, { requestId, meta: { cursor, has_more } });
+    return ok(await comNomesDosEmissores(messages), { requestId, meta: { cursor, has_more } });
   } catch (err) {
     if (err instanceof ApiError) {
       return fail(err.code, err.message, err.status, { requestId });
