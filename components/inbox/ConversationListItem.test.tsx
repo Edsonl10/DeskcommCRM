@@ -86,3 +86,39 @@ describe("ConversationListItem — bolinha de quem atende", () => {
     expect(screen.queryByRole("img", { name: "Em atendimento" })).toBeNull();
   });
 });
+
+
+describe("ConversationListItem — responsável independente do aceite", () => {
+  it.each(["waiting", "active", "closed"] as const)("mostra o responsável em %s", (state) => {
+    const { rerender } = render(
+      <ConversationListItem
+        {...conversaDeExemplo.props}
+        mostrarAtendente
+        conversation={{ ...conversaDeExemplo.conversation, inbox_state: state,
+          status: state === "closed" ? "closed" : "open",
+          assigned_to_user_id: "ana", assigned_to_user_name: "Ana Teste", assignee_kind: "user" }}
+      />,
+    );
+    expect(screen.getByLabelText("Responsável: Ana Teste")).toBeVisible();
+    if (state === "waiting") {
+      expect(screen.getByRole("img", { name: "Aguardando atendente" })).toBeVisible();
+    }
+    rerender(
+      <ConversationListItem
+        {...conversaDeExemplo.props}
+        mostrarAtendente
+        conversation={{ ...conversaDeExemplo.conversation, inbox_state: state,
+          status: state === "closed" ? "closed" : "open",
+          assigned_to_user_id: "maria", assigned_to_user_name: "Maria Teste", assignee_kind: "user" }}
+      />,
+    );
+    expect(screen.getByLabelText("Responsável: Maria Teste")).toBeVisible();
+    expect(screen.queryByLabelText("Responsável: Ana Teste")).toBeNull();
+  });
+
+  it("não inventa atendente para conversa sem responsável", () => {
+    render(<ConversationListItem {...conversaDeExemplo.props} mostrarAtendente
+      conversation={{ ...conversaDeExemplo.conversation, inbox_state: "unassigned" }} />);
+    expect(screen.queryByLabelText(/^Responsável:/)).toBeNull();
+  });
+});

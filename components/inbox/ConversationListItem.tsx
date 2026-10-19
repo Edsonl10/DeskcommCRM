@@ -223,9 +223,13 @@ export function ConversationListItem({
   const canal = conversation.channel_sessions ?? null;
   const rotuloCanal = rotuloDoCanalDaConversa(canal, t);
 
+  // O responsável existe antes do aceite. Aguardando altera o estado da fila,
+  // não apaga quem recebeu a conversa (inclusive após uma transferência).
+  const exibirResponsavel = mostrarAtendente && Boolean(conversation.assigned_to_user_id);
+
   const temSelos =
     visibleTags.length > 0 ||
-    (mostrarAtendente && comando.quem === "humano") ||
+    exibirResponsavel ||
     (mostrarCanal && rotuloCanal != null) ||
     Boolean(c?.is_blocked) ||
     Boolean(c?.is_anonymized);
@@ -352,8 +356,8 @@ export function ConversationListItem({
             {overflow > 0 && (
               <span className="text-[10px] text-text-muted">+{overflow}</span>
             )}
-            {mostrarAtendente && comando.quem === "humano" && (
-              <OwnerBadge ownerKind="user" ownerName={comando.nome ?? t("Atendente")} compacto />
+            {exibirResponsavel && (
+              <OwnerBadge ownerKind="user" ownerName={conversation.assigned_to_user_name ?? t("Atendente")} compacto />
             )}
             {/* #2383: `min-w-0` + `max-w` + `truncate` — o mesmo tratamento do
                 badge do cabeçalho. Uma linha de badges é `flex-wrap`, então um
