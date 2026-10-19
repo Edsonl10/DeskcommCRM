@@ -29,21 +29,14 @@ import {
 interface Props {
   message: Message;
   searchMatch?: boolean;
+  destacada?: boolean;
+  onIrParaMensagem?: (id: string) => void;
   debugCitations?: boolean;
   /** Escolher esta mensagem para responder "em cima" dela. */
   onResponder?: (m: Message) => void;
   /** A mensagem citada por ESTA, quando houver — desenha o fio. */
   citada?: Message | null;
-  /**
-   * QUEM está lendo a conversa. É o que separa "Você" de "Atendente": a coluna
-   * `sent_via='user'` só diz *"um humano digitou no CRM"*, nunca QUAL humano.
-   *
-   * Sem este id, uma organização com dois atendentes mostrava "Você" nas
-   * mensagens do colega — cada um lia o atendimento do outro como se fosse o
-   * seu. Por isso a ausência do id NÃO cai em "Você": quem não sabe quem está
-   * lendo (a leitura do super-admin em `AdminThread`, por exemplo) rotula
-   * "Atendente", que é verdadeiro para todo mundo.
-   */
+  /** Fallback de autoria para respostas antigas em cache, sem nome resolvido. */
   viewerUserId?: string | null;
   onEditar?: (text: string) => Promise<void>;
   onApagar?: () => Promise<void>;
@@ -67,6 +60,8 @@ function AckIndicator({ status, t }: { status: string; t: (texto: string) => str
 export function MessageBubble({
   message,
   searchMatch = false,
+  destacada = false,
+  onIrParaMensagem,
   debugCitations,
   onResponder,
   citada,
@@ -142,20 +137,8 @@ export function MessageBubble({
   const citations = extractCitations(message.metadata);
   const showCitationButton =
     isOutbound && aiGenerated && (debugCitations ?? false);
-  // De quem saiu esta linha. `external_device` é a resposta pelo CELULAR — o
-  // operador atendeu pelo WhatsApp do telefone, fora do CRM, e o ingest carimba
-  // aqui. Antes isto voltava null para tudo que não fosse IA, e a bolha ficava
-  // sem nome: o dono lia a conversa como se tudo tivesse sido digitado no CRM.
-  // Os rótulos passam por t() no render (ver dicionario.ts para o espanhol).
-  //
-  // `'automation'` é a categoria de quem não é pessoa nem IA: regra de
-  // automação, texto fixo do follow-up e lembrete de agenda (#652, decidida pelo
-  // mantenedor em 16/09). Enquanto ninguém gravava o valor, um ramo aqui seria
-  // controle decorativo — a tela oferecendo uma distinção que o motor não fazia.
-  // O carimbo vive em `origemDaMensagem` (`app/api/v1/messages/_handler.ts`) e o
-  // par é vigiado nas duas direções por tests/unit/rotulo-de-origem-tem-emissor.
-  const senderLabel = (() => {
-    if (!isOutbound) return null;
+  function rotuloDoEmissor(message: Message): string | null {
+    if (message.direction !== "outbound") return null;
     // #1613: a autoria "em nome de" sobe a MESA. Quem apertou foi o token, mas
     // quem decidiu foi uma pessoa no outro sistema — sem este ramo a conversa
     // leria "Sistema" e perderia quem mandou. Os nomes vêm GRAVADOS na própria
@@ -173,27 +156,28 @@ export function MessageBubble({
       // o mesmo erro de #1046.
       return emNomeDe.token_name ? `${nome} · ${t("via")} ${emNomeDe.token_name}` : nome;
     }
-    if (message.sent_via === "ai") return "IA";
+    if (message.sent_via === "ai") return t("IA");
     // A REGRA falou, e não a IA: texto fixo de automação, follow-up ou lembrete
     // de agenda (#652). O ramo passou a existir porque o valor passou a ser
     // gravado — antes dele, um rótulo aqui seria promessa sem dado atrás.
-    if (message.sent_via === "automation") return "Automação";
+    if (message.sent_via === "automation") return t("Automação");
     // A integração falou, a IA não. Sem este ramo a bolha omite a autoria e o
     // dono lê a conversa como se tudo tivesse saído do CRM — que é o defeito do
     // #866 visto de dentro da tela.
-    if (message.sent_via === "system") return "Sistema";
-    if (message.sent_via === "external_device") return "Celular";
+    if (message.sent_via === "system") return t("Sistema");
+    if (message.sent_via === "external_device") return t("Celular");
     if (message.sent_via === "user" || message.sent_via === "crm") {
-      // "Você" exige as DUAS pontas: saber quem lê e saber quem enviou. Falta
-      // qualquer uma, o rótulo cai para "Atendente" — que continua dizendo o
-      // que `sent_via` de fato garante (um humano, pelo CRM) sem afirmar uma
-      // identidade que o dado não sustenta.
+      // O nome pertence a ESTA mensagem; transferir muda apenas o dono da conversa.
+      const nome = message.sent_by_user_id ? message.sent_by_user_name?.trim() : null;
+      if (nome) return nome;
       return viewerUserId != null && message.sent_by_user_id === viewerUserId
-        ? "Você"
-        : "Atendente";
+        ? t("Você")
+        : t("Atendente");
     }
     return null;
-  })();
+  }
+  const senderLabel = rotuloDoEmissor(message);
+  const citadaId = message.reply_to_message_id ?? citada?.id;
   // QUEM MANDOU, num grupo. Só faz sentido em mensagem RECEBIDA: uma mensagem
   // que ESTE CRM enviou não tem remetente a descobrir, é sempre o atendente (ou
   // a IA) — e `senderLabel`, acima, já diz quem foi. A leitura do dado bruto é
@@ -215,6 +199,8 @@ export function MessageBubble({
 
   return (
     <div
+      data-message-id={message.id}
+      data-message-highlighted={destacada || undefined}
       data-search-match={searchMatch || undefined}
       className={cn(
         "group flex w-full min-w-0 items-center gap-1 px-4 py-1",
@@ -241,7 +227,7 @@ export function MessageBubble({
           isFailed && "border border-destructive",
           // A marca da busca é ANEL, não cor de fundo: o fundo já diz de quem é
           // a mensagem, e trocá-lo apagaria essa leitura justo na bolha achada.
-          searchMatch && "ring-2 ring-foreground ring-offset-2 ring-offset-background",
+          (searchMatch || destacada) && "ring-2 ring-foreground ring-offset-2 ring-offset-background",
           apagada && "opacity-70",
         )}
       >
@@ -307,17 +293,21 @@ export function MessageBubble({
           Mostra de quem era e um trecho. `line-clamp-2` porque serve para
           reconhecer, não para reler: a original está logo acima no histórico.
         */}
-        {citada && (
-          <div
+        {(citada || citadaId) && (
+          <button
+            type="button"
+            aria-label={t("Ir para a mensagem citada")}
+            disabled={!onIrParaMensagem || !citadaId}
+            onClick={() => citadaId && onIrParaMensagem?.(citadaId)}
             className={cn(
-              "mb-1 rounded-md border-l-2 px-2 py-1 text-xs",
+              "mb-1 block w-full rounded-md border-l-2 px-2 py-1 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-2",
               isOutbound
                 ? "border-primary-foreground/50 bg-primary-foreground/10"
                 : "border-primary bg-background/60",
             )}
           >
             <div className="font-medium opacity-80">
-              {citada.direction === "outbound" ? t("Você") : t("Cliente")}
+              {citada ? rotuloDoEmissor(citada) ?? t("Cliente") : t("Mensagem citada")}
             </div>
             {/*
               A CITADA PODE TER SIDO APAGADA — e aí o texto dela não volta aqui.
@@ -329,14 +319,16 @@ export function MessageBubble({
               continuava legível dentro de cada resposta que a citou. O fio
               permanece (a citação some, não a resposta); o conteúdo, não.
             */}
-            <div className={cn("line-clamp-2 wrap-anywhere opacity-70", Boolean(citada.revoked_at || citada.metadata?.crm_hidden_at) && "italic")}>
-              {citada.revoked_at
+            <div className={cn("line-clamp-2 wrap-anywhere opacity-70", Boolean(citada?.revoked_at || citada?.metadata?.crm_hidden_at) && "italic")}>
+              {!citada
+                ? t("Ver mensagem no histórico")
+                : citada.revoked_at
                 ? t("Esta mensagem foi apagada")
                 : citada.metadata?.crm_hidden_at
                 ? t("Mensagem ocultada no CRM")
                 : citada.body?.trim() || t("(sem texto)")}
             </div>
-          </div>
+          </button>
         )}
         {remetente && (
           <p className="mb-0.5 text-[11px] font-medium text-muted-foreground">
@@ -348,7 +340,7 @@ export function MessageBubble({
             {senderLabel === "IA" ? (
               <Robot size={10} weight="duotone" aria-hidden />
             ) : null}
-            {senderLabel && t(senderLabel)}
+            {senderLabel}
           </div>
         )}
 

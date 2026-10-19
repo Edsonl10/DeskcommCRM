@@ -107,6 +107,8 @@ export interface Message {
   // não conseguia nem NOMEAR o valor para exibi-lo (ver MessageBubble).
   sent_via: SentVia;
   sent_by_user_id: string | null;
+  /** Nome resolvido pela API a partir do emissor desta mensagem, inclusive após transferência. */
+  sent_by_user_name?: string | null;
   /**
    * Quem DECIDIU o envio quando o que apertou foi um token (#1613, migration
    * 0416) — a pessoa "em nome de" quem a integração mandou. `null` em todo

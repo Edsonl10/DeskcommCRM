@@ -12,10 +12,10 @@
  *      componente cai no `return null` final, e **todos os rótulos somem em
  *      silêncio** — sem erro, sem vermelho, sem nada na tela;
  *   2. o rótulo aparece de fato no balão certo, e não atrás de outro elemento;
- *   3. o "Você" é do usuário LOGADO. `sent_via='user'` registra que um humano
+ *   3. o nome é de QUEM ENVIOU. `sent_via='user'` registra que um humano
  *      digitou no CRM, nunca qual — a distinção depende de `sent_by_user_id`
- *      chegar à tela junto com o id da sessão. Um teste de componente pode
- *      passar o par à mão; só a tela prova que a rota entrega os dois.
+ *      e do nome resolvido pela rota. Um teste de componente pode passar o
+ *      par à mão; só a tela prova que a rota entrega os dois.
  *
  * As duas são exatamente a classe que a doutrina de QA Visual manda provar pelo
  * frontend: `curl` valida o backend, não o que o dono VÊ.
@@ -176,10 +176,10 @@ test.describe("Inbox — o balão diz de onde saiu a mensagem", () => {
     //
     // ⚠️ AS DUAS ÚLTIMAS TÊM O MESMO `sent_via`. Também não é descuido: a
     // coluna registra que *um humano digitou no CRM*, nunca QUAL — quem separa
-    // é `sent_by_user_id` contra o id de quem está lendo. Sem a quinta linha,
-    // um componente que dissesse "Você" em toda mensagem de `sent_via='user'`
-    // passaria neste spec, e numa org com dois atendentes cada um leria o
-    // atendimento do outro como seu.
+    // é `sent_by_user_id`, cujo nome a API resolve. Sem a quinta linha, um
+    // componente que dissesse o nome do leitor em toda mensagem de
+    // `sent_via='user'` passaria neste spec, e cada um leria o atendimento
+    // do outro como seu.
     //
     // ⚠️ A PRIMEIRA E A SEGUNDA TÊM O MESMO `sent_via`. Isso não é descuido do
     // fixture: a ingestão carimba `external_device` nos dois sentidos, e quem
@@ -241,7 +241,7 @@ test.describe("Inbox — o balão diz de onde saiu a mensagem", () => {
      * ficaria verde com os três rótulos na bolha errada.
      *
      * O caminho é `<p>` do corpo → PAI. Em `MessageBubble` o rótulo e o corpo
-     * são IRMÃOS dentro da bolha (`<div class="mb-0.5 …">{t(senderLabel)}</div>`
+     * são IRMÃOS dentro da bolha (`<div class="mb-0.5 …">{senderLabel}</div>`
      * e `<p class="whitespace-pre-wrap …">{message.body}</p>`), então o pai do
      * `<p>` é o menor elemento que contém os dois.
      *
@@ -258,8 +258,9 @@ test.describe("Inbox — o balão diz de onde saiu a mensagem", () => {
     const esperado: Array<[string, string]> = [
       ["RESPOSTA PELO CELULAR", "Celular"],
       ["RESPOSTA DO AGENTE", "IA"],
-      ["RESPOSTA DIGITADA POR MIM", "Você"],
-      ["RESPOSTA DIGITADA PELO COLEGA", "Atendente"],
+      // Nomes semeados por scripts/seed-e2e-credentials.ts.
+      ["RESPOSTA DIGITADA POR MIM", "E2E Agent"],
+      ["RESPOSTA DIGITADA PELO COLEGA", "E2E Manager"],
     ];
 
     for (const [corpo, rotulo] of esperado) {
@@ -269,28 +270,26 @@ test.describe("Inbox — o balão diz de onde saiu a mensagem", () => {
       });
       await expect(
         bolha,
-        `o balão de "${corpo}" devia dizer "${rotulo}" — é o que messages.sent_via gravou`,
+        `o balão de "${corpo}" devia dizer "${rotulo}" — origem e emissor gravados na mensagem`,
       ).toContainText(rotulo);
     }
 
-    // "VOCÊ" NÃO PODE APARECER NA MENSAGEM DE OUTRA PESSOA.
-    //
-    // A asserção positiva acima não fecha sozinha: "Atendente" e "Você" são
-    // textos distintos, mas um componente que desenhasse os DOIS rótulos na
-    // mesma bolha passaria no `toContainText("Atendente")`. Esta é a asserção
-    // que o dono da conta sente — ler o atendimento do colega como se fosse
-    // seu é a mentira, e ela não some por acrescentar um rótulo certo ao lado.
-    await expect(
-      balaoCom("RESPOSTA DIGITADA PELO COLEGA"),
-      "o balão do colega não pode dizer 'Você' — sent_via='user' não diz QUAL humano digitou",
-    ).not.toContainText("Você");
+    // Acrescentar o nome certo ao lado de um nome errado ainda mente sobre a
+    // autoria. Cada bolha deve conter somente o seu emissor.
+    await expect(balaoCom("RESPOSTA DIGITADA PELO COLEGA")).not.toContainText("E2E Agent");
+    await expect(balaoCom("RESPOSTA DIGITADA POR MIM")).not.toContainText("E2E Manager");
+    for (const corpo of ["RESPOSTA DIGITADA POR MIM", "RESPOSTA DIGITADA PELO COLEGA"]) {
+      for (const generico of ["Você", "Atendente"]) {
+        await expect(balaoCom(corpo)).not.toContainText(generico);
+      }
+    }
 
     // O CONTROLE NEGATIVO, e ele é o que separa "rotula certo" de "rotula
     // tudo": a mensagem RECEBIDA não leva rótulo de origem nenhum. Sem ele,
     // um componente que carimbasse "Celular" em toda bolha passaria nos
     // casos acima.
     const bolhaDoCliente = balaoCom("PERGUNTA DO CLIENTE");
-    for (const rotulo of ["Celular", "IA", "Você", "Atendente"]) {
+    for (const rotulo of ["Celular", "IA", "Você", "Atendente", "E2E Agent", "E2E Manager"]) {
       await expect(
         bolhaDoCliente,
         `a mensagem do cliente não pode levar o rótulo "${rotulo}"`,

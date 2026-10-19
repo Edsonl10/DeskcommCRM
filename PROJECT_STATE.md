@@ -1,5 +1,16 @@
 # PROJECT_STATE
 
+## Em validação — autoria e clique nas citações (19/10/2026)
+- Pedido: mostrar o nome do usuário em vez de Atendente e preservar a autoria após transferência; clicar em citação do cliente ou usuário deve abrir a original.
+- A API do histórico enriquece linhas já autorizadas por RLS com o nome do emissor gravado em cada mensagem; não consulta o dono atual. Sem schema novo e sem reescrita de mensagens.
+- A citação mantém um botão mesmo fora das páginas carregadas. O clique carrega o histórico até a original, centraliza e destaca; oferece cancelamento e informa ausência/falha. Troca de conversa invalida pedidos anteriores.
+- Validação local: 53 casos em sete arquivos relacionados e 26 de idioma aprovados. Controle negativo: retirar o nome e o clique fez falhar os dois casos previstos; restaurados os consertos, os dois passaram. Lint dos arquivos funcionais sem avisos; lint completo sem erros, com avisos existentes; auditorias de canal/papel e fragmentos de versão aprovadas. Typecheck final aprovado com heap de 6 GB (o limite padrão de 2 GB esgotou).
+- PR #19 publicado, fonte `c3fb89784b819f31bdaba901f2a33ee250473342`: verify completo e invariantes PostgreSQL 17 com atualização sobre banco com dados aprovados (39243703408); build (39243703355) e imagens AMD64/ARM64 (39243703381) aprovados. A suíte completa local foi interrompida; o CI completou essa medida.
+- E2E 39243703420: o caso com dados sintéticos, mais de 50 mensagens e transferência por RPC passou em 9,7 s. Os dois casos existentes de responder/cancelar e trocar de conversa também passaram. A parte 3 apontou uma expectativa antiga de Você/Atendente no spec de origem; a tela já trazia E2E Agent. Spec atualizado para exigir os nomes reais de ambos os emissores, recusar nomes trocados e preservar as verificações de IA, celular e entrada. Nova rodada completa pendente antes da integração/instalação.
+- Capturas sintéticas do run conferidas: `evidence/autoria-e-citacoes/autora-apos-transferencia.png` mostra Maria Teste identificada após a transferência; `evidence/autoria-e-citacoes/citacao-do-atendente.png` mostra a original do cliente destacada no viewport.
+- Publicação e instalação autorizadas explicitamente pelo usuário em 19/10/2026. Branch `fix/autoria-e-citacoes`; produção e banco ainda não alterados. Backup de banco, sessões WhatsApp e configurações conferido; instalação preparada para trocar somente o app, preservando os demais serviços e o Caddyfile local.
+- Destino: núcleo. Entrada: histórico autorizado e identidade do emissor; saída: MessageBubble/ChatThread em Inbox. Auditoria de envio/transferência existente preservada; navegação é leitura. Falha visível com nova tentativa fecha o retorno humano. Sem configuração ou nova peça de arquitetura.
+
 ## Em produção — reabrir e assumir / aviso de contato ocupado
 - Pedido de 16/10/2026: mostrar Reabrir aos atendentes com acesso à conversa fechada. Decisão explícita: quem reabre assume o novo atendimento.
 - RPC 9006 reúne reabertura, atribuição, pausa da IA, aceite e evento em uma transação; revalida papel, suporte, MFA comprovada, leitura, revisão e estado terminal. Não toma conversa aberta. Migration + baseline precedem a aplicação compatível.

@@ -1565,13 +1565,6 @@ const CHAVE_DE_RUNTIME_CONGELADA: { arquivo: string; expressao: string; motivo: 
       "it.reason vindo do payload da linha do tempo (linha 114): dado gravado, não frase de tela",
   },
   {
-    arquivo: "components/inbox/MessageBubble.tsx",
-    expressao: "senderLabel",
-    motivo:
-      "rótulo do remetente calculado por IIFE dentro do componente (linha 139): a origem é o dado da " +
-      "mensagem",
-  },
-  {
     arquivo: "components/kanban/FilterBar.tsx",
     expressao: "rotulo",
     motivo:

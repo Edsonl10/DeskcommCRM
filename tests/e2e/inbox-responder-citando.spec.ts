@@ -90,6 +90,9 @@ const conversas: string[] = [];
 const contatos: string[] = [];
 let canal = "";
 let orgId = "";
+let autoraId = "";
+let originalAtendente = "";
+let originalCliente = "";
 
 async function insere(tabela: string, valores: Record<string, unknown>): Promise<string> {
   const { data, error } = await db.from(tabela).insert(valores).select("id").single();
@@ -172,15 +175,81 @@ test.beforeAll(async () => {
   });
   await conversaComMensagem(`Cliente citação A ${SUFIXO}`, `Bom dia, queria saber do orçamento ${SUFIXO}`);
   await conversaComMensagem(`Cliente citação B ${SUFIXO}`, `Olá, é sobre outro assunto ${SUFIXO}`);
+
+  const { data: autora, error: erroAutora } = await db.auth.admin.createUser({
+    email: `citacao-${SUFIXO}@example.test`, password: creds.password, email_confirm: true,
+    user_metadata: { full_name: "Maria Teste" },
+  });
+  if (erroAutora || !autora.user) throw erroAutora ?? new Error("sem autora");
+  autoraId = autora.user.id;
+  const { error: erroVinculo } = await db.from("user_organizations").insert({
+    organization_id: orgId, user_id: autoraId, role: "agent",
+  });
+  if (erroVinculo) throw erroVinculo;
+  const c = await conversaComMensagem(`Cliente histórico ${SUFIXO}`, "Início do histórico");
+  const contato = contatos.at(-1)!;
+  const base = { organization_id: orgId, contact_id: contato, conversation_id: c,
+    channel_session_id: canal, type: "text", status: "sent", sent_via: "user" };
+  const inicio = Date.now() - 120_000;
+  originalAtendente = await insere("messages", { ...base, direction: "outbound",
+    body: "Proposta original da Maria", sent_by_user_id: autoraId,
+    sent_at: new Date(inicio).toISOString() });
+  originalCliente = await insere("messages", { ...base, direction: "inbound",
+    body: "Pedido original do cliente", sent_at: new Date(inicio + 1000).toISOString() });
+  const { error: erroMiolo } = await db.from("messages").insert(Array.from({ length: 65 }, (_, i) => ({
+    ...base, direction: "inbound", body: `Histórico ${i + 1}`,
+    sent_at: new Date(inicio + (i + 2) * 1000).toISOString(),
+  })));
+  if (erroMiolo) throw erroMiolo;
+  await insere("messages", { ...base, direction: "inbound", body: "Cliente citou a proposta",
+    reply_to_message_id: originalAtendente, sent_at: new Date(inicio + 70_000).toISOString() });
+  await insere("messages", { ...base, direction: "outbound", body: "Atendente citou o pedido",
+    sent_by_user_id: creds.users.agent!.id,
+    reply_to_message_id: originalCliente, sent_at: new Date(inicio + 71_000).toISOString() });
+  for (const userId of [autoraId, creds.users.agent!.id]) {
+    const { error: erroTransferencia } = await db.rpc("fn_conversation_assign", {
+      p_organization_id: orgId, p_conversation_id: c, p_to_user_id: userId, p_reason: "transfer",
+    });
+    if (erroTransferencia) throw erroTransferencia;
+  }
+
 });
 
 test.afterAll(async () => {
   if (conversas.length) await db.from("conversations").delete().in("id", conversas);
   if (contatos.length) await db.from("contacts").delete().in("id", contatos);
   if (canal) await db.from("channel_sessions").delete().eq("id", canal);
+  if (autoraId) {
+    await db.from("user_organizations").delete().eq("user_id", autoraId).eq("organization_id", orgId);
+    await db.auth.admin.deleteUser(autoraId);
+  }
 });
 
 test.describe("responder citando", () => {
+  test("citações do cliente e atendente abrem o histórico antigo e preservam autoria após transferência", async ({ page }) => {
+    await login(page, creds.users.agent!.email);
+    await abrirConversa(page, conversas[2]!);
+    const respostaCliente = bolhas(page).filter({ hasText: "Cliente citou a proposta" });
+    await respostaCliente.getByRole("button", { name: "Ir para a mensagem citada" }).click();
+    const original = page.locator(`[data-message-id="${originalAtendente}"]`);
+    await expect(original).toHaveAttribute("data-message-highlighted", "true");
+    await expect(original).toBeInViewport();
+    await expect(original.getByText("Maria Teste", { exact: true })).toBeVisible();
+    await expect(respostaCliente.getByRole("button", { name: "Ir para a mensagem citada" }))
+      .toContainText("Maria Teste");
+    const pasta = path.join(EVIDENCE, "autoria-e-citacoes");
+    fs.mkdirSync(pasta, { recursive: true });
+    await page.screenshot({ path: path.join(pasta, "autora-apos-transferencia.png"), fullPage: false });
+
+    const respostaAtendente = bolhas(page).filter({ hasText: "Atendente citou o pedido" });
+    await respostaAtendente.getByRole("button", { name: "Ir para a mensagem citada" }).click();
+    const pedido = page.locator(`[data-message-id="${originalCliente}"]`);
+    await expect(pedido).toHaveAttribute("data-message-highlighted", "true");
+    await expect(pedido).toBeInViewport();
+    await expect(pedido).toContainText("Pedido original do cliente");
+    await page.screenshot({ path: path.join(pasta, "citacao-do-atendente.png"), fullPage: false });
+  });
+
   test("o botão de responder revela a faixa, e o × a desfaz", async ({ page }) => {
     await login(page, creds.users.agent!.email);
     await abrirConversa(page, conversas[0]!);
