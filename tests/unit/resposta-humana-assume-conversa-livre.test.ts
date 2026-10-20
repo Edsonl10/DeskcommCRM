@@ -63,7 +63,7 @@ beforeEach(() => {
   settings = { routing: { mode: "manual", conversation_stays_with_attendant: true } };
 });
 
-describe("POST /messages após resposta humana, com o ajuste LIGADO", () => {
+describe("POST /messages após resposta humana", () => {
   it("assume somente se a conversa ainda estiver livre", async () => {
     const { POST } = await import("@/app/api/v1/messages/route");
     const response = await POST(req());
@@ -111,16 +111,15 @@ describe("POST /messages após resposta humana, com o ajuste LIGADO", () => {
 });
 
 /**
- * O PADRÃO, e o de toda empresa que já existia: responder NÃO assume a
- * conversa. A IA segue calada só pelos minutos de sempre, que o envio aplica.
+ * O aceite ao responder é independente da fidelização de distribuição futura.
  */
-describe("POST /messages após resposta humana, com o ajuste DESLIGADO", () => {
+describe("Responder também aceita quando a fidelização está desligada", () => {
   it.each([
     ["sem settings", null],
     ["sem a chave", { routing: { mode: "round_robin" } }],
     ["com false", { routing: { conversation_stays_with_attendant: false } }],
     ["com texto \"true\"", { routing: { conversation_stays_with_attendant: "true" } }],
-  ])("não assume a conversa (%s)", async (_nome, valor) => {
+  ])("aceita a conversa (%s)", async (_nome, valor) => {
     settings = valor;
     // A rota engole erro do claim (falha dele não pode virar falha do envio).
     // Sem esta espia, um erro ANTES da leitura do ajuste passaria por "desligado".
@@ -128,11 +127,11 @@ describe("POST /messages após resposta humana, com o ajuste DESLIGADO", () => {
     const { POST } = await import("@/app/api/v1/messages/route");
     const response = await POST(req());
     expect(response.status).toBe(201);
-    expect(from).toHaveBeenCalledWith("organizations");
+    expect(from).not.toHaveBeenCalled();
     expect(erro).not.toHaveBeenCalled();
     erro.mockRestore();
-    expect(rpc).not.toHaveBeenCalledWith("fn_conversation_assign", expect.anything());
-    expect(audit).not.toHaveBeenCalled();
-    expect(registrarTrocaDeComando).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith("fn_conversation_assign", expect.objectContaining({ p_enforce_expected: true, p_to_user_id: userId }));
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ action: "conversation.claimed" }));
+    expect(registrarTrocaDeComando).toHaveBeenCalled();
   });
 });

@@ -15,7 +15,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   if (!z.uuid().safeParse(id).success) return fail("not_found", "Conversa não encontrada.", 404, { requestId });
   const admin = createAdminClient();
   const { data: conv, error } = await admin.from("conversations")
-    .select("id, contact_id, status, assigned_to_user_id, assigned_to_user_name")
+    .select("id, contact_id, status, service_revision, assigned_to_user_id, assigned_to_user_name")
     .eq("organization_id", authz.org.orgId).eq("id", id).maybeSingle();
   if (error) return fail("internal_error", "Não foi possível consultar o atendimento.", 500, { requestId });
   if (!conv) return fail("not_found", "Conversa não encontrada.", 404, { requestId });
@@ -35,5 +35,5 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     .eq("organization_id", authz.org.orgId).eq("id", id).maybeSingle();
   if (visibleError) return fail("internal_error", "Não foi possível consultar o atendimento.", 500, { requestId });
   if (!visible) return fail("not_found", "Conversa não encontrada ou fora do seu acesso.", 404, { requestId });
-  return ok({ available: true }, { requestId });
+  return ok({ available: true, status: conv.status, service_revision: conv.service_revision }, { requestId });
 }

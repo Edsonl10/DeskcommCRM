@@ -128,6 +128,8 @@ export function useSendMessage() {
     onSettled: (_data, _err, args) => {
       qc.invalidateQueries({ queryKey: ["messages", args.conversation_id] });
       qc.invalidateQueries({ queryKey: ["conversations"] });
+      qc.invalidateQueries({ queryKey: ["conversation", args.conversation_id] });
+      qc.invalidateQueries({ queryKey: ["conversation-counts"] });
     },
   });
 }

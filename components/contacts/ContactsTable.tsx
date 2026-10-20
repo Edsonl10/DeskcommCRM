@@ -128,7 +128,7 @@ export function ContactsTable({ contacts, orderBy, orderDir, onSort }: Props) {
   } = useConversaNovaComEscolhaDeCanal({
     aoAbrir: async (conversationId) => {
       await qc.invalidateQueries({ queryKey: ["contacts"] });
-      router.push(`/app/inbox?id=${conversationId}`);
+      router.push(`/app/inbox?id=${conversationId}&filter=active`);
     },
   });
 

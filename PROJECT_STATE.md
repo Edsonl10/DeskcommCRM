@@ -1,5 +1,13 @@
 # PROJECT_STATE
 
+## Em validação — iniciar atendimento diretamente em Ativos (20/10/2026)
+- Pedido: iniciar o atendimento em qualquer ponto já deve assumir e aceitar para o operador, exceto se estiver com outra pessoa. O usuário confirmou que o caso observado só ficou ativo após clicar manualmente em Assumir.
+- Lista de Contatos, seletor de canal, funil e cartão compartilhado chamam o aceite existente antes de navegar; Inbox abre em `filter=active`. Atalho fechado usa a reabertura atômica e a revisão observada. Responder pela sessão também aceita, independentemente da fidelização de distribuição. Lista, ficha, contadores e contatos são invalidados.
+- Proteções existentes de sessão, papel, MFA, suporte e isolamento preservadas. Claim com `expected_assignee: null` não toma conversa de outro atendente; disponibilidade mostra o nome e uma corrida mantém a tela para nova tentativa. Sem migration e sem mudança de permissões.
+- Destino: núcleo. Living System: entrada nas ações de iniciar e na resposta humana; saída Inbox Ativos; auditoria/atividade `conversation.claimed` e `registrarTrocaDeComando`; portas existentes Contatos/funil/Inbox. Aceite elimina o atendimento invisível; erro bloqueia navegação e permite nova tentativa. IA é pausada pelas RPCs existentes e Devolver mantém o caminho inverso. Sem configuração nova. Mapa `inicio-atendimento-ativos.architecture.json`.
+- Validação local: 253 casos em oito arquivos aprovados (29 funcionais e 224 de mapas/cobertura E2E); typecheck aprovado; lint completo sem erros, com 528 avisos existentes. Auditorias de canal/papel e fragmentos aprovadas. Controle negativo: retirar o aceite do atalho existente fez falhar exatamente o caso previsto; restaurado, passou. Acrescentada prova E2E na spec existente de reabertura: conversa nova e conversa própria ainda aguardando aparecem em Ativos sem Assumir, inclusive após lista já visitada. Sem Docker local; teste de banco, CI completo e capturas pendentes. Produção ainda não alterada.
+- Integração pendente com o PR #22 (início após cadastro): retirar o claim redundante de `ContactCreatedDialog` quando os dois trabalhos se encontrarem. Não alterar a worktree da outra sessão.
+
 ## Em validação — autoria e clique nas citações (19/10/2026)
 - Pedido: mostrar o nome do usuário em vez de Atendente e preservar a autoria após transferência; clicar em citação do cliente ou usuário deve abrir a original.
 - A API do histórico enriquece linhas já autorizadas por RLS com o nome do emissor gravado em cada mensagem; não consulta o dono atual. Sem schema novo e sem reescrita de mensagens.

@@ -34,7 +34,9 @@
  * leitura que não impede abrir a conversa.
  */
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { iniciarAtendimento } from "@/lib/inbox/iniciar-atendimento";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -209,6 +211,7 @@ export function useConversaNovaComEscolhaDeCanal(opts: {
 }) {
   const t = useT();
   const canais = useChannelSessions();
+  const qc = useQueryClient();
   const [pendente, setPendente] = useState<AlvoDeConversa | null>(null);
   const [abrindo, setAbrindo] = useState(false);
 
@@ -248,6 +251,7 @@ export function useConversaNovaComEscolhaDeCanal(opts: {
       if (!res.ok || !json.data?.conversation_id) {
         throw new Error(json.error?.message ?? t("Não foi possível abrir a conversa."));
       }
+      await iniciarAtendimento(json.data.conversation_id, qc);
       await opts.aoAbrir(json.data.conversation_id);
     } catch (err) {
       toast.error(err instanceof Error ? t(err.message) : t("Não foi possível abrir a conversa."));
@@ -259,8 +263,9 @@ export function useConversaNovaComEscolhaDeCanal(opts: {
     setAbrindo(true);
     try {
       const res = await fetch(`/api/v1/conversations/${conversationId}/availability`);
-      const json = await res.json() as { error?: { message?: string } };
+      const json = await res.json() as { data?: { status?: string; service_revision?: number }; error?: { message?: string } };
       if (!res.ok) throw new Error(json.error?.message ?? t("Não foi possível abrir a conversa."));
+      await iniciarAtendimento(conversationId, qc, json.data);
       await opts.aoAbrir(conversationId);
     } catch (err) {
       toast.error(err instanceof Error ? t(err.message) : t("Não foi possível abrir a conversa."));

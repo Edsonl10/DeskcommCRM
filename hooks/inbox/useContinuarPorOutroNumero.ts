@@ -73,8 +73,10 @@ export function useContinuarPorOutroNumero() {
       return id;
     },
     onError: showApiError,
-    onSuccess: () => {
+    onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ["conversations"] });
+      qc.invalidateQueries({ queryKey: ["conversation", id] });
+      qc.invalidateQueries({ queryKey: ["conversation-counts"] });
     },
   });
 }

@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Início do atendimento em Ativos",
+    "subtitle": "Aceite automático com proteção do outro responsável",
+    "output": "inicio-atendimento-ativos.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Tela"
+    },
+    {
+      "id": "app",
+      "label": "Aplicação"
+    },
+    {
+      "id": "db",
+      "label": "Banco"
+    }
+  ],
+  "mainPath": [
+    "portas",
+    "iniciar",
+    "claim",
+    "aceite",
+    "ativos"
+  ],
+  "nodes": [
+    {
+      "id": "portas",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Contatos, cadastro, funil e cartão",
+      "sublabel": "components/channels/SeletorDeCanalParaConversa.tsx"
+    },
+    {
+      "id": "iniciar",
+      "lane": "app",
+      "col": 2,
+      "type": "backend",
+      "label": "iniciarAtendimento",
+      "sublabel": "lib/inbox/iniciar-atendimento.ts"
+    },
+    {
+      "id": "responder",
+      "lane": "app",
+      "col": 3,
+      "type": "backend",
+      "label": "Resposta humana pela tela",
+      "sublabel": "app/api/v1/messages/route.ts"
+    },
+    {
+      "id": "claim",
+      "lane": "app",
+      "col": 4,
+      "type": "backend",
+      "label": "claim / reopen",
+      "sublabel": "RPCs existentes com aceite e revisão"
+    },
+    {
+      "id": "aceite",
+      "lane": "db",
+      "col": 5,
+      "type": "database",
+      "label": "Responsável e aceite",
+      "sublabel": "fn_conversation_assign / fn_reopen_inbox"
+    },
+    {
+      "id": "timeline",
+      "lane": "ui",
+      "col": 6,
+      "type": "frontend",
+      "label": "Timeline do contato",
+      "sublabel": "registrarTrocaDeComando"
+    },
+    {
+      "id": "ativos",
+      "lane": "ui",
+      "col": 7,
+      "type": "frontend",
+      "label": "Inbox → Ativos",
+      "sublabel": "lista, ficha, contatos e contadores invalidados"
+    },
+    {
+      "id": "erro",
+      "lane": "ui",
+      "col": 8,
+      "type": "frontend",
+      "label": "Aviso e nova tentativa",
+      "sublabel": "conflito mantém o dono e a tela de origem"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "portas",
+      "to": "iniciar",
+      "label": "início explícito"
+    },
+    {
+      "id": "e2",
+      "from": "iniciar",
+      "to": "claim",
+      "label": "antes de navegar"
+    },
+    {
+      "id": "e3",
+      "from": "responder",
+      "to": "aceite",
+      "label": "resposta aceita pelo canal"
+    },
+    {
+      "id": "e4",
+      "from": "claim",
+      "to": "aceite",
+      "label": "revalida sessão e dono"
+    },
+    {
+      "id": "e5",
+      "from": "aceite",
+      "to": "timeline",
+      "label": "conversation_claimed"
+    },
+    {
+      "id": "e6",
+      "from": "aceite",
+      "to": "ativos",
+      "label": "aceite confirmado"
+    },
+    {
+      "id": "e7",
+      "from": "claim",
+      "to": "erro",
+      "label": "recusa ou corrida"
+    },
+    {
+      "id": "e8",
+      "from": "erro",
+      "to": "portas",
+      "label": "nova tentativa"
+    }
+  ]
+}

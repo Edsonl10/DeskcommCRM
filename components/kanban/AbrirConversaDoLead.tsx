@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useT } from "@/hooks/i18n/useT";
 import { ArrowRight, ChatCircle } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
+import { iniciarAtendimento } from "@/lib/inbox/iniciar-atendimento";
 
 /**
  * A ação "Abrir conversa" — a porta que faltava para o lead sem conversa
@@ -99,10 +100,11 @@ export function AbrirConversaDoLead({ contactId, phone, variante = "card" }: Pro
       if (!res.ok || !json.data?.conversation_id) {
         throw new Error(json.error?.message ?? t("Não foi possível abrir a conversa."));
       }
+      await iniciarAtendimento(json.data.conversation_id, qc);
       // O quadro é a fonte do card E do dossiê: sem invalidar, a linha continuaria
       // oferecendo "Abrir conversa" sobre uma conversa que acabou de nascer.
       await qc.invalidateQueries({ queryKey: ["board"] });
-      router.push(`/app/inbox?id=${json.data.conversation_id}`);
+      router.push(`/app/inbox?id=${json.data.conversation_id}&filter=active`);
     } catch (err) {
       toast.error(err instanceof Error ? t(err.message) : t("Não foi possível abrir a conversa."));
     } finally {
