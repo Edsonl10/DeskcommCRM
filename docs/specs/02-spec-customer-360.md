@@ -20,7 +20,7 @@ escopo: Schema SQL completo, RLS, triggers, identity resolution, merge, custom f
 
 ### Cadastro manual e início de conversa
 
-Na lista de Contatos, a criação bem-sucedida abre a confirmação com o contato retornado pela API e as opções Concluir e Iniciar conversa. O início usa `contact_id`, independente dos filtros da lista, e reutiliza o seletor de canal e as guardas existentes de `open-with-contact`. Nenhuma mensagem é enviada por esse atalho. Cancelar a escolha de canal ou falhar a abertura preserva a confirmação para tentar novamente. Sem telefone, a confirmação orienta a adicionar o número e oferece Concluir. Outros consumidores do cadastro, como a Agenda, preservam seu fluxo de seleção.
+Na lista de Contatos, a criação bem-sucedida abre a confirmação com o contato retornado pela API e as opções Concluir e Iniciar conversa. O início usa `contact_id`, independente dos filtros da lista, e reutiliza o seletor de canal e as guardas existentes de `open-with-contact`. Ao escolher Iniciar conversa, a rota de aceite existente assume o atendimento para quem clicou antes da navegação, inclusive para atendentes sem visão global; o aceite recusa outro responsável. Nenhuma mensagem é enviada por esse atalho. Cancelar a escolha de canal ou falhar a abertura preserva a confirmação para tentar novamente. Sem telefone, a confirmação orienta a adicionar o número e oferece Concluir. Outros consumidores do cadastro, como a Agenda, preservam seu fluxo de seleção.
 
 ### 1.1 Posicionamento da Spec
 

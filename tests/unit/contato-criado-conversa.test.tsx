@@ -53,6 +53,8 @@ beforeEach(() => {
     if (url === "/api/v1/contacts") return response({ data: { contact, action: "created" } }, 201);
     if (url === "/api/v1/conversations/open-with-contact")
       return response({ data: { conversation_id: "conversa-nova" } });
+    if (url === "/api/v1/conversations/conversa-nova/claim")
+      return response({ data: { id: "conversa-nova" } });
     throw new Error(`Requisição inesperada: ${url}`);
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -69,10 +71,12 @@ describe("conversa depois do cadastro", () => {
     await user.click(screen.getByRole("button", { name: "Criar contato" }));
     await screen.findByRole("dialog", { name: "Contato criado" });
     expect(aberturas()).toHaveLength(0);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/claim"))).toBe(false);
     await user.click(screen.getByRole("button", { name: "Iniciar conversa" }));
     await waitFor(() => expect(deps.push).toHaveBeenCalledWith("/app/inbox?id=conversa-nova"));
     expect(JSON.parse(aberturas()[0]![1].body)).toEqual({ contact_id: contact.id });
     expect(fetchMock.mock.calls.filter(([url]) => url === "/api/v1/contacts")).toHaveLength(1);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/claim"))).toBe(true);
   });
 
   it("Concluir mantém só o cadastro, sem abrir atendimento", async () => {
@@ -85,9 +89,7 @@ describe("conversa depois do cadastro", () => {
 
   it("sem telefone explica o próximo passo e permite concluir", () => {
     montar(<ContactCreatedDialog contact={{ ...contact, phone_number: null }} onClose={close} />);
-    expect(
-      screen.queryByRole("button", { name: "Iniciar conversa" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Iniciar conversa" })).not.toBeInTheDocument();
     expect(
       screen.getByText("Adicione um telefone ao contato para iniciar uma conversa."),
     ).toBeVisible();
@@ -151,5 +153,22 @@ describe("conversa depois do cadastro", () => {
       contact_id: contact.id,
       channel_session_id: "canal-1",
     });
+  });
+
+  it("se o aceite falha, permanece na confirmação sem navegar nem tomar outro atendimento", async () => {
+    const normalFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url: string, ...args: unknown[]) => {
+      if (url.endsWith("/claim"))
+        return response({ error: { message: "Outro atendente já assumiu." } }, 409);
+      return normalFetch(url, ...args);
+    });
+    montar();
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa" }));
+    await waitFor(() => expect(deps.error).toHaveBeenCalledWith("Outro atendente já assumiu."));
+    expect(deps.push).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Contato criado" })).toBeVisible();
+    const claim = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/claim"));
+    expect(JSON.parse(claim![1].body)).toEqual({});
   });
 });

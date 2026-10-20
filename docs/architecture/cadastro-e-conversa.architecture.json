@@ -6,10 +6,23 @@
     "resumo": "O contato salvo alimenta a confirmação e o seletor existente, sem depender da pesquisa da lista nem enviar mensagem."
   },
   "lanes": [
-    { "id": "tela", "label": "Interface" },
-    { "id": "api", "label": "APIs existentes" }
+    {
+      "id": "tela",
+      "label": "Interface"
+    },
+    {
+      "id": "api",
+      "label": "APIs existentes"
+    }
   ],
-  "mainPath": ["cadastro", "confirmacao", "canal", "abertura", "inbox"],
+  "mainPath": [
+    "cadastro",
+    "confirmacao",
+    "canal",
+    "abertura",
+    "aceite",
+    "inbox"
+  ],
   "nodes": [
     {
       "id": "cadastro",
@@ -40,6 +53,12 @@
       "lane": "tela",
       "label": "Inbox",
       "sublabel": "Conversa pelo id retornado; envio continua explícito"
+    },
+    {
+      "id": "aceite",
+      "lane": "api",
+      "label": "POST conversations/[id]/claim",
+      "sublabel": "Aceite explícito com CAS: só livre ou do próprio usuário; audit e timeline existentes"
     }
   ],
   "edges": [
@@ -76,8 +95,20 @@
     {
       "id": "e6",
       "from": "abertura",
+      "to": "aceite",
+      "label": "Id resolvido para o aceite humano"
+    },
+    {
+      "id": "e7",
+      "from": "aceite",
       "to": "inbox",
-      "label": "Sucesso navega sem consultar os filtros da lista"
+      "label": "Sucesso navega com leitura de conversa própria"
+    },
+    {
+      "id": "e8",
+      "from": "aceite",
+      "to": "confirmacao",
+      "label": "Recusa ou falha mantém tentativa disponível"
     }
   ]
 }

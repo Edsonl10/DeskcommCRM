@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/api/client";
 import { useT } from "@/hooks/i18n/useT";
 import { useConversaNovaComEscolhaDeCanal } from "@/components/channels/SeletorDeCanalParaConversa";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,11 @@ export function ContactCreatedDialog({
   const t = useT();
   const router = useRouter();
   const { iniciarConversa, abrindo, seletor } = useConversaNovaComEscolhaDeCanal({
-    aoAbrir: (conversationId) => {
+    aoAbrir: async (conversationId) => {
+      // Aceitar antes de navegar: quem só vê seus próprios atendimentos ainda
+      // não consegue ler uma conversa nova sem responsável. A RPC existente
+      // assume só se livre ou já nossa, sem tomar o atendimento de outra pessoa.
+      await apiClient.post(`/api/v1/conversations/${conversationId}/claim`, {});
       onClose();
       router.push(`/app/inbox?id=${conversationId}`);
     },
