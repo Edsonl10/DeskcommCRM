@@ -1,6 +1,6 @@
 # PROJECT_STATE
 
-## Produção atual — 20/10/2026
+## Produção registrada — 20/10/2026
 - Repositório: `Edsonl10/DeskcommCRM`. Instalação em `/opt/DeskcommCRM`, proxy Caddy próprio; Caddyfile tem alterações locais que devem ser preservadas. Usar `dc()` do kit, que seleciona o proxy real desta instalação.
 - App instalado: `a50fe0a529ac1273b2ca616436f53c0486aff135` (PR #23, inclui PR #22). Imagem: `ghcr.io/edsonl10/deskcommcrm@sha256:39be8868e222df884d4ef8c530b1463dde9f2dce8eb6f831813ae6d8e9de01a6`. Saúde interna/pública `healthy`; `/` 200 e `/app` 307. Somente app mudou; IDs de worker, scheduler, WAHA, Caddy, Redis e SRH conferidos iguais aos anteriores. Demais linhas do .env e Caddyfile preservados.
 - Iniciar por Contatos, cadastro, funil e cartão compartilhado aceita antes de abrir Ativos. Conversa própria aguardando também é aceita. Claim com `expected_assignee: null` não toma o atendimento de outra pessoa; conflitos impedem navegação e oferecem nova tentativa. Viewer continua em consulta. Resposta humana pela sessão aceita mesmo sem fidelização da distribuição. Lista, ficha, contatos e contadores atualizados. Sem migration ou nova permissão.
@@ -12,7 +12,7 @@
 - Bloco E2E 1: 155 casos aprovados. Iniciar em Ativos 10,7 s; cadastro 7,4 s; reabrir/ocupado 10,6 s. Dono/aceite e ausência de mensagens conferidos no banco. Local: 39 casos da integração, typecheck/lint e 66 guardas de evidência aprovados; controles anteriores no histórico dos commits.
 - Backup conferido: `/opt/backups/crm-iniciar-ativos-20261020-154227` (banco, sessões WhatsApp e configurações). Recibo final: `health-final.json`, `images-final.txt`, `finalizar-ativos.sh`. Captura sanitizada: `evidence/iniciar-atendimento-ativos/publicacao.jpg`.
 - A comparação com a contagem do backup, feito antes do CI, gerou alerta: auditoria comprova exclusão em lote de 307 negociações entre 16:17–16:19 UTC, antes da instalação às 16:22, e importações anteriores. Não restaurar essas exclusões como se fossem perda do deploy. O retorno automático tentou uma referência antiga inválida e falhou; a versão nova permaneceu saudável. .env foi alinhado ao digest realmente instalado e verificado. Não reutilizar o antigo deploy-ui.sh sem corrigir a validação da imagem anterior e a confirmação do retorno.
-- O workflow de corte de release ainda falha por client-id/app-id ausente. Não bloqueou a imagem do fork nem alterou a main; não afirmar que uma release numerada foi publicada.
+- Merges comuns agora dispensam App de release (workflow 39467694990 aprovado). Corte numerado requer App/credenciais válidos e não foi executado nesta rodada.
 
 ## Decisões permanentes
 - Mesclar atualizações oficiais neste fork, preservando personalizações e migrations `9000+`; nunca substituir pela imagem oficial pura nem usar update.sh oficial sem adaptação dos pins do fork.
@@ -20,14 +20,14 @@
 - RBAC, sessão, MFA, suporte e isolamento existentes permanecem obrigatórios. Quem reabre assume; iniciar não transfere conversa aberta de outro responsável. Distribuição e aceite são estados distintos.
 - Usuário autorizou terminal, backup e publicação desta melhoria. Pediu eficiência para próximas mudanças em 20/10: evitar releituras, consultas e validações redundantes; contexto curto, saída objetiva e revisão do processo de publicação. Isso não autoriza omitir checks exigidos para código funcional.
 
-## Eficiência de publicação — implementação em validação
-- Usuário autorizou implementar o plano em 20/10. Branch `perf/ciclo-publicacao`, destino infraestrutura. Ver `docs/runbooks/eficiencia-de-publicacao.md` para perfis, procedimento e limites.
-- Diff completo (incluindo renomes) classifica PR e main; documentação pura usa cercas e pula banco/build/E2E. Código e dúvida conservam as suítes completas. Sondas de publicação usam os digests já produzidos; manifestos aguardam os testes. Markdown da raiz fora do contexto Docker.
-- Merge comum não exige App de release; corte real usa Client ID, com compatibilidade com App ID. Não foi criada credencial de release. Ajuste isolado `fix/identidade-release`: autenticar o App depois de detectar candidato e antes de conferir o autor; não depender de slug digitado.
-- `hostgator-setup-kit/publicar-fork.py`: preflight dos cinco checks/fonte, backup validado, pin da imagem real, atualização somente do app e recibo com retorno confirmado ou falho. Recusa banco e dependências compartilhadas; não substitui atualização coordenada. Testado com dublês, ainda não executado para trocar a VPS.
-- Proteção do fetch unitário contra destinos externos: dublês e loopback permitidos, bloqueio antes da rede. Motivada por rejeição automática da suíte local anterior; nenhuma chamada externa adicional foi autorizada.
-- Local: 245 casos dos 19 arquivos de guardas do pipeline, 17 casos de fetch/roteamento simulado, 10 cenários do publicador, typecheck e lint (0 erros; 528 avisos preexistentes) aprovados. Controle negativo: impacto desconhecido aceito indevidamente causa 1 falha prevista; restaurado passa. Rodada ampla protegida: 2.120 arquivos, 22.061 casos aprovados e 16 falhas; 3 falhas da transição foram corrigidas e os 29 casos pertinentes passaram. Restam limitações locais preexistentes de IPC (12 casos) e DNS (1). Kit encontrou limitações de PID/sinal e rede em testes preexistentes; CI real em andamento.
-- Produção permanece a50fe0a: esta rodada altera infraestrutura, sem mudança de comportamento ou schema do CRM. Não prometer redução de minutos/tokens antes de medir rodadas.
+## Eficiência de publicação — concluída em 20/10/2026
+- PR #24 integrado em `349346205b1d16ac3dc463d715dc52829204b326`; árvore idêntica à fonte `856467cc9ddbd52b61189eddf934825502fdb102`. CI/PG15/PG17 e atualização sobre dados 39463415969, build 39463416356, imagens 39463416363 e seis partes E2E 39463415991: aprovados.
+- Publicação real 39467694916 aprovada: oito recompilações locais puladas, quatro grupos de sondas puxaram os digests publicados e conferiram revisão/arquitetura; manifestos unidos somente depois das sondas. Imagens no GHCR; não houve troca do app da VPS nesta rodada.
+- PR #25 integrado em `b2a3354b41248fea1e1ec58b43494a08790fe83f`; árvore idêntica à fonte `47ed0bd51cd7a7814388641ec975154c59eb6a5a`. CI/PG17 39467702562, seleção de build 39467702192, imagens 39467702323 e E2E 39467702210 aprovados. Token do App só após detectar candidato real e antes da guarda do autor; identidade vem do token. Nenhuma credencial foi criada.
+- Diff completo inclui renomes; documentação pura usa cercas e pula banco/build/E2E. Código e dúvida conservam suítes completas. Markdown da raiz fora do contexto Docker. O ajuste isolado provou o pulo real das etapas sem impacto; não confundir esse verde com prova de runtime.
+- Fetch unitário bloqueia rede externa e permite dublês, loopback e dados em memória. CI completo passou. Local: 245 casos de pipeline, 33 de release, 10 cenários do publicador; typecheck/lint aprovados. Controles negativos causaram uma falha prevista cada e foram restaurados. A rodada ampla local teve limitações de IPC/DNS, cobertas pelo CI.
+- `hostgator-setup-kit/publicar-fork.py`: confere cinco checks/fonte, backup validado, imagem real para retorno, somente app e recibo confiável. Testado com dublês; não aplicado à VPS. Recusa banco e dependências compartilhadas, que exigem atualização coordenada. Não reutilizar o script manual antigo.
+- Recibo: `evidence/publicacao-eficiente/resultado.json`; procedimento e limites em `docs/runbooks/eficiencia-de-publicacao.md`. Sem medição de tokens ou promessa de redução do prazo total. Próximas alterações seguem o perfil pertinente, com revisão/controles locais antes de disparar CI caro.
 
 ## Evidências sintéticas das funcionalidades mantidas
 - `evidence/iniciar-atendimento-ativos/inicio-1.png` e `evidence/iniciar-atendimento-ativos/inicio-2.png`: Ativos e responsável, sem Assumir.

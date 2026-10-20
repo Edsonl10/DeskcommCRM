@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-20",
+  "pr24": {
+    "head": "856467cc9ddbd52b61189eddf934825502fdb102",
+    "merge": "349346205b1d16ac3dc463d715dc52829204b326",
+    "tree": "c017cd241c2796539b872da6050ba665bbb4fbaf",
+    "ci": 39463415969,
+    "build": 39463416356,
+    "images": 39463416363,
+    "e2e": 39463415991,
+    "all_passed": true
+  },
+  "publication": {
+    "run": 39467694916,
+    "all_passed": true,
+    "local_rebuilds_skipped": 8,
+    "digest_smoke_groups_passed": 4
+  },
+  "pr25": {
+    "head": "47ed0bd51cd7a7814388641ec975154c59eb6a5a",
+    "merge": "b2a3354b41248fea1e1ec58b43494a08790fe83f",
+    "tree": "643a25a498b8e2a7d50d7ec5d803eed9f06f6bc9",
+    "ci": 39467702562,
+    "build_selection": 39467702192,
+    "image_selection": 39467702323,
+    "e2e_selection": 39467702210,
+    "all_passed": true
+  },
+  "impact": {
+    "build_job_seconds": 15,
+    "e2e_parts": "skipped",
+    "image_builds": "skipped"
+  },
+  "local": {
+    "pipeline_tests": 245,
+    "publication_scenarios": 10,
+    "release_tests": 33,
+    "negative_controls": "uma falha prevista em cada controle, restaurados aprovados"
+  },
+  "production": {
+    "app": "a50fe0a529ac1273b2ca616436f53c0486aff135",
+    "changed_in_this_task": false
+  },
+  "limits": [
+    "Sem medição de tokens ou promessa de redução do prazo total.",
+    "Publicador somente do app, testado com dublês; banco e dependências compartilhadas exigem atualização coordenada.",
+    "Corte numerado não executado; exige App de release configurado."
+  ]
+}
