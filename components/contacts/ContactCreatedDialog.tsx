@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { useT } from "@/hooks/i18n/useT";
 import { useConversaNovaComEscolhaDeCanal } from "@/components/channels/SeletorDeCanalParaConversa";
@@ -26,12 +27,18 @@ export function ContactCreatedDialog({
 }) {
   const t = useT();
   const router = useRouter();
+  const qc = useQueryClient();
   const { iniciarConversa, abrindo, seletor } = useConversaNovaComEscolhaDeCanal({
     aoAbrir: async (conversationId) => {
       // Aceitar antes de navegar: quem só vê seus próprios atendimentos ainda
       // não consegue ler uma conversa nova sem responsável. A RPC existente
       // assume só se livre ou já nossa, sem tomar o atendimento de outra pessoa.
       await apiClient.post(`/api/v1/conversations/${conversationId}/claim`, {});
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["conversations"] }),
+        qc.invalidateQueries({ queryKey: ["conversation", conversationId] }),
+        qc.invalidateQueries({ queryKey: ["conversation-counts"] }),
+      ]);
       onClose();
       router.push(`/app/inbox?id=${conversationId}`);
     },

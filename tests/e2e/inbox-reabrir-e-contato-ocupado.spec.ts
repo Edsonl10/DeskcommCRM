@@ -61,6 +61,7 @@ test("criar contato oferece iniciar conversa mesmo fora dos filtros da pesquisa"
   await confirmation.getByRole("button", { name: "Iniciar conversa", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/inbox\?id=/);
   await expect(page.getByRole("heading", { name: "Contato Novo Sintético", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Contato Novo Sintético/ })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Mensagem", exact: true })).toBeVisible();
   const conversationId = new URL(page.url()).searchParams.get("id");
   const { data: saved } = await db.from("conversations").select("contact_id,assigned_to_user_id,human_accepted_at").eq("id", conversationId).single();
