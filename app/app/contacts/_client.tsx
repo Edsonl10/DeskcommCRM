@@ -21,6 +21,7 @@ import { useContactList } from "@/hooks/contacts/useContactList";
 import { ContactsTable } from "@/components/contacts/ContactsTable";
 import { PontoDaEtiqueta } from "@/components/tags/PontoDaEtiqueta";
 import { NewContactDialog } from "@/components/contacts/NewContactDialog";
+import { ContactCreatedDialog } from "@/components/contacts/ContactCreatedDialog";
 import { ImportContactsDialog } from "@/components/contacts/ImportContactsDialog";
 import { TAG_DE_CLIENTE } from "@/lib/contacts/cliente";
 import { type ModoDeEtiqueta } from "@/lib/inbox/marcador-da-conversa";
@@ -28,6 +29,7 @@ import { useActiveOrg } from "@/hooks/auth/AuthProvider";
 import { MergeDialog } from "@/components/contacts/MergeDialog";
 import { EmptyContacts } from "@/components/empty";
 import type { ContactOrderBy } from "@/lib/schemas/contacts";
+import type { Contact } from "@/lib/types/contacts";
 
 const SOURCE_OPTIONS = [
   { value: undefined, label: "Todas as origens" },
@@ -66,6 +68,7 @@ export function ContactsListClient() {
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
   const [limit, setLimit] = useState<number>(25);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createdContact, setCreatedContact] = useState<Contact | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [duplicadosOpen, setDuplicadosOpen] = useState(false);
 
@@ -354,7 +357,10 @@ export function ContactsListClient() {
         </>
       )}
 
-      <NewContactDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <NewContactDialog open={createOpen} onOpenChange={setCreateOpen} onCriado={setCreatedContact} />
+      {createdContact && (
+        <ContactCreatedDialog contact={createdContact} onClose={() => setCreatedContact(null)} />
+      )}
       <ImportContactsDialog open={importOpen} onOpenChange={setImportOpen} />
       <MergeDialog open={duplicadosOpen} onOpenChange={setDuplicadosOpen} />
     </div>

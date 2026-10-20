@@ -33,6 +33,45 @@ test.afterAll(async () => {
   if (user) await db.auth.admin.deleteUser(user);
   if (other) await db.auth.admin.deleteUser(other);
 });
+
+test("criar contato oferece iniciar conversa mesmo fora dos filtros da pesquisa", async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto("/login");
+  await page.locator("#email").fill(email);
+  await page.locator("#password").fill(password);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.waitForURL(/\/app/);
+  await page.goto("/app/contacts");
+  await page.getByRole("searchbox").fill("busca-sem-resultado");
+  await page.getByRole("button", { name: "Novo contato", exact: true }).click();
+  await page.getByRole("textbox", { name: "Nome", exact: true }).fill("Contato Novo Sintético");
+  await page.getByRole("textbox", { name: "Telefone (E.164)", exact: true }).fill("+5511999990903");
+  await page.getByRole("button", { name: "Criar contato", exact: true }).click();
+  const confirmation = page.getByRole("dialog", { name: "Contato criado", exact: true });
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation).toContainText("Contato Novo Sintético");
+  const { data: contacts, error } = await db.from("contacts").select("id").eq("organization_id", org).eq("phone_number", "+5511999990903");
+  if (error) throw error;
+  expect(contacts).toHaveLength(1);
+  const contactId = contacts![0]!.id;
+  const { count } = await db.from("conversations").select("id", { count: "exact", head: true }).eq("contact_id", contactId);
+  expect(count).toBe(0);
+  fs.mkdirSync("evidence/conversa-apos-cadastro", { recursive: true });
+  await page.screenshot({ path: "evidence/conversa-apos-cadastro/opcao-apos-salvar.png", fullPage: true });
+  await confirmation.getByRole("button", { name: "Iniciar conversa", exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/inbox\?id=/);
+  await expect(page.getByRole("heading", { name: "Contato Novo Sintético", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Contato Novo Sintético/ })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Mensagem", exact: true })).toBeVisible();
+  const conversationId = new URL(page.url()).searchParams.get("id");
+  const { data: saved } = await db.from("conversations").select("contact_id,assigned_to_user_id,human_accepted_at").eq("id", conversationId).single();
+  expect(saved?.contact_id).toBe(contactId);
+  expect(saved?.assigned_to_user_id).toBe(user);
+  expect(saved?.human_accepted_at).toBeTruthy();
+  const { count: messages } = await db.from("messages").select("id", { count: "exact", head: true }).eq("conversation_id", conversationId);
+  expect(messages).toBe(0);
+  await page.screenshot({ path: "evidence/conversa-apos-cadastro/conversa-aberta.png", fullPage: true });
+});
 test("atendente reabre e assume; contato ocupado avisa sem trocar dono", async ({ page }) => {
   test.setTimeout(120000);
   await page.goto("/login");
