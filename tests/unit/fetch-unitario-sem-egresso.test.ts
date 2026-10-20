@@ -17,4 +17,7 @@ describe("testes unitários sem egressos reais", () => {
     await expect(protegerFetchUnitario(rede)(new Request("https://api.anthropic.com/v1/messages"))).rejects.toThrow();
     expect(rede).not.toHaveBeenCalled();
   });
+  it("preserva o fetch de dados em memória", async () => {
+    expect(await (await fetch("data:text/plain,ok")).text()).toBe("ok");
+  });
 });

@@ -31,7 +31,7 @@ describe("o placeholder do Supabase nos testes unitários", () => {
     expect(desfecho).toBeInstanceOf(TypeError);
   });
 
-  it("outro host continua indo ao fetch do ambiente — a recusa é só do placeholder", async () => {
+  it("dados locais continuam indo ao fetch do ambiente sem sair para a rede", async () => {
     // `data:` não sai da máquina: prova que o desvio não engole o fetch inteiro.
     const resposta = await fetch("data:text/plain,ok");
     expect(await resposta.text()).toBe("ok");

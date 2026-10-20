@@ -612,3 +612,6 @@ Qualquer agente que assumir este projeto deve conseguir receber um pedido direto
 - Resolva integração com a main e rode as guardas rápidas pertinentes antes de disparar a rodada cara. Ao adicionar evidências, confira caminhos/citações antes do CI. Não repita validação aprovada sem mudança, falha ou preocupação específica.
 - Diferencie tempo de execução do CI e trabalho do modelo; não invente consumo de tokens nem prometa redução de prazo não medida. Priorize atualizações úteis, resultado, testes e pendência real.
 - Os perfis e controles implementados estão em `docs/runbooks/eficiencia-de-publicacao.md`. Código ou impacto desconhecido exige os gates funcionais; verde documental não é prova de runtime.
+
+- Ao validar mudanças de pipeline, rode todos os arquivos pertinentes sem restringir `--project cercas`: algumas guardas importam módulos do produto e pertencem ao outro projeto. Aguarde a rodada ampla local antes de disparar CI caro; se o ambiente bloquear, registre o limite e conclua as verificações pertinentes disponíveis.
+- Antes de publicar por API, compare a árvore remota com a local e preserve os modos de arquivo do git, inclusive `100755`. Conclua revisão, controles negativos e referências antes de atualizar o PR para evitar rodadas superadas.
