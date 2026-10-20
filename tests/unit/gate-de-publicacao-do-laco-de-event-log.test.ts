@@ -152,12 +152,14 @@ describe("o gate de publicação das imagens de fundo (#604)", () => {
   // O único `if:` admitido é o do alcance, que só é falso em pull_request que
   // não toca nada que chegue à imagem (scripts/pr-mexe-na-imagem.sh). Em tag e
   // em push na main o output é sempre `sim`: o job roda.
-  it("só pula em PR que não alcança imagem: em tag e na main ele roda", () => {
+  it("respeita o alcance e exige artefato publicado fora de PR", () => {
     const job = blocoDoJob(JOB_DE_FUNDO);
     expect(job.match(/^\s{4}if:.*$/gm)).toEqual([
-      "    if: needs.a-tag-veio-da-main.outputs.imagem == 'sim'",
+      "    if: ${{ !cancelled() && needs.a-tag-veio-da-main.result == 'success' && needs.a-tag-veio-da-main.outputs.imagem == 'sim' && (github.event_name == 'pull_request' || needs.build-and-push.result == 'success') }}",
     ]);
-    expect(FLUXO).toContain('if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then\n            echo "imagem=sim"');
+    expect(FLUXO).toContain('if [ "${GITHUB_REF_TYPE}" != tag ]; then');
+    expect(FLUXO).toContain("arquivos=$(bash scripts/arquivos-alterados-ci.sh)");
+    expect(job).toContain("needs: [a-tag-veio-da-main, build-and-push]");
     expect(job).toMatch(/^\s{4}permissions:\n\s{6}contents: read$/m);
   });
 
