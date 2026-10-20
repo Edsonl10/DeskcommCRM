@@ -16,11 +16,39 @@ Pedido do usuário em 20/10/2026: tornar as próximas melhorias mais rápidas e 
 3. Não repetir testes aprovados por rotina. Metadados e recibos posteriores devem ter checagens documentais proporcionais; isso não altera a exigência de validação do código funcional.
 4. Antes de trocar o app, verificar que a referência de retorno resolve para a imagem em execução e preservá-la. Retorno só pode ser declarado após conferir comando, versão e saúde. Não sobrescrever auditoria ou restaurar exclusões legítimas concorrentes.
 
-## Próxima implementação, em ordem de impacto
+## Implementado em 20/10/2026
 
-1. Medir e retirar construções duplicadas no caminho main/publicação, testando a imagem publicada por digest ou promovendo exatamente o artefato aprovado. Manter vínculo entre fonte, arquitetura, teste e digest; não reaproveitar resultado de uma versão diferente.
-2. Classificar testes por impacto usando o mapa de jornadas: núcleo obrigatório para fila, atribuição, permissões e isolamento, mais os fluxos afetados. Definir onde permanece a regressão completa e provar a seleção com controles negativos antes de mudar gates.
-3. Consolidar instalação em um procedimento único que verifica gates/versão, faz backup, preserva o retorno, instala somente os serviços afetados e grava um recibo confiável. O script manual desta rodada ainda não é essa solução reutilizável.
-4. Corrigir separadamente a configuração do workflow de corte de release (client-id/app-id ausente), sem misturar isso com alteração de comportamento do CRM.
+- `scripts/arquivos-alterados-ci.sh` considera todo o intervalo de um push e ambos os caminhos de renomes. Em PR pagina a API, incluindo nomes anteriores. Base ausente, rede falha, lista possivelmente truncada, dispatch ou resposta vazia conservam o caminho completo.
+- `scripts/ci-so-documentacao.sh` permite o perfil curto somente para docs, tarefas, evidências, fragmentos e markdown da raiz. Só esse perfil reduz o verify à parte 4 (cercas documentais/estruturais), sem kit ou banco. Código e mudanças de teste continuam usando as suítes funcionais. Os checks obrigatórios mantêm os nomes e reprovam falhas/cancelamentos.
+- E2E e build de imagem agora classificam também pushes da main. Qualquer alteração funcional continua com a regressão inteira de interface, incluindo filas, atribuição, permissões e isolamento. Não foi adotado um recorte especulativo por tela.
+- Na publicação, cada uma das quatro receitas e duas arquiteturas constrói uma vez e registra o digest em artefato da rodada. As sondas puxam esse digest, conferem revisão e arquitetura e executam os mesmos testes de boot/PDF/worker/cron. Os manifestos finais são unidos desses digests somente depois das sondas. Em PR as imagens seguem sendo construídas e executadas, sem publicar código não revisado.
+- Markdown da raiz saiu do contexto Docker: atualizar o estado do projeto não invalida mais `COPY . .`. Nenhuma importação de AGENTS/CLAUDE/PROJECT_STATE em runtime foi encontrada na varredura dos módulos de produto.
+- O fetch padrão da suíte unitária bloqueia destinos externos; SDKs são medidos com dublês e servidores locais continuam permitidos. Assim a validação não chama APIs faturáveis por acidente.
+- Merge comum não pede mais token do App de release nem instala Node para calcular uma versão que não será cortada. Corte real aceita `RELEASE_APP_CLIENT_ID` (variável ou secret), com compatibilidade com o App ID antigo. Não foi criado um App ou credencial; corte numerado continua exigindo configuração válida do responsável pelo repositório.
 
-Estas mudanças de pipeline ainda não foram implementadas. Não prometer minutos ou porcentagem de redução antes de comparar uma rodada real com a linha de base.
+A publicação deixa de fazer oito construções locais adicionais nas sondas (quatro imagens × duas arquiteturas). Isso é redução de invocações Docker, **não** uma medição de minutos ou tokens. Comparar relógio e minutos de runner de rodadas reais antes de prometer porcentagem de prazo.
+
+## Publicar somente o app do fork
+
+Procedimento versionado: `hostgator-setup-kit/publicar-fork.py`. Rodar na pasta da instalação:
+
+```bash
+python3 hostgator-setup-kit/publicar-fork.py --commit <SHA-completo> --image <ghcr.io/dono/deskcommcrm@sha256:digest> --check
+python3 hostgator-setup-kit/publicar-fork.py --commit <SHA-completo> --image <ghcr.io/dono/deskcommcrm@sha256:digest>
+```
+
+O preflight confere origin, pertencimento à main e os cinco checks do GitHub Actions da fonte exata. Recusa alterações locais além do Caddyfile e mudanças que exijam coordenar banco/dependências/worker. `--check` não puxa imagem, faz backup nem troca o app.
+
+A execução normal puxa por digest, confere a revisão, faz backup validado de banco e sessões pelo kit existente e preserva configurações em pasta fechada. Cria um pin local da imagem realmente em execução, mesmo se APP_IMAGE anterior estiver inválido. Atualiza o checkout por fast-forward, preserva Caddy, troca apenas APP_IMAGE e recria só app, sem build/pull implícito ou dependências. Confere imagem, versão e saúde, além dos IDs dos outros serviços. Grava `recibo.json` junto ao backup.
+
+Se a troca falhar, tenta a imagem preservada e só escreve `retorno_confirmado` depois de conferir imagem, versão e saúde. Com falha de recuperação escreve `retorno_falhou` e termina com erro. O banco não é restaurado automaticamente; exclusões/importações legítimas concorrentes não são tratadas como corrupção pela comparação com um backup antigo.
+
+Limite deliberado: atualização coordenada de banco ou dependências compartilhadas exige outro procedimento. Não usar o update oficial para substituir os pins personalizados do fork. Os testes locais deste comando usam dublês de Docker/Git/API; não constituem uma instalação real na VPS.
+
+## Integração e laço de retorno
+
+Destino: infraestrutura; nenhum módulo de negócio foi alterado. Entrada: diff e eventos do GitHub → classificadores → workflows/testes → digests/manifestos. O operador vê decisões e digests no resumo dos jobs; chega pelo PR/Actions. Falha de sonda bloqueia a união/promoção. Falha de instalação produz recibo e exige correção antes da próxima tentativa; a recuperação tem estados separados de sucesso/falha. Na VPS, entrada é fonte aprovada + digest, saída é app conferido + recibo. Não existe mensagem externa nem nova configuração de produto.
+
+## Validação desta implementação
+
+Registrar no PROJECT_STATE e no PR a rodada efetivamente executada. Controles de regressão: matrizes de sucesso/falha/pulo/cancelamento; push com renome de código para documentação; diff desconhecido; digest inválido; revisão/arquitetura divergentes; instalação apenas do app; pin antigo inválido; retorno que falha. Docker e banco reais são medidos pelo CI, pois esta máquina não tem Docker.

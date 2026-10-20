@@ -95,13 +95,13 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
   // nada a mais. A condição tira só o PR; o `imagens-ok` exige `success` dele
   // em todo outro evento e aceita `skipped` só em pull_request.
   "publish-image.yml::build-and-push": {
-    condicao: "github.event_name != 'pull_request'",
+    condicao: "github.event_name != 'pull_request' && needs.a-tag-veio-da-main.outputs.imagem == 'sim'",
     efeito:
       "Este job PUBLICA as quatro imagens no GHCR — é o artefato que o self-hoster instala. " +
       "Desligá-lo faz a tag existir sem imagem por trás dela.",
   },
   "publish-image.yml::juntar-manifestos": {
-    condicao: "github.event_name != 'pull_request'",
+    condicao: "github.event_name != 'pull_request' && needs.a-tag-veio-da-main.outputs.imagem == 'sim'",
     efeito:
       "Este job junta os builds nativos AMD64 e ARM64 em cada tag que o cliente puxa. " +
       "Desligá-lo deixa as tags finais sem um manifesto multi-arquitetura utilizável.",
@@ -111,7 +111,7 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
   // `imagens-ok` aceita o `skipped` SÓ nessa combinação — medida pela matriz
   // de desfechos em tests/unit/imagens-ok-so-aceita-pulo-declarado.test.ts.
   "publish-image.yml::imagem-do-app-sobe": {
-    condicao: "needs.a-tag-veio-da-main.outputs.imagem == 'sim'",
+    condicao: "${{ !cancelled() && needs.a-tag-veio-da-main.result == 'success' && needs.a-tag-veio-da-main.outputs.imagem == 'sim' && (github.event_name == 'pull_request' || needs.build-and-push.result == 'success') }}",
     efeito:
       "Este job prova que a imagem do app BOOTA, não só que ela constrói. Desligá-lo " +
       "devolve o defeito que derrubou a produção: imagem publicada que morre no " +
@@ -139,7 +139,7 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
   // Desligá-lo devolve exatamente esse buraco: a imagem publica, o canal anda,
   // e nada prova que o laço do event_log chegou a carregar.
   "publish-image.yml::imagens-de-fundo-sobem": {
-    condicao: "needs.a-tag-veio-da-main.outputs.imagem == 'sim'",
+    condicao: "${{ !cancelled() && needs.a-tag-veio-da-main.result == 'success' && needs.a-tag-veio-da-main.outputs.imagem == 'sim' && (github.event_name == 'pull_request' || needs.build-and-push.result == 'success') }}",
     efeito:
       "Este job prova que o worker BOOTA com o laço do event_log carregado e que o " +
       "scheduler tem o evento no crontab. Desligá-lo (`skipped`) faz a tag existir com " +
@@ -191,7 +191,7 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
   // `cancelled` em vez de medir as duas — cobertura declarada que o CI cancela é
   // o modo de falha que a #454 fecha.
   "ci.yml::invariants-majors": {
-    condicao: null,
+    condicao: "needs.invariants-alcance.outputs.documentacao != 'sim'",
     efeito:
       "São as duas majors que este repo diz suportar: pg15 é o PISO real do `baseline.sql` " +
       "(`security_invoker` em view) e onde quem digita `pnpm test:db` na própria máquina cai por " +

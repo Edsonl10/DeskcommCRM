@@ -204,7 +204,8 @@ describe("o preâmbulo do CI não come o orçamento dos testes", () => {
     const achados: Record<string, number> = {};
     const re = /^ {2}([A-Za-z0-9_-]+):\s*$/gm;
     for (const m of texto.matchAll(re)) {
-      const corpo = texto.slice(m.index! + m[0].length, m.index! + m[0].length + 400);
+      const restante = texto.slice(m.index! + m[0].length);
+      const corpo = restante.split(/^ {2}[A-Za-z0-9_-]+:\s*$/m)[0]!;
       const teto = corpo.match(/^ {4}timeout-minutes:\s*(\d+)\s*$/m);
       if (teto) achados[`ci.yml::${m[1]!}`] = Number(teto[1]);
     }
@@ -322,7 +323,11 @@ describe("o preâmbulo do CI não come o orçamento dos testes", () => {
       .filter((l) => !l.trimStart().startsWith("#"))
       .join("\n");
 
-    const partes = job.match(/^\s+parte: \[([\d, ]+)\]\s*$/m)?.[1]?.split(",").map(Number);
+    expect(job).toContain("parte: ${{ fromJSON(needs.invariants-alcance.outputs.partes) }}");
+    const partes = texto.match(/echo 'partes=\[([\d, ]+)\]' >> "\$GITHUB_OUTPUT"/g)
+      ?.map((linha) => linha.match(/partes=\[([\d, ]+)\]/)![1]!.split(",").map(Number))
+      .find((lista) => lista.length > 1);
+    expect(texto).toContain(`echo 'partes=[4]' >> "$GITHUB_OUTPUT"`);
     expect(partes, "a matrix `parte: [...]` não foi encontrada").toBeDefined();
     expect(partes, "as partes têm de ser 1..N, sem buraco").toEqual(partes!.map((_, i) => i + 1));
 

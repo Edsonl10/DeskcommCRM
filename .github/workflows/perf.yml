@@ -13,6 +13,7 @@ on:
 # porquê de o bloco ficar no topo.
 permissions:
   contents: read
+  pull-requests: read
 
 # Cancelamento da rodada superada: por JOB (os pesados), nunca no workflow nem
 # no agregador — razão medida e a tabela por evento no cabeçalho do ci.yml.
@@ -28,13 +29,32 @@ jobs:
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: O conjunto altera a construção?
+        id: alcance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          arquivos=$(bash scripts/arquivos-alterados-ci.sh)
+          resposta=$(printf '%s\n' "$arquivos" | bash scripts/pr-mexe-na-imagem.sh) || resposta=sim
+          # O próprio workflow precisa provar o caminho de build ao ser alterado.
+          if [[ "$arquivos" == *'.github/workflows/perf.yml'* ]]; then resposta=sim; fi
+          [ "$resposta" = nao ] || resposta=sim
+          echo "build=$resposta" >> "$GITHUB_OUTPUT"
+          echo "Build: $resposta (fonte $GITHUB_SHA)" >> "$GITHUB_STEP_SUMMARY"
 
       - uses: ./.github/actions/preparar-node
+        if: steps.alcance.outputs.build == 'sim'
         # O teto do preâmbulo mora aqui porque passo de composite action não
         # aceita `timeout-minutes`. Razão e medições: o cabeçalho da action.
         timeout-minutes: 5
 
       - name: Build
+        if: steps.alcance.outputs.build == 'sim'
         run: pnpm build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
@@ -45,6 +65,7 @@ jobs:
           SENTRY_DSN: "off"
 
       - name: Report bundle sizes
+        if: steps.alcance.outputs.build == 'sim'
         run: |
           {
             echo "## Build output sizes"

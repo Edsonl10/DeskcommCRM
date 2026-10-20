@@ -93,7 +93,7 @@ describe("imagens-ok só aceita o pulo declarado", () => {
         // output (fora de PR ele é sempre `sim`; `nao` aqui é impossível, e
         // mesmo assim não abre porta).
         "push sim success success success success success",
-        "push nao success success success success success",
+        "push nao success skipped skipped skipped skipped",
       ].sort(),
     );
   });

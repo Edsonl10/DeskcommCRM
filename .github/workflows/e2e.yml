@@ -68,7 +68,7 @@ jobs:
   # mais recentes eram assim. A regra, e o porquê de cada caminho, estão no
   # cabeçalho de scripts/pr-alcanca-o-e2e.sh.
   #
-  # Fora de pull_request é SEMPRE `sim`: a `main` mede tudo. Falha ao listar,
+  # PR e push na main classificam o diff. Falha ao listar,
   # lista cortada (≥3000) ou resposta estranha também viram `sim`. E o agregador
   # `e2e` só aceita parte pulada quando ESTE job terminou `success` com `nao`:
   # job que falhou aqui reprova, em vez de passar por falta de medida.
@@ -84,33 +84,22 @@ jobs:
       e2e: ${{ steps.alcance.outputs.e2e }}
     steps:
       - uses: actions/checkout@v7
-        if: github.event_name == 'pull_request'
         with:
-          sparse-checkout: scripts/pr-alcanca-o-e2e.sh
-          sparse-checkout-cone-mode: false
-
-      - name: O PR alcança o que o e2e mede?
+          fetch-depth: 0
+          sparse-checkout: scripts
+      - name: O conjunto alcança o que o e2e mede?
         id: alcance
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.before }}
         run: |
-          set -uo pipefail
-          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
-            echo "e2e=sim" >> "$GITHUB_OUTPUT"; echo "evento ${GITHUB_EVENT_NAME}: roda"; exit 0
-          fi
-          if ! arquivos=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --jq '.[].filename'); then
-            echo "e2e=sim" >> "$GITHUB_OUTPUT"; echo "::warning::não consegui listar os arquivos do PR — roda"; exit 0
-          fi
-          n=$(printf '%s\n' "$arquivos" | grep -c . || true)
-          if [ "$n" -ge 3000 ]; then
-            resposta=sim
-          else
-            resposta=$(printf '%s\n' "$arquivos" | bash scripts/pr-alcanca-o-e2e.sh) || resposta=sim
-          fi
-          [ "$resposta" = "nao" ] || resposta=sim
-          echo "e2e=${resposta}" >> "$GITHUB_OUTPUT"
-          echo "${n} arquivo(s) no PR → e2e=${resposta}"
+          set -euo pipefail
+          arquivos=$(bash scripts/arquivos-alterados-ci.sh)
+          resposta=$(printf '%s\n' "$arquivos" | bash scripts/pr-alcanca-o-e2e.sh) || resposta=sim
+          [ "$resposta" = nao ] || resposta=sim
+          echo "e2e=$resposta" >> "$GITHUB_OUTPUT"
+          echo "E2E: $resposta (fonte $GITHUB_SHA). Se sim: regressão completa, incluindo atribuição e permissões." >> "$GITHUB_STEP_SUMMARY"
 
   # AS DUAS PARTES RODAM EM PARALELO, e o motivo é medido, não estético.
   #
@@ -2310,9 +2299,9 @@ jobs:
           # Qualquer outra combinação exige `success`: parte pulada não mediu
           # nada, e ler isso como aprovação é o modo de falha que o `imagens-ok`
           # documenta.
-          if [ "$EVENTO" = "pull_request" ] && [ "$ALCANCE" = "nao" ]; then
+          if { [ "$EVENTO" = "pull_request" ] || [ "$EVENTO" = "push" ]; } && [ "$ALCANCE" = "nao" ]; then
             [ "$PARTES" = "skipped" ]
-            echo "PR não alcança nada que o e2e mede — partes puladas (scripts/pr-alcanca-o-e2e.sh)" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "Conjunto não alcança nada que o e2e mede — partes puladas (scripts/pr-alcanca-o-e2e.sh)" | tee -a "$GITHUB_STEP_SUMMARY"
           else
             [ "$PARTES" = "success" ]
           fi
@@ -2322,8 +2311,14 @@ jobs:
 
       - name: Declarar o que este job ainda NÃO cobre
         if: always()
+        env:
+          PARTES: ${{ needs.e2e-parte.result }}
         run: |
           set -euo pipefail
+          if [ "$PARTES" != success ]; then
+            echo "E2E: ${PARTES}. Esta rodada não comprovou a execução completa das listas." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           # CONTA, não afirma. A versão anterior deste passo era prosa digitada à
           # mão e dizia "32 de 33" com 39 arquivos no disco — a única coisa que
           # existia para declarar a lacuna estava, ela mesma, desatualizada.
