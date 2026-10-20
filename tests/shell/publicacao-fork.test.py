@@ -50,9 +50,10 @@ class Publicacao(unittest.TestCase):
         if args[:2] == ("ps", "-q"):
             return "container-app" if len(args) == 3 else "container-app\ncontainer-waha"
         if args[0] == "up":
-            self.atual = "old" if b"deskcomm-retorno:" in Path(".env").read_bytes() else "new"
-            if self.atual == "old" and self.retorno_falha:
+            alvo = "old" if b"deskcomm-retorno:" in Path(".env").read_bytes() else "new"
+            if alvo == "old" and self.retorno_falha:
                 raise RuntimeError("Docker recusou o retorno")
+            self.atual = alvo
         return ""
 
     def inspect(self, ref, imagem=False):
@@ -123,6 +124,8 @@ class Publicacao(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.rodar()
         self.assertEqual(self.recibo()["status"], "retorno_falhou")
+        self.assertEqual(self.recibo()["image_apos_falha"], "new")
+        self.assertIn(f"APP_IMAGE={REF}".encode(), Path(".env").read_bytes())
 
     def test_dependencias_compartilhadas_exigem_atualizacao_coordenada(self):
         for caminho in ("lib/agent-engine/agent.ts", "supabase/baseline.sql", "workers/drain.ts", "package.json", "Dockerfile.worker"):

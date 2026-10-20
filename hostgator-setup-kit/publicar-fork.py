@@ -196,6 +196,17 @@ def publicar():
                 print("RETORNO_CONFIRMADO: imagem e saúde da versão anterior conferidas.", file=sys.stderr)
             except Exception:
                 recibo["status"] = "retorno_falhou"
+                # Um recreate pode falhar antes de parar o app novo. O pin deve
+                # continuar descrevendo a imagem que realmente ficou de pé.
+                try:
+                    real = inspecionar(dc("ps", "-q", "app"))
+                    recibo["image_apos_falha"] = real["Image"]
+                    if real["Image"] == nova_img["Id"]:
+                        gravar_pin(args.image)
+                    elif real["Image"] == anterior["Image"]:
+                        gravar_pin(retorno)
+                except Exception:
+                    recibo["image_apos_falha"] = "não conferida"
                 print("RETORNO_FALHOU: exige intervenção; não declarei recuperação.", file=sys.stderr)
         else:
             recibo["status"] = "recusado_antes_da_troca"
