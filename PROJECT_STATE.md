@@ -1,5 +1,12 @@
 # PROJECT_STATE
 
+## Em validação — iniciar conversa após cadastrar contato (20/10/2026)
+- Pedido: oferecer início de conversa assim que o contato é criado, sem voltar à pesquisa.
+- A lista recebe `onCriado` do cadastro real e abre `ContactCreatedDialog`: Concluir ou Iniciar conversa. Usa o id retornado pela API e o seletor compartilhado, sem envio automático. Sem telefone, explica o próximo passo. Cancelamento de canal ou erro conserva o contato para nova tentativa.
+- Núcleo: cadastro e atendimento são operação comum, sem extensão. Sem schema/API/permissões novos; guardas existentes da abertura e auditoria `contact.created` preservadas. Agenda mantém seu callback próprio.
+- Living System: entrada `NewContactDialog`/`data.contact`; saída seletor → `open-with-contact` → Inbox. Porta Contatos → Novo contato; registro existente `contact.created`; confirmação mostra o resultado. Anti-morte é o início direto ou conclusão explícita. Sem configuração nova. Continuidade IA/humano segue o fluxo existente da Inbox. Laço de erro mantém a confirmação e permite tentar novamente; mapa `cadastro-e-conversa.architecture.json`.
+- Provas adicionadas: integração React do cadastro real à navegação, concluir, sem telefone, falha/nova tentativa e canais; E2E com cadastro filtrado e abertura sem mensagem. Execuções e publicação pendentes. Dependências locais em instalação; ambiente sem Docker. Próximo passo: validar, publicar PR, medir CI e instalar pelo guia existente.
+
 ## Em validação — autoria e clique nas citações (19/10/2026)
 - Pedido: mostrar o nome do usuário em vez de Atendente e preservar a autoria após transferência; clicar em citação do cliente ou usuário deve abrir a original.
 - A API do histórico enriquece linhas já autorizadas por RLS com o nome do emissor gravado em cada mensagem; não consulta o dono atual. Sem schema novo e sem reescrita de mensagens.

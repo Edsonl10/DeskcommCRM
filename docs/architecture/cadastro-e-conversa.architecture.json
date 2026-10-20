@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "diagram_type": "fluxo",
+  "meta": {
+    "titulo": "Do cadastro manual à conversa",
+    "resumo": "O contato salvo alimenta a confirmação e o seletor existente, sem depender da pesquisa da lista nem enviar mensagem."
+  },
+  "lanes": [
+    { "id": "tela", "label": "Interface" },
+    { "id": "api", "label": "APIs existentes" }
+  ],
+  "mainPath": ["cadastro", "confirmacao", "canal", "abertura", "inbox"],
+  "nodes": [
+    {
+      "id": "cadastro",
+      "lane": "tela",
+      "label": "NewContactDialog",
+      "sublabel": "POST contacts; onCriado entrega data.contact"
+    },
+    {
+      "id": "confirmacao",
+      "lane": "tela",
+      "label": "ContactCreatedDialog",
+      "sublabel": "Concluir ou Iniciar conversa; sem telefone informa o próximo passo"
+    },
+    {
+      "id": "canal",
+      "lane": "tela",
+      "label": "useConversaNovaComEscolhaDeCanal",
+      "sublabel": "Fonte compartilhada channel-sessions; um diálogo por vez"
+    },
+    {
+      "id": "abertura",
+      "lane": "api",
+      "label": "POST conversations/open-with-contact",
+      "sublabel": "Guarda existente: organização, papel, suporte e responsável"
+    },
+    {
+      "id": "inbox",
+      "lane": "tela",
+      "label": "Inbox",
+      "sublabel": "Conversa pelo id retornado; envio continua explícito"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "cadastro",
+      "to": "confirmacao",
+      "label": "Contato salvo, após auditoria contact.created existente"
+    },
+    {
+      "id": "e2",
+      "from": "confirmacao",
+      "to": "canal",
+      "label": "Escolha explícita com contact_id"
+    },
+    {
+      "id": "e3",
+      "from": "canal",
+      "to": "confirmacao",
+      "label": "Cancelamento devolve o contato salvo"
+    },
+    {
+      "id": "e4",
+      "from": "canal",
+      "to": "abertura",
+      "label": "Canal selecionado quando há escolha"
+    },
+    {
+      "id": "e5",
+      "from": "abertura",
+      "to": "confirmacao",
+      "label": "Erro visível, nova tentativa sem recadastro"
+    },
+    {
+      "id": "e6",
+      "from": "abertura",
+      "to": "inbox",
+      "label": "Sucesso navega sem consultar os filtros da lista"
+    }
+  ]
+}

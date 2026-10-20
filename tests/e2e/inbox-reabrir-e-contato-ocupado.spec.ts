@@ -7,7 +7,8 @@ const env = credenciaisSupabaseDeTeste();
 const db = createClient(env.url, env.serviceRole, { auth: { persistSession: false } });
 const suffix = randomUUID().slice(0, 8);
 const email = `reabre-${suffix}@invariant.test`, password = `Teste-${randomUUID()}!`;
-let org = "", user = "", other = "", conversation = "", busy = "";
+const managerEmail = `cadastro-${suffix}@invariant.test`;
+let org = "", user = "", other = "", manager = "", conversation = "", busy = "";
 async function insert(table: string, row: Record<string, unknown>) {
   const { data, error } = await db.from(table).insert(row).select("id").single();
   if (error) throw error;
@@ -15,11 +16,11 @@ async function insert(table: string, row: Record<string, unknown>) {
 }
 test.beforeAll(async () => {
   org = await insert("organizations", { slug: `reabre-${suffix}`, legal_name: "Teste Reabertura", display_name: "Teste Reabertura", onboarded_at: new Date().toISOString() });
-  for (const [mail, name] of [[email, "Ana Teste"], [`outro-${suffix}@invariant.test`, "Maria Teste"]]) {
+  for (const [mail, name] of [[email, "Ana Teste"], [`outro-${suffix}@invariant.test`, "Maria Teste"], [managerEmail, "Gestora Teste"]]) {
     const { data, error } = await db.auth.admin.createUser({ email: mail, password, email_confirm: true, user_metadata: { full_name: name } });
     if (error || !data.user) throw error ?? new Error("Usuário ausente");
-    if (mail === email) user = data.user.id; else other = data.user.id;
-    await insert("user_organizations", { organization_id: org, user_id: data.user.id, role: "agent", accepted_at: new Date().toISOString(), inbox_permissions: { all: false, ai: false, closed: true } });
+    if (mail === email) user = data.user.id; else if (mail === managerEmail) manager = data.user.id; else other = data.user.id;
+    await insert("user_organizations", { organization_id: org, user_id: data.user.id, role: mail === managerEmail ? "manager" : "agent", accepted_at: new Date().toISOString(), inbox_permissions: { all: false, ai: false, closed: true } });
   }
   const channel = await insert("channel_sessions", { organization_id: org, waha_session_name: `reabre-${suffix}`, status: "WORKING", webhook_secret_encrypted: "\\x00" });
   for (const [name, phone, status] of [["Reabertura Sintética", "+5511999990901", "closed"], ["Contato Ocupado Sintético", "+5511999990902", "claimed"]]) {
@@ -32,6 +33,43 @@ test.afterAll(async () => {
   if (org) await db.from("organizations").delete().eq("id", org);
   if (user) await db.auth.admin.deleteUser(user);
   if (other) await db.auth.admin.deleteUser(other);
+  if (manager) await db.auth.admin.deleteUser(manager);
+});
+
+test("criar contato oferece iniciar conversa mesmo fora dos filtros da pesquisa", async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto("/login");
+  await page.locator("#email").fill(managerEmail);
+  await page.locator("#password").fill(password);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.waitForURL(/\/app/);
+  await page.goto("/app/contacts");
+  await page.getByRole("searchbox").fill("busca-sem-resultado");
+  await page.getByRole("button", { name: "Novo contato", exact: true }).click();
+  await page.getByRole("textbox", { name: "Nome", exact: true }).fill("Contato Novo Sintético");
+  await page.getByRole("textbox", { name: "Telefone (E.164)", exact: true }).fill("+5511999990903");
+  await page.getByRole("button", { name: "Criar contato", exact: true }).click();
+  const confirmation = page.getByRole("dialog", { name: "Contato criado", exact: true });
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation).toContainText("Contato Novo Sintético");
+  const { data: contacts, error } = await db.from("contacts").select("id").eq("organization_id", org).eq("phone_number", "+5511999990903");
+  if (error) throw error;
+  expect(contacts).toHaveLength(1);
+  const contactId = contacts![0]!.id;
+  const { count } = await db.from("conversations").select("id", { count: "exact", head: true }).eq("contact_id", contactId);
+  expect(count).toBe(0);
+  fs.mkdirSync("evidence/conversa-apos-cadastro", { recursive: true });
+  await page.screenshot({ path: "evidence/conversa-apos-cadastro/opcao-apos-salvar.png", fullPage: true });
+  await confirmation.getByRole("button", { name: "Iniciar conversa", exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/inbox\?id=/);
+  await expect(page.getByRole("heading", { name: "Contato Novo Sintético", exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Mensagem", exact: true })).toBeVisible();
+  const conversationId = new URL(page.url()).searchParams.get("id");
+  const { data: saved } = await db.from("conversations").select("contact_id").eq("id", conversationId).single();
+  expect(saved?.contact_id).toBe(contactId);
+  const { count: messages } = await db.from("messages").select("id", { count: "exact", head: true }).eq("conversation_id", conversationId);
+  expect(messages).toBe(0);
+  await page.screenshot({ path: "evidence/conversa-apos-cadastro/conversa-aberta.png", fullPage: true });
 });
 test("atendente reabre e assume; contato ocupado avisa sem trocar dono", async ({ page }) => {
   test.setTimeout(120000);

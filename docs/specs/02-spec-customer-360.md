@@ -18,6 +18,10 @@ escopo: Schema SQL completo, RLS, triggers, identity resolution, merge, custom f
 
 ## 1. Visão Geral
 
+### Cadastro manual e início de conversa
+
+Na lista de Contatos, a criação bem-sucedida abre a confirmação com o contato retornado pela API e as opções Concluir e Iniciar conversa. O início usa `contact_id`, independente dos filtros da lista, e reutiliza o seletor de canal e as guardas existentes de `open-with-contact`. Nenhuma mensagem é enviada por esse atalho. Cancelar a escolha de canal ou falhar a abertura preserva a confirmação para tentar novamente. Sem telefone, a confirmação orienta a adicionar o número e oferece Concluir. Outros consumidores do cadastro, como a Agenda, preservam seu fluxo de seleção.
+
 ### 1.1 Posicionamento da Spec
 
 A Spec 02 materializa o **núcleo gravitacional** do DeskcommCRM: as 5 tabelas core CRM herdadas do bundle (`crm_pipelines`, `crm_stages`, `crm_leads`, `crm_lead_activities`, `crm_lead_links`) + a tabela `contacts` (fonte canônica de identidade) + tabela auxiliar `merge_queue`. Toda capacidade subsequente do produto (atendimento WhatsApp, IA conversacional, integração Nuvemshop, MCP server) **opera sobre** estas estruturas, nunca em paralelo a elas. Mudanças de schema aqui têm efeito-cascade pra toda a arquitetura.
