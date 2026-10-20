@@ -151,6 +151,7 @@ jobs:
   # crescer até o orçamento sem levar a suíte junto. Previsão, não medição: a
   # parte 4 fica em ~6 min (preâmbulo + cercas + kit) e a 3 em ~8.
   verify-parte:
+    needs: [invariants-alcance]
     # Guarda de travamento. O DETECTOR de crescimento é o passo `Orçamento de
     # tempo` no fim de cada parte; a medição que justifica o número está em
     # `TETOS`, em tests/unit/preambulo-do-ci-nao-come-o-relogio.test.ts.
@@ -165,7 +166,7 @@ jobs:
       # Sem fail-fast: um vermelho numa parte não esconde o da outra.
       fail-fast: false
       matrix:
-        parte: [1, 2, 3, 4]
+        parte: ${{ fromJSON(needs.invariants-alcance.outputs.partes) }}
     steps:
       - uses: actions/checkout@v7
 
@@ -407,7 +408,7 @@ jobs:
       # escolher OpenRouter travava o instalador num laço, escolher OpenAI
       # deixava o .env pela metade — passaram por todos os checks verdes. 15s.
       - name: Kit self-host (bash)
-        if: matrix.parte == 4
+        if: matrix.parte == 4 && needs.invariants-alcance.outputs.documentacao != 'sim'
         run: pnpm test:shell
 
       - name: Orçamento de tempo do verify-parte
@@ -550,42 +551,42 @@ jobs:
     outputs:
       majors: ${{ steps.alcance.outputs.majors }}
       piso: ${{ steps.alcance.outputs.piso }}
+      documentacao: ${{ steps.alcance.outputs.documentacao }}
+      partes: ${{ steps.alcance.outputs.partes }}
     steps:
       - uses: actions/checkout@v7
-        if: github.event_name == 'pull_request'
         with:
-          sparse-checkout: scripts/pr-mexe-no-piso-do-postgres.sh
-          sparse-checkout-cone-mode: false
-
-      - name: O PR alcança o piso do Postgres?
+          fetch-depth: 0
+          sparse-checkout: scripts
+      - name: Medir documentação e piso do Postgres
         id: alcance
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.before }}
         run: |
-          set -uo pipefail
-          responde() {
-            echo "piso=$1" >> "$GITHUB_OUTPUT"
-            if [ "$1" = sim ]; then echo 'majors=["15","17"]' >> "$GITHUB_OUTPUT"
-            else echo 'majors=["17"]' >> "$GITHUB_OUTPUT"; fi
-            echo "piso=$1 ($2)"
-          }
-          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
-            responde sim "evento ${GITHUB_EVENT_NAME}"; exit 0
+          set -euo pipefail
+          arquivos=$(bash scripts/arquivos-alterados-ci.sh)
+          documentacao=$(printf '%s\n' "$arquivos" | bash scripts/ci-so-documentacao.sh) || documentacao=nao
+          [ "$documentacao" = sim ] || documentacao=nao
+          echo "documentacao=$documentacao" >> "$GITHUB_OUTPUT"
+          if [ "$documentacao" = sim ]; then
+            echo 'partes=[4]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'partes=[1,2,3,4]' >> "$GITHUB_OUTPUT"
           fi
-          if ! arquivos=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --jq '.[].filename'); then
-            echo "::warning::não consegui listar os arquivos do PR — roda as duas majors"
-            responde sim "lista indisponível"; exit 0
+          piso=sim
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            piso=$(printf '%s\n' "$arquivos" | bash scripts/pr-mexe-no-piso-do-postgres.sh) || piso=sim
           fi
-          n=$(printf '%s\n' "$arquivos" | grep -c . || true)
-          if [ "$n" -ge 3000 ]; then
-            responde sim "lista cortada em ${n}"; exit 0
-          fi
-          resposta=$(printf '%s\n' "$arquivos" | bash scripts/pr-mexe-no-piso-do-postgres.sh) || resposta=sim
-          [ "$resposta" = "nao" ] || resposta=sim
-          responde "$resposta" "${n} arquivo(s) no PR"
+          [ "$piso" = nao ] || piso=sim
+          echo "piso=$piso" >> "$GITHUB_OUTPUT"
+          if [ "$piso" = sim ]; then echo 'majors=["15","17"]' >> "$GITHUB_OUTPUT"
+          else echo 'majors=["17"]' >> "$GITHUB_OUTPUT"; fi
+          echo "Documentação: $documentacao; piso: $piso; fonte: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
 
   invariants-majors:
+    if: needs.invariants-alcance.outputs.documentacao != 'sim'
     # Eram 20 min quando a perna tinha UMA passada; agora ela tem duas
     # (`test:db` + `test:db:update`) e o teto acompanha. O 30 é DECLARADO, não
     # medido — não há Docker onde esta matriz foi escrita —, e existe para o
@@ -661,6 +662,7 @@ jobs:
           PORTAO: ${{ needs.invariants-alcance.result }}
           PISO: ${{ needs.invariants-alcance.outputs.piso }}
           MAJORS: ${{ needs.invariants-majors.result }}
+          DOCUMENTACAO: ${{ needs.invariants-alcance.outputs.documentacao }}
         run: |
           set -euo pipefail
           echo "evento=${EVENTO} invariants-alcance=${PORTAO} piso=${PISO:-<vazio>}"
@@ -676,4 +678,9 @@ jobs:
           # `success` com TODAS as pernas verdes, então uma major sozinha
           # reprovando derruba o check obrigatório. `skipped` também reprova, de
           # propósito — perna pulada não mediu nada.
-          [ "$MAJORS" = "success" ]
+          if [ "${DOCUMENTACAO:-nao}" = sim ]; then
+            [ "$MAJORS" = skipped ]
+            echo "Só documentação: banco não foi reexecutado." >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          else
+            [ "$MAJORS" = success ]
+          fi

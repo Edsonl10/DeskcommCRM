@@ -101,42 +101,26 @@ jobs:
     outputs:
       imagem: ${{ steps.alcance.outputs.imagem }}
     steps:
-      # Só o script, não o repositório: o job é de segundos e segue assim.
       - uses: actions/checkout@v7
-        if: github.event_name == 'pull_request'
         with:
-          sparse-checkout: scripts/pr-mexe-na-imagem.sh
-          sparse-checkout-cone-mode: false
-
-      # `sim` constrói; `nao` pula os builds e o `imagens-ok` aceita o pulo.
-      # Fora de pull_request é SEMPRE `sim` — push na main e tag publicam, e
-      # publicar exige construir. Qualquer falha ao listar vira `sim` (constrói):
-      # não saber o que mudou nunca pode virar "não precisa". A regra, e o
-      # porquê de cada caminho, estão no cabeçalho do script.
-      - name: O PR alcança alguma imagem?
+          fetch-depth: 0
+          sparse-checkout: scripts
+      - name: O conjunto alcança alguma imagem?
         id: alcance
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.before }}
         run: |
-          set -uo pipefail
-          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
-            echo "imagem=sim" >> "$GITHUB_OUTPUT"; echo "evento ${GITHUB_EVENT_NAME}: constrói"; exit 0
-          fi
-          # A API devolve no máximo 3000 arquivos; com 3000 ou mais a lista pode
-          # estar cortada, e lista cortada não prova ausência — constrói.
-          if ! arquivos=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --jq '.[].filename'); then
-            echo "imagem=sim" >> "$GITHUB_OUTPUT"; echo "::warning::não consegui listar os arquivos do PR — constrói"; exit 0
-          fi
-          n=$(printf '%s\n' "$arquivos" | grep -c . || true)
-          if [ "$n" -ge 3000 ]; then
-            resposta=sim
-          else
+          set -euo pipefail
+          resposta=sim
+          if [ "${GITHUB_REF_TYPE}" != tag ]; then
+            arquivos=$(bash scripts/arquivos-alterados-ci.sh)
             resposta=$(printf '%s\n' "$arquivos" | bash scripts/pr-mexe-na-imagem.sh) || resposta=sim
           fi
-          [ "$resposta" = "nao" ] || resposta=sim
-          echo "imagem=${resposta}" >> "$GITHUB_OUTPUT"
-          echo "${n} arquivo(s) no PR → imagem=${resposta}"
+          [ "$resposta" = nao ] || resposta=sim
+          echo "imagem=$resposta" >> "$GITHUB_OUTPUT"
+          echo "Imagem: $resposta (fonte $GITHUB_SHA)" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
 
       - name: A tag está contida na main?
         env:
@@ -170,7 +154,7 @@ jobs:
   # `imagens-ok` aceita o `skipped` dele SÓ em pull_request.
   build-and-push:
     needs: [a-tag-veio-da-main]
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.a-tag-veio-da-main.outputs.imagem == 'sim'
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     concurrency:
       group: ${{ github.workflow }}-build-and-push-${{ matrix.name }}-${{ matrix.arch }}-${{ github.event.pull_request.number || github.ref }}${{ github.event_name == 'pull_request' && github.run_attempt != '1' && format('-reentrada-{0}', github.event.pull_request.head.sha) || '' }}
@@ -277,6 +261,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build e push (imagem genérica — sem segredos)
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -298,9 +283,25 @@ jobs:
           # Sem build-args de segredo: a imagem é genérica (NEXT_PUBLIC_* viram
           # placeholder; valores reais entram em runtime no VPS do usuário).
 
+      - name: Registrar o digest produzido nesta rodada
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGEM: ${{ matrix.name }}
+          ARQUITETURA: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          mkdir -p recibos
+          printf '%s\n' "$DIGEST" > "recibos/${IMAGEM}-${ARQUITETURA}.digest"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.name }}-${{ matrix.arch }}
+          path: recibos/*.digest
+          if-no-files-found: error
+
   juntar-manifestos:
-    needs: [build-and-push]
-    if: github.event_name != 'pull_request'
+    needs: [a-tag-veio-da-main, build-and-push, imagem-do-app-sobe, imagens-de-fundo-sobem]
+    if: github.event_name != 'pull_request' && needs.a-tag-veio-da-main.outputs.imagem == 'sim'
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-juntar-manifestos-${{ github.event.pull_request.number || github.ref }}${{ github.event_name == 'pull_request' && github.run_attempt != '1' && format('-reentrada-{0}', github.event.pull_request.head.sha) || '' }}
@@ -335,6 +336,11 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref_type == 'branch' && github.ref_name == 'main' }}
 
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: recibos
       - name: Unir AMD64 e ARM64 em cada tag
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
@@ -342,10 +348,15 @@ jobs:
           set -euo pipefail
           while IFS= read -r tag; do
             [ -n "$tag" ] || continue
-            docker buildx imagetools create \
-              --tag "$tag" \
-              "${tag}-amd64" \
-              "${tag}-arm64"
+            repositorio="${tag%:*}"
+            imagem="${repositorio##*/}"
+            amd64=$(cat "recibos/${imagem}-amd64.digest")
+            arm64=$(cat "recibos/${imagem}-arm64.digest")
+            [[ "$amd64" =~ ^sha256:[0-9a-f]{64}$ ]]
+            [[ "$arm64" =~ ^sha256:[0-9a-f]{64}$ ]]
+            docker buildx imagetools create --tag "$tag" \
+              "${repositorio}@${amd64}" "${repositorio}@${arm64}"
+            echo "${tag}: amd64=${amd64} arm64=${arm64}" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           done <<< "$TAGS"
 
   # A imagem do app CONSTRÓI e MORRE ao subir? Este job existe porque isso
@@ -361,11 +372,11 @@ jobs:
   # reprova é o processo não chegar a servir.
   #
   # Pula quando o PR não alcança imagem nenhuma (`a-tag-veio-da-main` →
-  # `imagem=nao`, que fora de pull_request é impossível). O `imagens-ok` aceita
+  # `imagem=nao`, perfil sem impacto no artefato). O `imagens-ok` aceita
   # esse pulo só nessa condição.
   imagem-do-app-sobe:
-    needs: [a-tag-veio-da-main]
-    if: needs.a-tag-veio-da-main.outputs.imagem == 'sim'
+    needs: [a-tag-veio-da-main, build-and-push]
+    if: ${{ !cancelled() && needs.a-tag-veio-da-main.result == 'success' && needs.a-tag-veio-da-main.outputs.imagem == 'sim' && (github.event_name == 'pull_request' || needs.build-and-push.result == 'success') }}
     # Executor próprio SÓ em PR de branch deste repo (EXECUTOR_PROPRIO=ligado).
     # Na `main` e em tag esta imagem vira a que o parque instala: ela se constrói
     # nas máquinas do GitHub, nunca numa máquina nossa. Guarda contra fork:
@@ -384,13 +395,48 @@ jobs:
       cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     permissions:
       contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v7
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v4
 
+      - uses: docker/login-action@v4
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v8
+        if: github.event_name != 'pull_request'
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: recibos
+      - name: Carregar os artefatos publicados por digest
+        if: github.event_name != 'pull_request'
+        env:
+          ARQUITETURA: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          dono=$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
+          for imagem in deskcommcrm; do
+            digest=$(cat "recibos/${imagem}-${ARQUITETURA}.digest")
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            ref="${REGISTRY}/${dono}/${imagem}@${digest}"
+            docker pull "$ref"
+            revisao=$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
+            [ "$revisao" = "$GITHUB_SHA" ]
+            arquitetura=$(docker image inspect "$ref" --format '{{.Architecture}}')
+            [ "$arquitetura" = "$ARQUITETURA" ]
+            alias="${imagem}:pr"
+            [ "$imagem" != deskcommcrm ] || alias=deskcomm-smoke:pr
+            docker tag "$ref" "$alias"
+            echo "Sonda: ${ref} (${ARQUITETURA}, ${revisao})" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          done
       - name: Build local da imagem do app (sem push)
+        if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -591,8 +637,8 @@ jobs:
   # já exige: nenhum check obrigatório novo — a proteção da main não passa a
   # esperar um nome que ninguém produz.
   imagens-de-fundo-sobem:
-    needs: [a-tag-veio-da-main]
-    if: needs.a-tag-veio-da-main.outputs.imagem == 'sim'
+    needs: [a-tag-veio-da-main, build-and-push]
+    if: ${{ !cancelled() && needs.a-tag-veio-da-main.result == 'success' && needs.a-tag-veio-da-main.outputs.imagem == 'sim' && (github.event_name == 'pull_request' || needs.build-and-push.result == 'success') }}
     # Executor próprio SÓ em PR de branch deste repo (EXECUTOR_PROPRIO=ligado).
     # Na `main` e em tag esta imagem vira a que o parque instala: ela se constrói
     # nas máquinas do GitHub, nunca numa máquina nossa. Guarda contra fork:
@@ -614,13 +660,48 @@ jobs:
     # passa por PR. Mesma razão do `permissions:` dos outros jobs.
     permissions:
       contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v7
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v4
 
+      - uses: docker/login-action@v4
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v8
+        if: github.event_name != 'pull_request'
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: recibos
+      - name: Carregar os artefatos publicados por digest
+        if: github.event_name != 'pull_request'
+        env:
+          ARQUITETURA: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          dono=$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
+          for imagem in deskcomm-worker deskcomm-scheduler deskcomm-voice-agent; do
+            digest=$(cat "recibos/${imagem}-${ARQUITETURA}.digest")
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            ref="${REGISTRY}/${dono}/${imagem}@${digest}"
+            docker pull "$ref"
+            revisao=$(docker image inspect "$ref" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
+            [ "$revisao" = "$GITHUB_SHA" ]
+            arquitetura=$(docker image inspect "$ref" --format '{{.Architecture}}')
+            [ "$arquitetura" = "$ARQUITETURA" ]
+            alias="${imagem}:pr"
+            [ "$imagem" != deskcommcrm ] || alias=deskcomm-smoke:pr
+            docker tag "$ref" "$alias"
+            echo "Sonda: ${ref} (${ARQUITETURA}, ${revisao})" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          done
       - name: Build local da imagem do worker (sem push)
+        if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -641,6 +722,7 @@ jobs:
           cache-to: ${{ github.event_name == 'pull_request' && format('type=gha,mode=max,scope=deskcommcrm-worker-{0}', matrix.arch) || '' }}
 
       - name: Build local da imagem do scheduler (sem push)
+        if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -663,6 +745,7 @@ jobs:
       # travada. `tests/unit/toda-imagem-publicada-constroi-em-pr.test.ts`
       # compara a matriz com os builds de PR e reprova quem esquecer a próxima.
       - name: Build local da imagem do agente de voz (sem push)
+        if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -921,29 +1004,20 @@ jobs:
           # O portão reprova antes de tudo: tag fora da main deixa os builds
           # `skipped`, e nenhum `skipped` abaixo pode ler isso como aceitável.
           [ "$PORTAO" = "success" ]
-          # Em pull_request o build-and-push é sempre `skipped` (as mesmas
-          # imagens são construídas pelos dois jobs de baixo). Fora de PR ele
-          # publica, e só `success` serve.
-          if [ "$EVENTO" = "pull_request" ]; then
-            [ "$BUILD" = "skipped" ]
-            [ "$MANIFESTO" = "skipped" ]
+          if [ "$ALCANCE" = nao ] && { [ "$EVENTO" = pull_request ] || [ "$EVENTO" = push ]; }; then
+            [ "$BUILD" = skipped ]
+            [ "$MANIFESTO" = skipped ]
+            [ "$APP" = skipped ]
+            [ "$FUNDO" = skipped ]
+            echo "Sem impacto na imagem: não houve build nem publicação." >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           else
-            [ "$BUILD" = "success" ]
-            [ "$MANIFESTO" = "success" ]
-          fi
-          # `skipped` dos jobs que sobem as imagens só é aceito com `imagem=nao`
-          # — PR que não alcança imagem nenhuma. Qualquer outra combinação
-          # exige `success`: é a mesma régua de antes, com uma porta só.
-          # As imagens de fundo entram na mesma exigência: worker ou scheduler que
-          # não sobe (ou que sobe com o laço do event_log morto, #604) reprova o
-          # check que a branch protection já espera — sem check novo obrigatório.
-          if [ "$EVENTO" = "pull_request" ] && [ "$ALCANCE" = "nao" ]; then
-            # Linhas separadas, nunca `a && b`: sob `set -e` o primeiro termo de
-            # uma lista `&&` que falha NÃO derruba o script.
-            [ "$APP" = "skipped" ]
-            [ "$FUNDO" = "skipped" ]
-            echo "PR não alcança imagem nenhuma — builds pulados (scripts/pr-mexe-na-imagem.sh)"
-          else
-            [ "$APP" = "success" ]
+            if [ "$EVENTO" = pull_request ]; then
+              [ "$BUILD" = skipped ]
+              [ "$MANIFESTO" = skipped ]
+            else
+              [ "$BUILD" = success ]
+              [ "$MANIFESTO" = success ]
+            fi
+            [ "$APP" = success ]
             [ "$FUNDO" = "success" ]
           fi

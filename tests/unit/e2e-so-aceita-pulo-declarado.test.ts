@@ -74,7 +74,7 @@ describe("e2e só aceita o pulo declarado", () => {
         // Fora de PR, a régua de antes: partes `success`, qualquer que seja o
         // output (fora de PR ele é sempre `sim`; `nao` aqui não abre porta).
         "push sim success success",
-        "push nao success success",
+        "push nao success skipped",
         // Saída vazia com o job de alcance `success` não acontece (ele sempre
         // escreve a saída); se acontecer, só passa com as partes MEDIDAS.
         "pull_request vazio success success",

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { protegerFetchUnitario } from "./fetch-unitario";
 
 /**
  * Remove um par de aspas (simples ou duplas) que envolva o valor inteiro —
@@ -92,21 +93,11 @@ for (const [chave, valor] of Object.entries(PLACEHOLDERS)) {
  * Recusar aqui, sem rede, é a mesma resposta que o DNS daria (`TypeError: fetch
  * failed`), só que decidida no mesmo tique: o trabalho solto termina enquanto o
  * teste que o disparou ainda está vivo, e não sobra nada em voo no teardown.
- * Só o host do placeholder é recusado; com `.env` de verdade ele nem é usado.
+ * Todo destino externo é recusado, inclusive com `.env` real; dublês e servidores locais continuam disponíveis.
  */
-const HOST_DO_PLACEHOLDER = new URL(URL_DO_PLACEHOLDER).host;
-const fetchDoAmbiente = globalThis.fetch;
-globalThis.fetch = async (entrada, init) => {
-  const url = entrada instanceof Request ? entrada.url : String(entrada);
-  if (URL.canParse(url) && new URL(url).host === HOST_DO_PLACEHOLDER) {
-    throw new TypeError("fetch failed", {
-      cause: new Error(
-        `${HOST_DO_PLACEHOLDER} é o placeholder do setup de teste (tests/setup/vitest.setup.ts): nenhum teste unitário fala com um Supabase de verdade`,
-      ),
-    });
-  }
-  return fetchDoAmbiente(entrada, init);
-};
+// Abrange também env real herdado: chamadas de IA/CRM devem usar os dublês.
+// Os testes que interceptam fetch continuam medindo o SDK sem sair para a rede.
+globalThis.fetch = protegerFetchUnitario(globalThis.fetch);
 
 import "@testing-library/jest-dom/vitest";
 

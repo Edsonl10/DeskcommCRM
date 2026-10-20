@@ -27,6 +27,7 @@ while IFS= read -r caminho || [ -n "$caminho" ]; do
   [ -z "$caminho" ] && continue
   algum=sim
   case "$caminho" in
+    __IMPACTO_DESCONHECIDO__) echo sim; exit 0 ;;
     # O schema, em qualquer forma: baseline, migrations, MANIFEST, config.
     supabase/*) echo sim; exit 0 ;;
     # Quem aplica o schema e quem mede o resultado.

@@ -20,10 +20,14 @@
 - RBAC, sessão, MFA, suporte e isolamento existentes permanecem obrigatórios. Quem reabre assume; iniciar não transfere conversa aberta de outro responsável. Distribuição e aceite são estados distintos.
 - Usuário autorizou terminal, backup e publicação desta melhoria. Pediu eficiência para próximas mudanças em 20/10: evitar releituras, consultas e validações redundantes; contexto curto, saída objetiva e revisão do processo de publicação. Isso não autoriza omitir checks exigidos para código funcional.
 
-## Próxima prioridade — reduzir o ciclo de publicação
-- Plano medido em `docs/runbooks/eficiencia-de-publicacao.md`. Já reduzir este estado ao necessário e usar leituras direcionadas. Histórico detalhado fica no git.
-- Antes de novo deploy: conferir que a referência anterior existe e aponta para a imagem em execução; preservar um retorno utilizável; confirmar versão/saúde do retorno antes de anunciar sucesso. Comparar dados com uma observação imediatamente anterior à troca, distinguindo ações legítimas concorrentes pela auditoria.
-- Rever construção/teste duplicado de imagens e reuso do mesmo artefato; avaliar seleção de testes por impacto com núcleo obrigatório de fila/atribuição/permissões. São propostas; o pipeline funcional ainda não foi alterado.
+## Eficiência de publicação — implementação em validação
+- Usuário autorizou implementar o plano em 20/10. Branch `perf/ciclo-publicacao`, destino infraestrutura. Ver `docs/runbooks/eficiencia-de-publicacao.md` para perfis, procedimento e limites.
+- Diff completo (incluindo renomes) classifica PR e main; documentação pura usa cercas e pula banco/build/E2E. Código e dúvida conservam as suítes completas. Sondas de publicação usam os digests já produzidos; manifestos aguardam os testes. Markdown da raiz fora do contexto Docker.
+- Merge comum não exige App de release; corte real usa Client ID, com compatibilidade com App ID. Não foi criada credencial de release.
+- `hostgator-setup-kit/publicar-fork.py`: preflight dos cinco checks/fonte, backup validado, pin da imagem real, atualização somente do app e recibo com retorno confirmado ou falho. Recusa banco e dependências compartilhadas; não substitui atualização coordenada. Testado com dublês, ainda não executado para trocar a VPS.
+- Proteção do fetch unitário contra destinos externos: dublês e loopback permitidos, bloqueio antes da rede. Motivada por rejeição automática da suíte local anterior; nenhuma chamada externa adicional foi autorizada.
+- Local: 245 casos dos 19 arquivos de guardas do pipeline, 17 casos de fetch/roteamento simulado, 10 cenários do publicador, typecheck e lint (0 erros; 528 avisos preexistentes) aprovados. Controle negativo: impacto desconhecido aceito indevidamente causa 1 falha prevista; restaurado passa. Rodada ampla protegida: 2.120 arquivos, 22.061 casos aprovados e 16 falhas; 3 falhas da transição foram corrigidas e os 29 casos pertinentes passaram. Restam limitações locais preexistentes de IPC (12 casos) e DNS (1). Kit encontrou limitações de PID/sinal e rede em testes preexistentes; CI real em andamento.
+- Produção permanece a50fe0a: esta rodada altera infraestrutura, sem mudança de comportamento ou schema do CRM. Não prometer redução de minutos/tokens antes de medir rodadas.
 
 ## Evidências sintéticas das funcionalidades mantidas
 - `evidence/iniciar-atendimento-ativos/inicio-1.png` e `evidence/iniciar-atendimento-ativos/inicio-2.png`: Ativos e responsável, sem Assumir.

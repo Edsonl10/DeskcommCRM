@@ -30,3 +30,6 @@ scratchpad
 evidence
 .superpowers
 *.tsbuildinfo
+
+# Documentação de operação: não é lida em runtime.
+*.md

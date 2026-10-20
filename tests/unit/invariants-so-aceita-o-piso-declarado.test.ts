@@ -33,7 +33,7 @@ function scriptDoAgregador(): string {
 const SCRIPT = scriptDoAgregador();
 const DESFECHOS = "success failure skipped cancelled";
 
-function combinacoesAceitas(): string[] {
+function combinacoesAceitas(documentacao = "nao"): string[] {
   const programa = `
 for EVENTO in pull_request push; do
  for PISO in sim nao ""; do
@@ -49,7 +49,7 @@ for EVENTO in pull_request push; do
 done
 true`;
   return execFileSync("bash", ["-c", programa], {
-    env: { ...process.env, SCRIPT_DO_JOB: SCRIPT },
+    env: { ...process.env, SCRIPT_DO_JOB: SCRIPT, DOCUMENTACAO: documentacao },
     encoding: "utf-8",
   })
     .split("\n")
@@ -75,4 +75,16 @@ describe("invariants só aceita a matriz reduzida onde ela foi declarada", () =>
       ].sort(),
     );
   });
+  it("só documentação permite pular o banco, sem aceitar falha ou cancelamento", { timeout: 60_000 }, () => {
+    expect(combinacoesAceitas("sim").sort()).toEqual([
+      "pull_request sim success skipped",
+      "pull_request nao success skipped",
+      "pull_request vazio success skipped",
+      "push sim success skipped",
+    ].sort());
+  });
+  it("perfil vazio conserva a exigência do banco", { timeout: 60_000 }, () => {
+    expect(combinacoesAceitas("")).toEqual(combinacoesAceitas("nao"));
+  });
+
 });

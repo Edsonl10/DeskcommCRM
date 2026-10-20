@@ -464,12 +464,19 @@ No CI não há `UPSTASH` nenhum, então lá o caminho é o contador em memória 
 
 **Os invariantes não estão no `test:unit`.** `vitest.config.ts` exclui `tests/invariants/**` de propósito: essa suíte precisa de um Postgres real e roda via `vitest.db.config.ts`, orquestrada por `scripts/test-db.sh`. Rodar só `pnpm test:unit` e concluir "está tudo verde" é um falso verde — o isolamento RLS não foi exercitado.
 
+**Perfil documental do fork:** `scripts/ci-so-documentacao.sh` só aceita documentação,
+evidências e fragmentos. Com diff completo, PR e push da main rodam as cercas na parte 4,
+sem unit de produto, kit, banco, build ou E2E. Falha ao obter o diff ou qualquer código
+misturado conserva a validação completa. Os agregadores continuam obrigatórios e só
+aceitam `skipped` quando o classificador respondeu o perfil permitido. Confira os
+workflows e `docs/runbooks/eficiencia-de-publicacao.md`; verde documental não prova runtime.
+
 Checks **obrigatórios** na branch protection da `main` (verificado na configuração, não só no papel):
 
 - **`verify`** (`ci.yml`) — typecheck + lint + test:unit.
 - **`invariants`** (`ci.yml`) — **job de fachada**: ele não roda suíte nenhuma; reprova quando a matriz `invariants-majors` não fecha em `success`. Quem roda é a matriz, uma perna por major do Postgres que o produto diz suportar, e cada perna faz duas passadas: `pnpm test:db` (baseline em modo install com `ON_ERROR_STOP=1` e update, mais os invariantes, incluindo o isolamento RLS entre 2 organizações) e `pnpm test:db:update` (atualização de um banco COM dados). Para saber quais majors hoje, pergunte ao arquivo em vez de a esta linha: `awk '/^  invariants-majors:/,/^  [a-z-]+:/' .github/workflows/ci.yml | grep -A6 'matrix:'`.
 - **`build-and-size`** (`perf.yml`) — `pnpm build` em Node 22.
-- **`e2e`** (`e2e.yml`) — sobe Supabase local, aplica o `baseline.sql` e roda **todas as specs Playwright menos as que `FORA_DO_CI` declara** — **em PR que alcança algo que ele mede**. PR só de documentação, teste de outra suíte, fragmento ou workflow alheio pula as partes (regra em `scripts/pr-alcanca-o-e2e.sh`, na dúvida roda), e ali o `e2e` verde **não prova tela nenhuma**. O número saiu daqui de propósito: ele apodreceu **cinco** vezes (a quinta em 2026-08-24, quando `inbox-quem-manda.spec.ts` entrou), e a condição que o PR #242 pôs para parar de recontar já tinha vencido na quarta. Quem precisa do número roda o comando abaixo — comando não envelhece. Quais ficam de fora, e por quê, é o que a própria variável diz — **não confie nesta linha, leia-a**:
+- **`e2e`** (`e2e.yml`) — sobe Supabase local, aplica o `baseline.sql` e roda **todas as specs Playwright menos as que `FORA_DO_CI` declara** — **em PR ou push que alcança algo que ele mede**. Conjunto só de documentação, teste de outra suíte, fragmento ou workflow alheio pula as partes (regra em `scripts/pr-alcanca-o-e2e.sh`, na dúvida roda), e ali o `e2e` verde **não prova tela nenhuma**. O número saiu daqui de propósito: ele apodreceu **cinco** vezes (a quinta em 2026-08-24, quando `inbox-quem-manda.spec.ts` entrou), e a condição que o PR #242 pôs para parar de recontar já tinha vencido na quarta. Quem precisa do número roda o comando abaixo — comando não envelhece. Quais ficam de fora, e por quê, é o que a própria variável diz — **não confie nesta linha, leia-a**:
 
   ```bash
   git show origin/main:.github/workflows/e2e.yml | \
