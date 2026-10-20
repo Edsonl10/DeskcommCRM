@@ -26,7 +26,7 @@ describe("diff completo antes de poupar CI", () => {
   });
   it.each(["", "workflow_dispatch", "evento-desconhecido"])("%s sem prova de diff roda tudo", (evento) => {
     const saida = execFileSync("bash", [coletor], { env: { ...process.env, GITHUB_EVENT_NAME: evento }, encoding: "utf8" });
-    for (const seletor of ["pr-mexe-na-imagem.sh", "pr-alcanca-o-e2e.sh"]) {
+    for (const seletor of ["pr-mexe-na-imagem.sh", "pr-alcanca-o-e2e.sh", "pr-mexe-no-piso-do-postgres.sh"]) {
       expect(execFileSync("bash", [`scripts/${seletor}`], { input: saida, encoding: "utf8" }).trim()).toBe("sim");
     }
   });
