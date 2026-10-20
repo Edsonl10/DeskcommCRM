@@ -3,6 +3,8 @@
 
 
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { iniciarAtendimento } from "@/lib/inbox/iniciar-atendimento";
 
 import { useState } from "react";
 
@@ -36,6 +38,7 @@ export function ContactCard({ message }: Props) {
   const t = useT();
 
   const router = useRouter();
+  const qc = useQueryClient();
 
   const [loading, setLoading] = useState(false);
 
@@ -105,7 +108,8 @@ export function ContactCard({ message }: Props) {
 
       }
 
-      router.push(`/app/inbox?id=${json.data.conversation_id}`);
+      await iniciarAtendimento(json.data.conversation_id, qc);
+      router.push(`/app/inbox?id=${json.data.conversation_id}&filter=active`);
 
     } catch (err) {
 

@@ -78,7 +78,8 @@ describe("Abrir conversa no card do funil (#1993)", () => {
   it("sem conversa, o clique abre pela rota existente, espera a resposta e navega", async () => {
     const user = userEvent.setup();
     let liberar: (r: unknown) => void = () => {};
-    fetchMock.mockReturnValue(
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: {} }) });
+    fetchMock.mockReturnValueOnce(
       new Promise((res) => {
         liberar = res;
       }),
@@ -105,7 +106,7 @@ describe("Abrir conversa no card do funil (#1993)", () => {
     expect(durante).toBeDisabled();
 
     liberar({ ok: true, json: async () => ({ data: { conversation_id: "conv-nova" } }) });
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/app/inbox?id=conv-nova"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/app/inbox?id=conv-nova&filter=active"));
     expect(toastError).not.toHaveBeenCalled();
   });
 

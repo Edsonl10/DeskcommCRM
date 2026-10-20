@@ -8,6 +8,7 @@ const db = createClient(env.url, env.serviceRole, { auth: { persistSession: fals
 const suffix = randomUUID().slice(0, 8);
 const email = `reabre-${suffix}@invariant.test`, password = `Teste-${randomUUID()}!`;
 let org = "", user = "", other = "", conversation = "", busy = "";
+const inicios: Array<{ name: string; contact: string; conversation?: string }> = [];
 async function insert(table: string, row: Record<string, unknown>) {
   const { data, error } = await db.from(table).insert(row).select("id").single();
   if (error) throw error;
@@ -27,13 +28,48 @@ test.beforeAll(async () => {
     const id = await insert("conversations", { organization_id: org, contact_id: contact, channel_session_id: channel, assigned_to_user_id: other, assigned_to_user_name: "Maria Teste", assignee_kind: "user", status, last_message_at: new Date().toISOString() });
     if (status === "closed") conversation = id; else busy = id;
   }
+  for (const [name, phone, existente] of [["Início Novo Sintético", "+5511999990903", false], ["Início Próprio Sintético", "+5511999990904", true]] as const) {
+    const contact = await insert("contacts", { organization_id: org, display_name: name, phone_number: phone, force_human: true });
+    const id = existente ? await insert("conversations", { organization_id: org, contact_id: contact, channel_session_id: channel, assigned_to_user_id: user, assigned_to_user_name: "Ana Teste", assignee_kind: "user", status: "claimed", last_message_at: new Date().toISOString() }) : undefined;
+    inicios.push({ name, contact, conversation: id });
+  }
 });
 test.afterAll(async () => {
   if (org) await db.from("organizations").delete().eq("id", org);
   if (user) await db.auth.admin.deleteUser(user);
   if (other) await db.auth.admin.deleteUser(other);
 });
-
+test("iniciar por Contatos ativa conversa nova ou já atribuída sem clicar em Assumir", async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto("/login");
+  await page.locator("#email").fill(email);
+  await page.locator("#password").fill(password);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.waitForURL(/\/app/);
+  fs.mkdirSync("evidence/iniciar-atendimento-ativos", { recursive: true });
+  // A lista já foi visitada antes do início: também prova a invalidação do cache.
+  await page.goto("/app/inbox?filter=active");
+  await expect(page.getByRole("tab", { name: /^Ativos/ })).toBeVisible();
+  for (const [index, item] of inicios.entries()) {
+    await page.getByRole("link", { name: "Contatos", exact: true }).click();
+    const start = page.getByRole("button", { name: new RegExp(`(?:Iniciar|Abrir) conversa com ${item.name} no Inbox`) });
+    await expect(start).toBeVisible();
+    await start.click();
+    await expect(page).toHaveURL(/\/app\/inbox\?id=[^&]+&filter=active/);
+    await expect(page.getByRole("heading", { name: item.name, exact: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /^Ativos/ })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("button", { name: "Assumir", exact: true })).toHaveCount(0);
+    const { data: row, error } = await db.from("conversations").select("id,assigned_to_user_id,human_accepted_at").eq("organization_id", org).eq("contact_id", item.contact).single();
+    if (error) throw error;
+    expect(row.assigned_to_user_id).toBe(user);
+    expect(row.human_accepted_at).toBeTruthy();
+    if (item.conversation) expect(row.id).toBe(item.conversation);
+    await expect(page.getByRole("button", { name: new RegExp(`Em atendimento.*${item.name}`) })).toBeVisible();
+    const { count } = await db.from("messages").select("id", { count: "exact", head: true }).eq("conversation_id", row.id);
+    expect(count).toBe(0);
+    await page.screenshot({ path: `evidence/iniciar-atendimento-ativos/inicio-${index + 1}.png`, fullPage: true });
+  }
+});
 test("criar contato oferece iniciar conversa mesmo fora dos filtros da pesquisa", async ({ page }) => {
   test.setTimeout(120000);
   await page.goto("/login");
@@ -45,12 +81,12 @@ test("criar contato oferece iniciar conversa mesmo fora dos filtros da pesquisa"
   await page.getByRole("searchbox").fill("busca-sem-resultado");
   await page.getByRole("button", { name: "Novo contato", exact: true }).click();
   await page.getByRole("textbox", { name: "Nome", exact: true }).fill("Contato Novo Sintético");
-  await page.getByRole("textbox", { name: "Telefone (E.164)", exact: true }).fill("+5511999990903");
+  await page.getByRole("textbox", { name: "Telefone (E.164)", exact: true }).fill("+5511999990905");
   await page.getByRole("button", { name: "Criar contato", exact: true }).click();
   const confirmation = page.getByRole("dialog", { name: "Contato criado", exact: true });
   await expect(confirmation).toBeVisible();
   await expect(confirmation).toContainText("Contato Novo Sintético");
-  const { data: contacts, error } = await db.from("contacts").select("id").eq("organization_id", org).eq("phone_number", "+5511999990903");
+  const { data: contacts, error } = await db.from("contacts").select("id").eq("organization_id", org).eq("phone_number", "+5511999990905");
   if (error) throw error;
   expect(contacts).toHaveLength(1);
   const contactId = contacts![0]!.id;
@@ -59,7 +95,9 @@ test("criar contato oferece iniciar conversa mesmo fora dos filtros da pesquisa"
   fs.mkdirSync("evidence/conversa-apos-cadastro", { recursive: true });
   await page.screenshot({ path: "evidence/conversa-apos-cadastro/opcao-apos-salvar.png", fullPage: true });
   await confirmation.getByRole("button", { name: "Iniciar conversa", exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/inbox\?id=/);
+  await expect(page).toHaveURL(/\/app\/inbox\?id=[^&]+&filter=active/);
+  await expect(page.getByRole("tab", { name: /^Ativos/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("button", { name: "Assumir", exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Contato Novo Sintético", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Contato Novo Sintético/ })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Mensagem", exact: true })).toBeVisible();

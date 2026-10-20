@@ -26,6 +26,8 @@ export function useClaimConversation() {
     onSuccess: (_data, args) => {
       qc.invalidateQueries({ queryKey: ["conversations"] });
       qc.invalidateQueries({ queryKey: ["conversation", args.conversation_id] });
+      qc.invalidateQueries({ queryKey: ["conversation-counts"] });
+      qc.invalidateQueries({ queryKey: ["contacts"] });
     },
   });
 }

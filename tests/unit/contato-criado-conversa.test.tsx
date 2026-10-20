@@ -73,10 +73,10 @@ describe("conversa depois do cadastro", () => {
     expect(aberturas()).toHaveLength(0);
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/claim"))).toBe(false);
     await user.click(screen.getByRole("button", { name: "Iniciar conversa" }));
-    await waitFor(() => expect(deps.push).toHaveBeenCalledWith("/app/inbox?id=conversa-nova"));
+    await waitFor(() => expect(deps.push).toHaveBeenCalledWith("/app/inbox?id=conversa-nova&filter=active"));
     expect(JSON.parse(aberturas()[0]![1].body)).toEqual({ contact_id: contact.id });
     expect(fetchMock.mock.calls.filter(([url]) => url === "/api/v1/contacts")).toHaveLength(1);
-    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/claim"))).toBe(true);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/claim"))).toHaveLength(1);
   });
 
   it("Concluir mantém só o cadastro, sem abrir atendimento", async () => {
@@ -169,6 +169,6 @@ describe("conversa depois do cadastro", () => {
     expect(close).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog", { name: "Contato criado" })).toBeVisible();
     const claim = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/claim"));
-    expect(JSON.parse(claim![1].body)).toEqual({});
+    expect(JSON.parse(claim![1].body)).toEqual({ expected_assignee: null });
   });
 });

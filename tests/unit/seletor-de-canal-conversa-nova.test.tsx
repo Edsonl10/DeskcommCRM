@@ -160,7 +160,7 @@ describe("Seletor de canal ao iniciar conversa nova (#2382)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa" }));
 
     await waitFor(() => expect(aoAbrirMock).toHaveBeenCalledWith("conv-9"));
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(corpoDoPost()).toEqual({
       contact_id: "contato-1",
       phone_number: "+5517999998888",
@@ -177,7 +177,7 @@ describe("Seletor de canal ao iniciar conversa nova (#2382)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "iniciar" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(corpoDoPost()).toEqual({
       contact_id: "contato-1",
@@ -242,7 +242,7 @@ describe("Seletor de canal ao iniciar conversa nova (#2382)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "iniciar" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(corpoDoPost()).toEqual({
       contact_id: "contato-1",
@@ -269,7 +269,7 @@ describe("Seletor de canal ao iniciar conversa nova (#2382)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "iniciar" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole("dialog")).toBeNull();
     // Sem escolha, o corpo é o de sempre: o servidor decide o canal.
     expect(corpoDoPost()).toEqual({
@@ -296,6 +296,44 @@ describe("Seletor de canal ao iniciar conversa nova (#2382)", () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("Este contato já está em atendimento com Maria."));
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/conversations/conv-existente/availability");
     expect(aoAbrirMock).not.toHaveBeenCalled();
+  });
+
+  it("só navega depois de assumir; o atalho existente também registra o aceite", async () => {
+    getMock.mockResolvedValue({ data: [] });
+    let aceitar: (value: unknown) => void = () => {};
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { available: true } }) });
+    fetchMock.mockReturnValueOnce(new Promise(resolve => { aceitar = resolve; }));
+    montar();
+    fireEvent.click(screen.getByRole("button", { name: "abrir existente" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/conversations/conv-existente/claim",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ expected_assignee: null }) }),
+    ));
+    expect(aoAbrirMock).not.toHaveBeenCalled();
+    aceitar({ ok: true, json: async () => ({ data: {} }) });
+    await waitFor(() => expect(aoAbrirMock).toHaveBeenCalledWith("conv-existente"));
+  });
+
+  it("se outra pessoa assumir entre abrir e aceitar, mantém a tela e permite nova tentativa", async () => {
+    getMock.mockResolvedValue({ data: [] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { conversation_id: "conv-9" } }) });
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: { message: "Outro atendente já assumiu." } }) });
+    montar();
+    fireEvent.click(screen.getByRole("button", { name: "iniciar" }));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("Outro atendente já assumiu."));
+    expect(aoAbrirMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "iniciar" }));
+    await waitFor(() => expect(aoAbrirMock).toHaveBeenCalledWith("conv-9"));
+  });
+
+  it("usuário somente leitura continua consultando sem tentar assumir", async () => {
+    getMock.mockResolvedValue({ data: [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: { available: true, can_start: false, status: "closed", service_revision: 3 } }) });
+    montar();
+    fireEvent.click(screen.getByRole("button", { name: "abrir existente" }));
+    await waitFor(() => expect(aoAbrirMock).toHaveBeenCalledWith("conv-existente"));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/conversations/conv-existente/availability");
   });
 
 });
