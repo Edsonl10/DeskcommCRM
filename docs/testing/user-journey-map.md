@@ -219,7 +219,7 @@ consertos estão em commits próprios desta branch — procure pelas palavras ab
 
 ## J4 — CRM e Pipelines `[P1]`
 
-Cadastro → conversa: `inbox-reabrir-e-contato-ocupado.spec.ts` inclui criar um contato pela tela com a lista filtrada, ver a opção de iniciar, aceitar o atendimento com atendente sem visão global, abrir a Inbox pelo id salvo e confirmar que nenhuma mensagem foi enviada. Prova escrita; execução desta inclusão pendente. `tests/unit/contato-criado-conversa.test.tsx` cobre também concluir, ausência de telefone, nova tentativa e cancelamento/escolha de canal.
+Cadastro → conversa: `inbox-reabrir-e-contato-ocupado.spec.ts` inclui criar um contato pela tela com a lista filtrada, ver a opção de iniciar, aceitar o atendimento com atendente sem visão global, abrir a Inbox pelo id salvo e confirmar que nenhuma mensagem foi enviada. PASS pela tela no run 39432584270 (fonte edc2ed65), em 5,5 s; capturas sintéticas conferidas em `evidence/conversa-apos-cadastro/`. `tests/unit/contato-criado-conversa.test.tsx` cobre também concluir, ausência de telefone, nova tentativa e cancelamento/escolha de canal.
 
 | # | Caso | Expectativa |
 |---|------|-------------|
