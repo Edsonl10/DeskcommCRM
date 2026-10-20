@@ -383,3 +383,16 @@ describe("a API só é consultada quando há fragmento apagado", () => {
     expect(r.saida).toMatch(/não conseguiu perguntar à API/);
   });
 });
+
+
+describe("token só no candidato, com identidade autenticada antes do corte", () => {
+  it("o merge comum não pede App e o corte não confia em slug digitado", () => {
+    const fluxo = readFileSync(".github/workflows/release.yml", "utf8").split("  cortar-tag:\n")[1]!;
+    expect(fluxo.indexOf("id: candidato")).toBeGreaterThan(-1);
+    expect(fluxo.indexOf("id: token")).toBeGreaterThan(fluxo.indexOf("id: candidato"));
+    expect(fluxo.indexOf("id: pendente")).toBeGreaterThan(fluxo.indexOf("id: token"));
+    expect(fluxo).toContain("APP_SLUG: ${{ steps.token.outputs.app-slug }}");
+    const token = fluxo.split("      - uses: actions/create-github-app-token@v3")[1]!.split("      - ")[0]!;
+    expect(token).toContain("if: steps.candidato.outputs.cortar == 'sim'");
+  });
+});
