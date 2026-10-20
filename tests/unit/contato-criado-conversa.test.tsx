@@ -63,13 +63,13 @@ describe("conversa depois do cadastro", () => {
   it("o cadastro real oferece o contato retornado e só abre por escolha explícita", async () => {
     const user = userEvent.setup();
     montar(<ContactsListClient />);
-    await user.click(screen.getByRole("button", { name: "Novo contato", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Novo contato" }));
     await user.type(screen.getByLabelText("Nome", { exact: true }), "Joana Teste");
     await user.type(screen.getByLabelText(/Telefone/), contact.phone_number!);
-    await user.click(screen.getByRole("button", { name: "Criar contato", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Criar contato" }));
     await screen.findByRole("dialog", { name: "Contato criado" });
     expect(aberturas()).toHaveLength(0);
-    await user.click(screen.getByRole("button", { name: "Iniciar conversa", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Iniciar conversa" }));
     await waitFor(() => expect(deps.push).toHaveBeenCalledWith("/app/inbox?id=conversa-nova"));
     expect(JSON.parse(aberturas()[0]![1].body)).toEqual({ contact_id: contact.id });
     expect(fetchMock.mock.calls.filter(([url]) => url === "/api/v1/contacts")).toHaveLength(1);
@@ -77,7 +77,7 @@ describe("conversa depois do cadastro", () => {
 
   it("Concluir mantém só o cadastro, sem abrir atendimento", async () => {
     montar();
-    fireEvent.click(screen.getByRole("button", { name: "Concluir", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Concluir" }));
     expect(close).toHaveBeenCalledOnce();
     expect(aberturas()).toHaveLength(0);
     expect(deps.push).not.toHaveBeenCalled();
@@ -86,12 +86,12 @@ describe("conversa depois do cadastro", () => {
   it("sem telefone explica o próximo passo e permite concluir", () => {
     montar(<ContactCreatedDialog contact={{ ...contact, phone_number: null }} onClose={close} />);
     expect(
-      screen.queryByRole("button", { name: "Iniciar conversa", exact: true }),
+      screen.queryByRole("button", { name: "Iniciar conversa" }),
     ).not.toBeInTheDocument();
     expect(
       screen.getByText("Adicione um telefone ao contato para iniciar uma conversa."),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Concluir", exact: true })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Concluir" })).toBeEnabled();
   });
 
   it("falha ao abrir conserva o contato e oferece nova tentativa sem recadastro", async () => {
@@ -108,7 +108,7 @@ describe("conversa depois do cadastro", () => {
       return normalFetch(url, ...args);
     });
     montar();
-    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa" }));
     await waitFor(() =>
       expect(deps.error).toHaveBeenCalledWith(
         "Este contato já está em atendimento com Maria Teste.",
@@ -117,9 +117,9 @@ describe("conversa depois do cadastro", () => {
     expect(close).not.toHaveBeenCalled();
     expect(deps.push).not.toHaveBeenCalled();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Iniciar conversa", exact: true })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: "Iniciar conversa" })).toBeEnabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa" }));
     await waitFor(() => expect(deps.push).toHaveBeenCalledOnce());
     expect(aberturas()).toHaveLength(2);
     expect(fetchMock.mock.calls.some(([url]) => url === "/api/v1/contacts")).toBe(false);
@@ -136,16 +136,16 @@ describe("conversa depois do cadastro", () => {
       metadata: {},
     }));
     montar();
-    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa" }));
     await screen.findByRole("dialog", { name: "Escolha o canal para iniciar a conversa" });
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     expect(aberturas()).toHaveLength(0);
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     await screen.findByRole("dialog", { name: "Contato criado" });
-    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa" }));
     await screen.findByRole("dialog", { name: "Escolha o canal para iniciar a conversa" });
     fireEvent.click(screen.getByRole("radio", { name: /Oficina/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar conversa" }));
     await waitFor(() => expect(deps.push).toHaveBeenCalledOnce());
     expect(JSON.parse(aberturas()[0]![1].body)).toEqual({
       contact_id: contact.id,
