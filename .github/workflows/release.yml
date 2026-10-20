@@ -125,6 +125,14 @@ jobs:
             echo 'Merge comum: não há corte de release nem necessidade do App.' >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - uses: actions/create-github-app-token@v3
+        if: steps.candidato.outputs.cortar == 'sim'
+        id: token
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID || secrets.RELEASE_APP_CLIENT_ID }}
+          app-id: ${{ (vars.RELEASE_APP_CLIENT_ID || secrets.RELEASE_APP_CLIENT_ID) == '' && secrets.RELEASE_APP_ID || '' }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - uses: ./.github/actions/preparar-node
         if: steps.candidato.outputs.cortar == 'sim'
         # O teto do preâmbulo mora aqui porque passo de composite action não
@@ -139,9 +147,9 @@ jobs:
           # origem do merge (issue #478). É o token do próprio workflow, e não
           # o do App: a guarda pergunta, ela não escreve nada.
           GH_TOKEN: ${{ github.token }}
-          # Slug público opcional: decidir se há corte não precisa emitir token.
-          # Sem ele, a guarda continua exigindo PR release/* do próprio repo.
-          APP_SLUG: ${{ vars.RELEASE_APP_SLUG }}
+          # A identidade vem do App autenticado, somente depois do candidato.
+          # Merge comum não pede token; corte real preserva a guarda do autor.
+          APP_SLUG: ${{ steps.token.outputs.app-slug }}
         run: |
           set -euo pipefail
 
@@ -358,14 +366,6 @@ jobs:
             echo "cortar=sim"       >> "$GITHUB_OUTPUT"
             echo "versao=${versao}" >> "$GITHUB_OUTPUT"
           fi
-
-      - uses: actions/create-github-app-token@v3
-        if: steps.pendente.outputs.cortar == 'sim'
-        id: token
-        with:
-          client-id: ${{ vars.RELEASE_APP_CLIENT_ID || secrets.RELEASE_APP_CLIENT_ID }}
-          app-id: ${{ (vars.RELEASE_APP_CLIENT_ID || secrets.RELEASE_APP_CLIENT_ID) == '' && secrets.RELEASE_APP_ID || '' }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
       - uses: actions/checkout@v7
         if: steps.pendente.outputs.cortar == 'sim'
