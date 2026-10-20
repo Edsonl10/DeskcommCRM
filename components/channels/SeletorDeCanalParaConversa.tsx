@@ -263,9 +263,11 @@ export function useConversaNovaComEscolhaDeCanal(opts: {
     setAbrindo(true);
     try {
       const res = await fetch(`/api/v1/conversations/${conversationId}/availability`);
-      const json = await res.json() as { data?: { status?: string; service_revision?: number }; error?: { message?: string } };
+      const json = await res.json() as { data?: { can_start?: boolean; status?: string; service_revision?: number }; error?: { message?: string } };
       if (!res.ok) throw new Error(json.error?.message ?? t("Não foi possível abrir a conversa."));
-      await iniciarAtendimento(conversationId, qc, json.data);
+      // Consulta por viewer continua sendo leitura. A API deriva o papel da
+      // sessão; a ausência do campo mantém compatibilidade com a API anterior.
+      if (json.data?.can_start !== false) await iniciarAtendimento(conversationId, qc, json.data);
       await opts.aoAbrir(conversationId);
     } catch (err) {
       toast.error(err instanceof Error ? t(err.message) : t("Não foi possível abrir a conversa."));

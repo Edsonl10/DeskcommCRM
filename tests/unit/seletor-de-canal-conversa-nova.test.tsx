@@ -326,4 +326,14 @@ describe("Seletor de canal ao iniciar conversa nova (#2382)", () => {
     await waitFor(() => expect(aoAbrirMock).toHaveBeenCalledWith("conv-9"));
   });
 
+  it("usuário somente leitura continua consultando sem tentar assumir", async () => {
+    getMock.mockResolvedValue({ data: [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ data: { available: true, can_start: false, status: "closed", service_revision: 3 } }) });
+    montar();
+    fireEvent.click(screen.getByRole("button", { name: "abrir existente" }));
+    await waitFor(() => expect(aoAbrirMock).toHaveBeenCalledWith("conv-existente"));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/conversations/conv-existente/availability");
+  });
+
 });
