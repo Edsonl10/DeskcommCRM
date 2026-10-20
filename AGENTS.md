@@ -605,3 +605,10 @@ Este repositório pode ser trabalhado em computadores, chats e agentes diferente
 
 ### Regra de handoff
 Qualquer agente que assumir este projeto deve conseguir receber um pedido direto de alteração e se situar sozinho lendo o GitHub, as instruções permanentes e o `PROJECT_STATE.md`. O usuário não precisa dizer “continue de onde parou”.
+
+### Eficiência solicitada pelo usuário (20/10/2026)
+- Reutilize contexto já conferido na sessão; depois da leitura inicial obrigatória, releia apenas arquivos alterados ou trechos necessários. Não reinicie a investigação a cada atualização de status.
+- Faça buscas e leituras direcionadas em lote, com saída curta. Durante CI, aguarde a execução sem reler documentos ou despejar logs completos; consulte o estado de forma espaçada e abra logs somente para resolver dúvida concreta.
+- Resolva integração com a main e rode as guardas rápidas pertinentes antes de disparar a rodada cara. Ao adicionar evidências, confira caminhos/citações antes do CI. Não repita validação aprovada sem mudança, falha ou preocupação específica.
+- Diferencie tempo de execução do CI e trabalho do modelo; não invente consumo de tokens nem prometa redução de prazo não medida. Priorize atualizações úteis, resultado, testes e pendência real.
+- O plano em `docs/runbooks/eficiencia-de-publicacao.md` não dispensa os gates existentes. Mudanças no pipeline precisam de implementação e validação próprias.
