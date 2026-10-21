@@ -1,0 +1,39 @@
+{
+  "commit": "fa722b49e2faceaebe7b13b6c93f61a7e2f537d6",
+  "validated_source": "c4118b54505b5e81a20427d16eab4e841b94df83",
+  "source_tree": "b239c353a40a637566cb5961ac7b29d5522f77f9",
+  "before_head": "a9fd7fb5109a8900c2a24655b208c2f027792d33",
+  "backup": "/opt/backups/crm-cliente-painel-20261021-201752",
+  "status": "instalado",
+  "health": {
+    "status": "healthy",
+    "version": "fa722b4",
+    "timestamp": "2026-10-21T20:18:48.400Z"
+  },
+  "images": {
+    "app": "ghcr.io/edsonl10/deskcommcrm@sha256:c2e2cbac424f326bac68b8649f3d4f99642b38c153f8b904199be272404c1fb3",
+    "worker": "ghcr.io/edsonl10/deskcomm-worker@sha256:928ef80268e345d16b5ef6bf9f5798de2774141eb689bde1387ff91169c45455",
+    "scheduler": "ghcr.io/edsonl10/deskcomm-scheduler@sha256:e02fab5eb227dd393e5d81576ce945610e469b3faa02ea662e24eb991b87487b"
+  },
+  "source_gates": {
+    "verify": "success",
+    "invariants": "success",
+    "e2e": "success",
+    "build-and-size": "success",
+    "imagens-ok": "success"
+  },
+  "ci_e2e_run": 39657183630,
+  "ci_images_run": 39661012689,
+  "e2e_part1_passed": 158,
+  "production_ui": "Funis: switch presente, habilitado e ligado; padrão preservado",
+  "preserved": [
+    "Caddyfile",
+    "demais variáveis de ambiente",
+    "serviços fora do trio",
+    "sessões WhatsApp"
+  ],
+  "public_http": {
+    "/": 200,
+    "/app": 307
+  }
+}
