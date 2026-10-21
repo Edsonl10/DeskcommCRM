@@ -182,7 +182,7 @@ export function ClientePelaAgenda({
         {ligado
           ? t("Ligado: quem marcar horário ganha a etiqueta “cliente” na hora.")
           : t(
-              "Desligado: ninguém ganha a etiqueta, a ficha não mostra “Cliente desde” e todo contato novo entra pelo funil padrão. As etiquetas que já existem ficam como estão.",
+              "Desligado: ninguém ganha a etiqueta, a ficha não mostra “Cliente desde” e a entrada de novas conversas depende da configuração na tela Funis. As etiquetas que já existem ficam como estão.",
             )}
       </p>
 

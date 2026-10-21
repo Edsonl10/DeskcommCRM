@@ -1,3 +1,5 @@
+import { EntradaAutomatica } from "./_components/EntradaAutomatica";
+import { entradaAutomaticaLigada } from "@/lib/leads/entrada-automatica";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -51,6 +53,12 @@ export default async function KanbanPickerPage() {
     .eq("organization_id", activeOrg.orgId)
     .order("position");
 
+  const { data: organizacao } = await supabase
+    .from("organizations")
+    .select("settings")
+    .eq("id", activeOrg.orgId)
+    .single();
+
   const todos = (data ?? []) as Array<FunilDaLista & { is_archived: boolean }>;
   const funis = todos.filter((f) => !f.is_archived);
   const podeGerenciar = ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager;
@@ -77,6 +85,16 @@ export default async function KanbanPickerPage() {
             gerou o comentário — é uma delas. Todas atualizadas junto. */}
         <h1 className="text-2xl font-semibold tracking-tight">{t("Funis")}</h1>
       </header>
+
+      {organizacao ? (
+        <EntradaAutomatica
+          key={activeOrg.orgId}
+          ligada={entradaAutomaticaLigada(organizacao.settings)}
+          podeEditar={activeOrg.role === "admin"}
+        />
+      ) : (
+        <p role="alert">{t("Não foi possível carregar a configuração do funil.")}</p>
+      )}
 
       <FunisClient
         funis={funis}

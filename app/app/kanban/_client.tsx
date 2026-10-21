@@ -707,7 +707,7 @@ export function FunisClient({
       ) : (
         <p className="mt-4 text-xs text-muted-foreground" data-testid="funis-rodape-clientes">
           {t(
-            "Para separar quem já é cliente, ligue “Clientes pela agenda” em Configurações › Tipos de agendamento. Enquanto estiver desligado, todo contato novo entra pelo funil padrão.",
+            "Para separar quem já é cliente, ligue “Clientes pela agenda” em Configurações › Tipos de agendamento. A entrada de novas conversas depende da configuração de entrada automática na tela Funis.",
           )}{" "}
           <Link href="/app/settings/tenant/agenda" className="underline" data-testid="funis-rodape-ligar">
             {t("Abrir Tipos de agendamento")}

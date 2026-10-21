@@ -1,5 +1,10 @@
 # PROJECT_STATE
 
+## Em validação — entrada automática no funil
+- Branch `feat/entrada-automatica-funil`, base 60211cc. Usuário autorizou envio a Edsonl10/DeskcommCRM e publicação após os testes em 21/10. Controle em Funis para admin e leitura pela equipe; padrão ligado, false desliga nascimento automático, sem apagar cards nem interromper atendimento. Sem migration; settings com CAS e auditoria.
+- 318 casos relacionados aprovados (incluindo os 13 específicos da rota/regra); 32 guardas de i18n/hidratação aprovadas. Controle negativo: retirada da condição causou exatamente uma falha entre oito casos; restaurado e aprovado. Canais, papéis e fragmentos aprovados. Typecheck e lint completos ainda em execução; primeira tentativa de typecheck esgotou heap padrão e foi repetida com 6 GB. Suíte completa local interrompida sob carga; não declarar verde. Banco local indisponível por ausência de Docker; banco/E2E/build e regressão completa devem ser conferidos no CI.
+- Dependências recuperadas com pnpm 9.15.9 e lockfile preservado. Publicação coordenada app/worker necessária, sem SQL. Ambiente atual sem chave SSH; Desktop Commander offline e sem terminal da VPS entre as abas abertas. Não instalar por caminho improvisado. Produção permanece na versão abaixo até recibo de instalação confirmado.
+
 ## Produção — 21/10/2026
 - Instalada a integração `a9fd7fb5109a8900c2a24655b208c2f027792d33` (PR #26), versão `a9fd7fb`, em `/opt/DeskcommCRM`. App, worker e scheduler saudáveis; saúde interna `healthy`, domínio público `/` 200 e `/app` 307.
 - Nome editável pelo lápis no cabeçalho da conversa, ficha lateral e cadastro. “Sobre o Cliente” manual e editável. Administrador organiza os blocos por arraste/setas, salva um padrão para toda a equipe e pode restaurar a ordem original. Janela conferida no computador e em 390 × 844 px, com botões sempre visíveis.

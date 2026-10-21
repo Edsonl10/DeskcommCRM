@@ -16,6 +16,10 @@
   ],
   "mainPath": ["lista", "hooks", "post", "regras", "pipelines"],
   "nodes": [
+    {"id": "entrada_auto", "lane": "humano", "col": 1, "type": "frontend", "label": "EntradaAutomatica", "sublabel": "Admin altera; equipe consulta em Funis"},
+    {"id": "entrada_api", "lane": "borda", "col": 2, "type": "backend", "label": "settings/entrada-funil", "sublabel": "Admin, suporte, CAS e auditoria"},
+    {"id": "entrada_config", "lane": "dados", "col": 3, "type": "database", "label": "organizations.settings.entrada_automatica_funil"},
+    {"id": "nascimento", "lane": "dependente", "col": 4, "type": "backend", "label": "garantirLeadDaConversa", "sublabel": "Recusa nascimento automático com false explícito"},
     { "id": "lista", "lane": "humano", "col": 1, "type": "frontend", "label": "/app/kanban (page)", "sublabel": "Server Component · filtra organization_id da org ATIVA" },
     { "id": "client", "lane": "humano", "col": 2, "type": "frontend", "label": "FunisClient", "sublabel": "criar · renomear · ↑↓ · padrão · arquivar" },
     { "id": "hooks", "lane": "humano", "col": 3, "type": "frontend", "label": "usePipelines", "sublabel": "só mutations — a leitura é do servidor" },
@@ -40,6 +44,11 @@
     { "id": "rules", "lane": "dependente", "col": 4, "type": "database", "label": "automation_rules", "sublabel": "pipeline_id dentro de jsonb — SEM FK" }
   ],
   "edges": [
+    {"id": "entrada1", "from": "lista", "to": "entrada_auto", "label": "Estado atual e permissão"},
+    {"id": "entrada2", "from": "entrada_auto", "to": "entrada_api", "label": "PATCH entrada_automatica"},
+    {"id": "entrada3", "from": "entrada_api", "to": "entrada_config", "label": "Preserva settings com CAS"},
+    {"id": "entrada4", "from": "entrada_config", "to": "nascimento", "label": "Consulta antes de criar"},
+    {"id": "entrada5", "from": "entrada_api", "to": "audit", "label": "settings.pipeline_entry_updated"},
     { "id": "e1", "from": "lista", "to": "pipelines", "label": "select … .eq(organization_id, org ATIVA) — a RLS sozinha misturava as orgs" },
     { "id": "e2", "from": "lista", "to": "client", "label": "funis + podeGerenciar (papel na org ativa, igual ao requireRole)" },
     { "id": "e3", "from": "client", "to": "hooks", "label": "criar · editar · arquivar" },

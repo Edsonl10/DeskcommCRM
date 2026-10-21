@@ -15201,6 +15201,18 @@ export const DICIONARIO: Traducoes = {
   "Máximo de {n} caracteres.": { es: "Máximo de {n} caracteres." },
   "Salvar alíneas": { es: "Guardar las letras" },
   "Alíneas do art. 15.º salvas.": { es: "Las letras del art. 15.º quedaron guardadas." },
+  "Falha ao salvar.": { es: "No se pudo guardar." },
+  // Entrada automática no funil.
+  "Adicionar contatos automaticamente ao funil": { es: "Añadir contactos automáticamente al embudo" },
+  "Ligado: novas conversas criam uma oportunidade automaticamente no funil configurado.": { es: "Activado: las nuevas conversaciones crean una oportunidad automáticamente en el embudo configurado." },
+  "Desligado: novas conversas ficam no atendimento. A equipe pode adicionar oportunidades manualmente.": { es: "Desactivado: las nuevas conversaciones permanecen en atención. El equipo puede añadir oportunidades manualmente." },
+  "Vale para toda a equipe. Não remove oportunidades existentes. Ao religar, vale para as próximas mensagens; não importa o histórico. Automações e importações mantêm suas próprias regras.": { es: "Se aplica a todo el equipo. No elimina oportunidades existentes. Al reactivarlo, se aplica a los próximos mensajes; no importa el historial. Las automatizaciones e importaciones mantienen sus propias reglas." },
+  "Contatos fora do funil não participam dos acompanhamentos vinculados a oportunidades.": { es: "Los contactos fuera del embudo no participan en los seguimientos vinculados a oportunidades." },
+  "Somente administradores podem alterar esta configuração.": { es: "Solo los administradores pueden cambiar esta configuración." },
+  "Não foi possível carregar a configuração do funil.": { es: "No se pudo cargar la configuración del embudo." },
+  "A configuração mudou. Recarregue a página e tente novamente.": { es: "La configuración cambió. Vuelve a cargar la página e inténtalo de nuevo." },
+  "Para separar quem já é cliente, ligue “Clientes pela agenda” em Configurações › Tipos de agendamento. A entrada de novas conversas depende da configuração de entrada automática na tela Funis.": { es: "Para separar a quienes ya son clientes, activa «Clientes por la agenda» en Configuración › Tipos de cita. La entrada de nuevas conversaciones depende de la configuración de entrada automática en la pantalla Embudos." },
+  "Desligado: ninguém ganha a etiqueta, a ficha não mostra “Cliente desde” e a entrada de novas conversas depende da configuração na tela Funis. As etiquetas que já existem ficam como estão.": { es: "Desactivado: nadie recibe la etiqueta, la ficha no muestra «Cliente desde» y la entrada de nuevas conversaciones depende de la configuración en la pantalla Embudos. Las etiquetas existentes se mantienen." },
 };
 
 /**
