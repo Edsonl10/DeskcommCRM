@@ -23,4 +23,8 @@ Nenhuma migration, nova tabela, permissão ou variável de ambiente. A atualiza�
 
 ## Validação
 
-Casos de limite, preservação, cancelamento, erro, leitura restrita e RBAC na suíte unitária. `tests/e2e/cliente-edicao-e-painel.spec.ts` entra na parte 1 do CI: edição nas duas portas do Inbox e no cadastro, persistência, arraste real, outra sessão da equipe, viewer, outra organização e restauração. Prova em banco fresco pelo CI; esta máquina não tem Docker. Registrar no PROJECT_STATE as rodadas efetivamente concluídas; não confundir teste escrito com teste executado.
+Fonte final `2f24b9c866555e2299baa79e05d2f6a2d9b8c76d`: cinco checks obrigatórios aprovados, incluindo banco PG17, atualização sobre dados, compilação, imagens AMD64/ARM64 e seis partes E2E. São 19.153 casos unitários aprovados e uma falha esperada de controle; o bloco de navegação 1 aprovou 157 casos.
+
+`tests/e2e/cliente-edicao-e-painel.spec.ts` comprova edição nas duas portas do Inbox e no cadastro, persistência, arraste real, outra sessão da equipe, viewer, outra organização e restauração. A janela conserva os comandos visíveis em 1280 × 720 e 390 × 844 px. Capturas sintéticas [conferidas visualmente](../../evidence/cliente-painel/README.md). O controle negativo da preservação causou duas falhas previstas e foi restaurado.
+
+Integração `a9fd7fb5109a8900c2a24655b208c2f027792d33` instalada pela mesma árvore validada, com app/worker/scheduler saudáveis, backup validado e demais serviços/configurações preservados. Controles e abertura/cancelamento da configuração conferidos em produção. [Recibo sanitizado](../../evidence/cliente-painel/resultado.json); detalhes operacionais no PROJECT_STATE.

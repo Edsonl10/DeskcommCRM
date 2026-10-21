@@ -1,20 +1,26 @@
 # PROJECT_STATE
 
-## Em implementação — 21/10/2026
-- Autorizado: editar nome no atendimento/ficha/cadastro; Sobre o Cliente manual; administrador organiza por arraste/setas e salva padrão da equipe. Branch `feat/cliente-painel-equipe`, base `31e23ab`.
-- Implementação sem migration: resumo reservado em custom_fields e ordem em organizations.settings. Permissões atuais, suporte, LGPD, isolamento e demais dados preservados; conflitos de gravação recusados.
-- Local: regras/API aprovadas; edição e permissões 11 casos; cercas de i18n/E2E/suporte 37 casos; lint alterado, canais e roles aprovados. Controle negativo removeu a preservação e causou 2 falhas previstas; código restaurado. Typecheck com heap padrão esgotou 2 GB; nova rodada com heap ampliado. Suíte ampla encontra IPC/rede e timeouts do ambiente local; CI deverá confirmar suíte e banco reais.
-- Prova visual em banco fresco em `cliente-edicao-e-painel.spec.ts`; CI pendente. Instalação precisa coordenar app/worker/scheduler porque há código compartilhado em lib/; não afrouxar o publicador restrito ao app. Acesso ao console Hostinger disponível. Não declarar publicada antes dos checks e instalação.
-- Contrato e checklist: `docs/features/cliente-painel.md`. Produção registrada abaixo permanece inalterada até a publicação.
+## Produção — 21/10/2026
+- Instalada a integração `a9fd7fb5109a8900c2a24655b208c2f027792d33` (PR #26), versão `a9fd7fb`, em `/opt/DeskcommCRM`. App, worker e scheduler saudáveis; saúde interna `healthy`, domínio público `/` 200 e `/app` 307.
+- Nome editável pelo lápis no cabeçalho da conversa, ficha lateral e cadastro. “Sobre o Cliente” manual e editável. Administrador organiza os blocos por arraste/setas, salva um padrão para toda a equipe e pode restaurar a ordem original. Janela conferida no computador e em 390 × 844 px, com botões sempre visíveis.
+- App: `ghcr.io/edsonl10/deskcommcrm@sha256:56cb7775ff12032b51dea0be894f5e1a2ed65562e2758808056459b27d62a773`.
+- Worker: `ghcr.io/edsonl10/deskcomm-worker@sha256:a9c7b8703240da652387713edbc931ae46e29f9b8ba357483ff7c0a10a383978`. Scheduler: `ghcr.io/edsonl10/deskcomm-scheduler@sha256:e5e2c67f6c2e5d9fe2df0d99fcbbbe513d417484564e1de768d526f72bc0e2ad`.
+- Publicação coordenada dos três serviços, sem SQL/migration. Demais linhas do .env, Caddyfile e IDs dos outros serviços preservados. Em produção, controles conferidos no Inbox/cadastro e janela aberta/cancelada; gravação e persistência comprovadas no banco fresco do E2E.
 
-## Produção registrada — 20/10/2026
+## Validação e recibo atual
+- Fonte `2f24b9c866555e2299baa79e05d2f6a2d9b8c76d`, árvore `f50f7a9d01f32a2a92082d959c561221fd801081`, idêntica à integração instalada. Cinco checks aprovados: CI/PG17 e atualização sobre dados `39616930555`; seis partes E2E `39616930533`; imagens AMD64/ARM64 `39616930466`; build `39616930459`. Build repetido isoladamente porque a rodada encerrada manteve o check em andamento; a tentativa final passou. Publicação e sondas dos digests `39620859678`: aprovadas.
+- 1.821 arquivos unitários aprovados: 19.153 casos e uma falha esperada. Bloco E2E 1: 157 casos aprovados; edição/padrão em 20,8 s e leitura/isolamento/restauração em 14,0 s. Typecheck, lint e cercas aprovados. Controle negativo retirou a preservação dos campos e causou duas falhas previstas; restaurado. Instalador coordenado: seis cenários com dublês aprovados, incluindo retorno às três imagens reais e recusa de backup incompleto.
+- Backup validado: `/opt/backups/crm-cliente-painel-20261021-150946` (banco, sessões WhatsApp e configurações). Recibo privado `recibo.json`; script copiado no backup, SHA-256 `3a69cd85b1589549c7f5eb2813f68466746a9fd817aafd8e5837a311354a7f95`. Retorno pelas imagens que estavam efetivamente em execução foi preparado; não acionado no servidor. Não reutilizar o antigo deploy-ui.sh.
+- Prova sintética e recibo sanitizado: `evidence/cliente-painel/README.md` e `evidence/cliente-painel/resultado.json`. Contrato: `docs/features/cliente-painel.md`. Sem pendência desta entrega.
+
+## Histórico da produção — 20/10/2026
 - Repositório: `Edsonl10/DeskcommCRM`. Instalação em `/opt/DeskcommCRM`, proxy Caddy próprio; Caddyfile tem alterações locais que devem ser preservadas. Usar `dc()` do kit, que seleciona o proxy real desta instalação.
 - App instalado: `a50fe0a529ac1273b2ca616436f53c0486aff135` (PR #23, inclui PR #22). Imagem: `ghcr.io/edsonl10/deskcommcrm@sha256:39be8868e222df884d4ef8c530b1463dde9f2dce8eb6f831813ae6d8e9de01a6`. Saúde interna/pública `healthy`; `/` 200 e `/app` 307. Somente app mudou; IDs de worker, scheduler, WAHA, Caddy, Redis e SRH conferidos iguais aos anteriores. Demais linhas do .env e Caddyfile preservados.
 - Iniciar por Contatos, cadastro, funil e cartão compartilhado aceita antes de abrir Ativos. Conversa própria aguardando também é aceita. Claim com `expected_assignee: null` não toma o atendimento de outra pessoa; conflitos impedem navegação e oferecem nova tentativa. Viewer continua em consulta. Resposta humana pela sessão aceita mesmo sem fidelização da distribuição. Lista, ficha, contatos e contadores atualizados. Sem migration ou nova permissão.
 - Cadastro oferece Concluir/Iniciar conversa com o id salvo, independentemente da pesquisa; cancelamento/erro preserva o contato. O seletor centraliza o aceite uma única vez. Nenhuma mensagem é enviada por iniciar uma conversa.
 - Mantidos: autoria real nas mensagens e citações navegáveis; reabrir assume novo atendimento; aviso de outro responsável; Inbox por aceite/permissão; Equipe → Atendimento centralizado; distribuição por departamento; quantidade sem limite quando configurada; legibilidade/seleção; ações simplificadas. APIs e históricos de arquivados/pessoais preservados.
 
-## Validação e recibo
+## Recibo da publicação anterior
 - Fonte final `34f21dd67ef0238f647b61939c5fdadd43426bb9`: CI/PG17 com atualização sobre dados 39451525605; build 39451525830; imagens AMD64/ARM64 39451525745; seis partes E2E 39451525452, todos aprovados. Árvore da integração a50fe0a idêntica à fonte validada. Publicação da imagem 39455566889 aprovada.
 - Bloco E2E 1: 155 casos aprovados. Iniciar em Ativos 10,7 s; cadastro 7,4 s; reabrir/ocupado 10,6 s. Dono/aceite e ausência de mensagens conferidos no banco. Local: 39 casos da integração, typecheck/lint e 66 guardas de evidência aprovados; controles anteriores no histórico dos commits.
 - Backup conferido: `/opt/backups/crm-iniciar-ativos-20261020-154227` (banco, sessões WhatsApp e configurações). Recibo final: `health-final.json`, `images-final.txt`, `finalizar-ativos.sh`. Captura sanitizada: `evidence/iniciar-atendimento-ativos/publicacao.jpg`.
