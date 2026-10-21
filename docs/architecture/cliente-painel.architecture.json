@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Cliente e painel da equipe",
+    "subtitle": "Edição direta e configuração compartilhada",
+    "output": "cliente-painel.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Telas existentes"
+    },
+    {
+      "id": "api",
+      "label": "API"
+    },
+    {
+      "id": "dados",
+      "label": "Dados"
+    }
+  ],
+  "mainPath": [
+    "inbox",
+    "api_contato",
+    "contacts",
+    "cadastro"
+  ],
+  "nodes": [
+    {
+      "id": "inbox",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Inbox e ficha lateral"
+    },
+    {
+      "id": "cadastro",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Cadastro do contato"
+    },
+    {
+      "id": "api_contato",
+      "lane": "api",
+      "col": 0,
+      "type": "api",
+      "label": "PATCH contacts/{id}"
+    },
+    {
+      "id": "api_painel",
+      "lane": "api",
+      "col": 1,
+      "type": "api",
+      "label": "settings/painel-cliente"
+    },
+    {
+      "id": "contacts",
+      "lane": "dados",
+      "col": 0,
+      "type": "database",
+      "label": "contacts.name + custom_fields"
+    },
+    {
+      "id": "org",
+      "lane": "dados",
+      "col": 1,
+      "type": "database",
+      "label": "organizations.settings"
+    },
+    {
+      "id": "audit",
+      "lane": "dados",
+      "col": 2,
+      "type": "database",
+      "label": "Auditoria e evento"
+    },
+    {
+      "id": "audit_ui",
+      "lane": "ui",
+      "col": 2,
+      "type": "frontend",
+      "label": "Área de auditoria"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "inbox",
+      "to": "api_contato",
+      "label": "editar nome e resumo"
+    },
+    {
+      "id": "e2",
+      "from": "cadastro",
+      "to": "api_contato",
+      "label": "editar cadastro"
+    },
+    {
+      "id": "e3",
+      "from": "api_contato",
+      "to": "contacts",
+      "label": "RLS + comparação de versão"
+    },
+    {
+      "id": "e4",
+      "from": "contacts",
+      "to": "inbox",
+      "label": "invalidação de conversa e lista"
+    },
+    {
+      "id": "e5",
+      "from": "contacts",
+      "to": "cadastro",
+      "label": "invalidação do detalhe"
+    },
+    {
+      "id": "e6",
+      "from": "inbox",
+      "to": "api_painel",
+      "label": "admin configura"
+    },
+    {
+      "id": "e7",
+      "from": "api_painel",
+      "to": "org",
+      "label": "organização da sessão + comparação de versão"
+    },
+    {
+      "id": "e8",
+      "from": "org",
+      "to": "inbox",
+      "label": "ordem compartilhada"
+    },
+    {
+      "id": "e9",
+      "from": "api_painel",
+      "to": "audit",
+      "label": "settings.client_panel_updated"
+    },
+    {
+      "id": "e10",
+      "from": "api_contato",
+      "to": "audit",
+      "label": "contact.updated"
+    },
+    {
+      "id": "e11",
+      "from": "audit",
+      "to": "audit_ui",
+      "label": "consulta pela navegação existente"
+    }
+  ]
+}

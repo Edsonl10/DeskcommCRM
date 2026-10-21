@@ -8986,5 +8986,22 @@
   "Remova opções repetidas.": "Remove repeated options.",
   "O formulário pode ter até 20 perguntas.": "The form can have up to 20 questions.",
   "Cada pergunta precisa ter uma chave diferente.": "Each question needs a different key.",
-  "Revise os campos do formulário.": "Review the form fields."
+  "Revise os campos do formulário.": "Review the form fields.",
+  "Sobre o Cliente": "About the Customer",
+  "Editar Sobre o Cliente": "Edit About the Customer",
+  "Nenhuma informação sobre o cliente.": "No customer information yet.",
+  "Editar nome do contato": "Edit contact name",
+  "Configurar painel": "Configure panel",
+  "Não foi possível carregar a configuração do painel.": "Could not load panel settings.",
+  "Arraste os blocos ou use as setas. A ordem será aplicada a toda a equipe.": "Drag the sections or use the arrows. This order applies to the whole team.",
+  "Ordem dos blocos": "Section order",
+  "Mover para cima": "Move up",
+  "Mover para baixo": "Move down",
+  "Restaurar ordem original": "Restore original order",
+  "Salvar padrão da equipe": "Save team default",
+  "Padrão da equipe atualizado.": "Team default updated.",
+  "Roteiros do contato": "Contact scripts",
+  "A configuração mudou. Reabra o painel e tente novamente.": "Settings changed. Reopen the panel and try again.",
+  "O contato mudou. Reabra a edição e tente novamente.": "The contact changed. Reopen the editor and try again.",
+  "Campos personalizados excedem o limite de 32 KB": "Custom fields exceed the 32 KB limit"
 }

@@ -8,6 +8,7 @@
  *  - lgpdAnonymizeSchema    → POST /api/v1/lgpd/anonymize (irreversible)
  */
 import { z } from "zod";
+import { MAX_SOBRE_CLIENTE } from "@/lib/contacts/sobre-cliente";
 
 import { normalizarTag, normalizarTags } from "@/lib/contacts/tag-normalizada";
 import {
@@ -66,6 +67,7 @@ export type ContactCreate = z.infer<typeof contactCreateSchema>;
 
 export const contactPatchSchema = contactCreateSchema.partial().extend({
   source: z.string().min(1).optional(),
+  sobre_cliente: z.string().trim().max(MAX_SOBRE_CLIENTE).optional(),
 });
 export type ContactPatch = z.infer<typeof contactPatchSchema>;
 

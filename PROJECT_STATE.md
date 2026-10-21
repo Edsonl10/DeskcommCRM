@@ -1,5 +1,12 @@
 # PROJECT_STATE
 
+## Em implementação — 21/10/2026
+- Autorizado: editar nome no atendimento/ficha/cadastro; Sobre o Cliente manual; administrador organiza por arraste/setas e salva padrão da equipe. Branch `feat/cliente-painel-equipe`, base `31e23ab`.
+- Implementação sem migration: resumo reservado em custom_fields e ordem em organizations.settings. Permissões atuais, suporte, LGPD, isolamento e demais dados preservados; conflitos de gravação recusados.
+- Local: regras/API aprovadas; edição e permissões 11 casos; cercas de i18n/E2E/suporte 37 casos; lint alterado, canais e roles aprovados. Controle negativo removeu a preservação e causou 2 falhas previstas; código restaurado. Typecheck com heap padrão esgotou 2 GB; nova rodada com heap ampliado. Suíte ampla encontra IPC/rede e timeouts do ambiente local; CI deverá confirmar suíte e banco reais.
+- Prova visual em banco fresco em `cliente-edicao-e-painel.spec.ts`; CI pendente. Instalação precisa coordenar app/worker/scheduler porque há código compartilhado em lib/; não afrouxar o publicador restrito ao app. Acesso ao console Hostinger disponível. Não declarar publicada antes dos checks e instalação.
+- Contrato e checklist: `docs/features/cliente-painel.md`. Produção registrada abaixo permanece inalterada até a publicação.
+
 ## Produção registrada — 20/10/2026
 - Repositório: `Edsonl10/DeskcommCRM`. Instalação em `/opt/DeskcommCRM`, proxy Caddy próprio; Caddyfile tem alterações locais que devem ser preservadas. Usar `dc()` do kit, que seleciona o proxy real desta instalação.
 - App instalado: `a50fe0a529ac1273b2ca616436f53c0486aff135` (PR #23, inclui PR #22). Imagem: `ghcr.io/edsonl10/deskcommcrm@sha256:39be8868e222df884d4ef8c530b1463dde9f2dce8eb6f831813ae6d8e9de01a6`. Saúde interna/pública `healthy`; `/` 200 e `/app` 307. Somente app mudou; IDs de worker, scheduler, WAHA, Caddy, Redis e SRH conferidos iguais aos anteriores. Demais linhas do .env e Caddyfile preservados.

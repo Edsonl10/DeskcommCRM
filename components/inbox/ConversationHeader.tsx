@@ -1,6 +1,7 @@
 "use client";
 import { comandoDaVisaoInbox } from "@/lib/inbox/visoes";
 import { useState, type RefObject } from "react";
+import { NomeDoContatoEditavel } from "@/components/contacts/NomeDoContatoEditavel";
 import { useT } from "@/hooks/i18n/useT";
 import Link from "next/link";
 import {
@@ -196,7 +197,7 @@ export function ConversationHeader({
       <div className="min-w-0">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           <ChannelLogo channel={conversation.channel_sessions} size={20} />
-          <h2 className="min-w-0 truncate text-sm font-semibold" title={displayName}>{displayName}</h2>
+          {c ? <NomeDoContatoEditavel key={c.id} contact={c} as="h2" className="min-w-0 truncate text-sm font-semibold" /> : <h2 className="text-sm font-semibold">{displayName}</h2>}
           <Badge variant="outline" className="h-4 shrink-0 px-1.5 text-[10px]">
             {conversation.inbox_state === "waiting" ? t("Aguardando") : t(STATUS_LABEL[status] ?? status)}
           </Badge>

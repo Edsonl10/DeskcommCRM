@@ -1,6 +1,7 @@
 "use client";
 
 import { useT } from "@/hooks/i18n/useT";
+import { SobreCliente } from "@/components/contacts/SobreCliente";
 import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -28,18 +29,21 @@ export function LeadEnrichment({
   loading,
   error,
   onRetry,
+  contactId,
 }: {
   data: (ProspectEnrichment & { collected_at: string }) | null;
   loading: boolean;
   error: boolean;
   onRetry: () => void;
+  contactId?: string;
 }) {
   const t = useT();
   const locale = useLocaleDeData();
   const collected = data ? new Date(data.collected_at) : null;
   return (
     <section data-testid="inbox-enrichment" className="min-w-0 rounded-lg border p-3 text-xs">
-      <h3 className="font-semibold">{t("Sobre a empresa")}</h3>
+      <h3 className="font-semibold">{t("Sobre o Cliente")}</h3>
+      {contactId && <SobreCliente key={contactId} contactId={contactId} />}
       {error ? (
         <div className="mt-2 space-y-2">
           <p className="text-muted-foreground">
@@ -51,11 +55,11 @@ export function LeadEnrichment({
         </div>
       ) : loading ? (
         <Skeleton className="mt-2 h-20 w-full" />
-      ) : !data ? (
+      ) : !data && !contactId ? (
         <p className="mt-2 text-muted-foreground">
           {t("Sem dados de enriquecimento para este contato.")}
         </p>
-      ) : (
+      ) : !data ? null : (
         <div className="mt-3 space-y-3">
           <div>
             <p className="font-medium break-words">{data.name}</p>

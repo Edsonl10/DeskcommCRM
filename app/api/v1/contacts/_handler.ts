@@ -1,3 +1,4 @@
+import { camposComSobreCliente } from "@/lib/contacts/sobre-cliente";
 /**
  * Core handlers para /api/v1/contacts (lista + get + create + patch + delete).
  *
@@ -640,7 +641,15 @@ export async function patchContactHandler(
   // o objeto inteiro que ele renderizou a partir do schema do funil; um merge
   // aqui tornaria IMPOSSÍVEL apagar um campo pela tela, porque a chave removida
   // voltaria do estado anterior a cada gravação.
-  if (input.custom_fields !== undefined) patch.custom_fields = input.custom_fields;
+  if (input.custom_fields !== undefined || input.sobre_cliente !== undefined) {
+    patch.custom_fields = camposComSobreCliente(
+      (existing.custom_fields ?? {}) as Record<string, unknown>, input.custom_fields, input.sobre_cliente,
+    );
+    if (JSON.stringify(patch.custom_fields).length > 32_768) {
+      throw new ApiError(422, "validation_failed", undefined, ctx.requestId,
+        traduzir("Campos personalizados excedem o limite de 32 KB", ctx.idioma ?? "pt-BR"));
+    }
+  }
   if (input.consent !== undefined) {
     // MERGE por finalidade, nunca substituição.
     //
@@ -681,16 +690,21 @@ export async function patchContactHandler(
     : null;
   patch.updated_at = new Date().toISOString();
 
-  const { data: updated, error: updErr } = await supabase
-    .from("contacts")
-    .update(patch)
-    .eq("organization_id", ctx.organization_id)
-    .eq("id", contactId)
-    .select(SELECT_COLS)
-    .maybeSingle();
+  let updateQuery = supabase.from("contacts").update(patch)
+    .eq("organization_id", ctx.organization_id).eq("id", contactId);
+  if (patch.custom_fields !== undefined) {
+    updateQuery = existing.custom_fields === null
+      ? updateQuery.is("custom_fields", null)
+      : updateQuery.eq("custom_fields", JSON.stringify(existing.custom_fields ?? {}));
+  }
+  const { data: updated, error: updErr } = await updateQuery.select(SELECT_COLS).maybeSingle();
 
   if (updErr) {
     throw new ApiError(500, "internal_error", undefined, ctx.requestId, updErr.message);
+  }
+  if (!updated && patch.custom_fields !== undefined) {
+    throw new ApiError(409, "state_conflict", undefined, ctx.requestId,
+      traduzir("O contato mudou. Reabra a edição e tente novamente.", ctx.idioma ?? "pt-BR"));
   }
   if (!updated) {
     throw new ApiError(
