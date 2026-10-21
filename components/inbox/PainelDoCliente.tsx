@@ -117,14 +117,14 @@ export function PainelDoCliente({ children }: { children: ReactNode }) {
           if (!open && !salvando) setDraft(null);
         }}
       >
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[90dvh] max-w-[calc(100vw-2rem)] flex-col overflow-hidden sm:max-w-2xl">
+          <DialogHeader className="shrink-0 pr-6">
             <DialogTitle>{t("Configurar painel")}</DialogTitle>
             <DialogDescription>
               {t("Arraste os blocos ou use as setas. A ordem será aplicada a toda a equipe.")}
             </DialogDescription>
           </DialogHeader>
-          <ol className="space-y-1" aria-label={t("Ordem dos blocos")}>
+          <ol className="min-h-0 space-y-1 overflow-y-auto overscroll-contain" aria-label={t("Ordem dos blocos")}>
             {draft?.map((id, i) => (
               <li
                 key={id}
@@ -169,7 +169,7 @@ export function PainelDoCliente({ children }: { children: ReactNode }) {
               </li>
             ))}
           </ol>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="shrink-0 gap-2 sm:flex-wrap sm:space-x-0">
             <Button
               type="button"
               variant="outline"

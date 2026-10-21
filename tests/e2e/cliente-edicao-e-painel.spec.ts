@@ -118,6 +118,7 @@ test("nome e resumo editados nas telas persistem; administrador organiza para a 
     .fill("Prefere propostas detalhadas.\nCliente recorrente.");
   await painel.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(painel.getByText("Cliente recorrente.", { exact: false })).toBeVisible();
+  await expect(painel.getByRole("button", { name: "Editar Sobre o Cliente", exact: true })).toBeEnabled();
 
   await painel.getByRole("button", { name: "Configurar painel", exact: true }).click();
   const dialog = page.getByRole("dialog");
@@ -129,6 +130,16 @@ test("nome e resumo editados nas telas persistem; administrador organiza para a 
     "data-bloco-ordem",
     "pedidos",
   );
+  const salvarPadrao = dialog.getByRole("button", { name: "Salvar padrão da equipe", exact: true });
+  await expect(salvarPadrao).toBeInViewport();
+  await expect(dialog.getByText("Arraste os blocos ou use as setas. A ordem será aplicada a toda a equipe.", { exact: true })).toBeInViewport();
+  // Os comandos continuam acessíveis sem rolar a janela inteira no celular.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(salvarPadrao).toBeInViewport();
+  await expect(dialog.getByRole("button", { name: "Restaurar ordem original", exact: true })).toBeInViewport();
+  expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.screenshot({ path: "evidence/cliente-painel/configuracao-celular.png" });
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.screenshot({ path: "evidence/cliente-painel/configuracao.png" });
   await dialog.getByRole("button", { name: "Salvar padrão da equipe", exact: true }).click();
   await expect(dialog).toBeHidden();
