@@ -37,6 +37,23 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "Sobre o Cliente": { es: "Sobre el Cliente" },
+  "Editar Sobre o Cliente": { es: "Editar Sobre el Cliente" },
+  "Nenhuma informação sobre o cliente.": { es: "No hay información sobre el cliente." },
+  "Editar nome do contato": { es: "Editar nombre del contacto" },
+  "Configurar painel": { es: "Configurar panel" },
+  "Não foi possível carregar a configuração do painel.": { es: "No se pudo cargar la configuración del panel." },
+  "Arraste os blocos ou use as setas. A ordem será aplicada a toda a equipe.": { es: "Arrastra los bloques o usa las flechas. El orden se aplicará a todo el equipo." },
+  "Ordem dos blocos": { es: "Orden de los bloques" },
+  "Mover para cima": { es: "Mover hacia arriba" },
+  "Mover para baixo": { es: "Mover hacia abajo" },
+  "Restaurar ordem original": { es: "Restaurar orden original" },
+  "Salvar padrão da equipe": { es: "Guardar configuración del equipo" },
+  "Padrão da equipe atualizado.": { es: "Configuración del equipo actualizada." },
+  "Roteiros do contato": { es: "Guiones del contacto" },
+  "A configuração mudou. Reabra o painel e tente novamente.": { es: "La configuración cambió. Abre el panel de nuevo e inténtalo otra vez." },
+  "O contato mudou. Reabra a edição e tente novamente.": { es: "El contacto cambió. Abre la edición de nuevo e inténtalo otra vez." },
+  "Campos personalizados excedem o limite de 32 KB": { es: "Los campos personalizados superan el límite de 32 KB" },
   "Sem limite": { es: "Sin límite" },
   "As permissões de conversas ficam no cadastro da Equipe, em Personalizar áreas visíveis.": { es: "Los permisos de conversaciones se configuran en Equipo, en Personalizar áreas visibles." },
   "Visibilidade dos negócios no CRM": { es: "Visibilidad de los negocios en el CRM" },

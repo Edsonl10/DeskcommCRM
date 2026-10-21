@@ -18,6 +18,7 @@ export function useUpdateContact(id: string) {
       // ["contact", id] — sem isto, editar tags/nome do contato por aqui não
       // refletia na tela até trocar de conversa (parecia "não fez nada").
       qc.invalidateQueries({ queryKey: ["conversations"] });
+      qc.invalidateQueries({ queryKey: ["conversation"] });
       // As tags do contato ALIMENTAM a lista de sugestões do editor
       // (`useContactTagVocabulary`, staleTime de 5min). Sem isto, a tag criada
       // digitando só virava sugestão para os outros contatos até cinco minutos

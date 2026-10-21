@@ -17,7 +17,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+import { PainelDoCliente, BlocoPainel } from "./PainelDoCliente";
+import { NomeDoContatoEditavel } from "@/components/contacts/NomeDoContatoEditavel";
 import { Tag, Receipt, Users, ArrowRight } from "@/lib/ui/icons";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "sonner";
@@ -34,7 +35,6 @@ import { useBulkAction } from "@/hooks/kanban/useBulkAction";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { PROXIMO_PASSO_DA_MENSAGEM_NOVA } from "@/lib/atendimento/proximo-passo-padrao";
-import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
 
 interface Props {
@@ -648,7 +648,7 @@ export function CRMSidePanel({ conversation }: Props) {
   const recarregar = useCallback(() => setTentativa((n) => n + 1), []);
 
   const tags = contact?.tags ?? [];
-  const displayName = rotuloDoContato(contact, t);
+
 
   // `erro` PRIMEIRO, e não é detalhe: as três listas voltam a `null` quando a
   // leitura falha, e este derivado lê `null` como "ainda não chegou". Sem esta
@@ -671,13 +671,14 @@ export function CRMSidePanel({ conversation }: Props) {
   }
 
   return (
-    <aside className="flex h-full flex-col gap-4 overflow-y-auto border-l border-border bg-background p-4">
+    <PainelDoCliente>
+      <BlocoPainel id="contato">
       <section>
         <h3 className="text-xs font-semibold text-text">
           {t("Contato")}
         </h3>
         <Card className="mt-2 space-y-2 p-3 text-sm">
-          <div className="font-medium">{displayName}</div>
+          {contact && <NomeDoContatoEditavel key={contact.id} contact={contact} className="font-medium wrap-anywhere" />}
           {contact?.phone_number && (
             <div className="text-xs text-muted-foreground">{phoneForDisplay(contact.phone_number)}</div>
           )}
@@ -722,13 +723,17 @@ export function CRMSidePanel({ conversation }: Props) {
           {tagEditorOpen && contactId && <ContactTagsEditor contactId={contactId} orgId={conversation.organization_id} tags={tags} />}
         </Card>
       </section>
+      </BlocoPainel>
 
+      <BlocoPainel id="sobre_cliente">
       <LeadEnrichment
+        contactId={contactId ?? undefined}
         data={summaryContactId === contactId && !erro && !contact?.is_anonymized ? enrichment : null}
         loading={sectionsLoading}
         error={erro || (summaryContactId === contactId && enrichmentError)}
         onRetry={recarregar}
       />
+      </BlocoPainel>
 
       {contactId && defaultPipeline.data && (
         <NewLeadDialog
@@ -744,20 +749,21 @@ export function CRMSidePanel({ conversation }: Props) {
         />
       )}
 
-      <Separator />
 
+      <BlocoPainel id="tags_conversa">
       {!readonly && <ConversationTagsEditor
         conversationId={conversation.id}
         orgId={conversation.organization_id}
         tags={conversation.tags ?? []}
       />}
+      </BlocoPainel>
 
-      <Separator />
 
       {/* ANTES dos negócios de propósito (doutrina cap. 5): lead é o negócio,
           conversa é o canal, demanda é o que precisa acabar. Quem abre esta
           conversa está atendendo alguém que pediu alguma coisa — a primeira
           pergunta a responder é o que ainda está pendente, não quanto vale. */}
+      <BlocoPainel id="demandas">
       <section data-testid="inbox-demandas">
         <h3 className="text-xs font-semibold text-text">
           {t("Demandas abertas")}
@@ -817,9 +823,10 @@ export function CRMSidePanel({ conversation }: Props) {
           />
         )}
       </section>
+      </BlocoPainel>
 
-      <Separator />
 
+      <BlocoPainel id="memoria">
       <section data-testid="inbox-memoria">
         <h3 className="text-xs font-semibold">{t("Memória do contato")}</h3>
         <p className="mt-1 text-xs text-muted-foreground">{t("Fatos duráveis registrados nas notas. Pendências pertencem à demanda vigente.")}</p>
@@ -827,12 +834,13 @@ export function CRMSidePanel({ conversation }: Props) {
         {!sectionsLoading && fatos.length === 0 && <p className="mt-2 text-xs text-muted-foreground">{t("Nenhum fato durável registrado.")}</p>}
         {!sectionsLoading && historico.length > 0 && <div className="mt-3 text-xs"><h4>{t("Histórico encerrado — sem tarefas pendentes")}</h4>{historico.map((h) => <p key={h.id}>{t(DESFECHO_LEGIVEL[h.desfecho] ?? h.desfecho)}{h.fechada_em ? ` · ${shortDate(h.fechada_em, localeDaData)}` : ""}</p>)}</div>}
       </section>
-      <Separator />
+      </BlocoPainel>
 
       {/* O que os roteiros de atendimento coletaram (módulo opcional; desligado
           ou sem roteiro, não desenha nada). */}
-      {contactId && !contact?.is_anonymized && <RoteirosDoContato contactId={contactId} variante="painel" />}
+      <BlocoPainel id="roteiros">{contactId && !contact?.is_anonymized && <RoteirosDoContato contactId={contactId} variante="painel" />}</BlocoPainel>
 
+      <BlocoPainel id="leads">
       <section data-testid="inbox-campos-lead">
         <h3 className="text-xs font-semibold text-text">
           {t("Leads recentes")}
@@ -850,9 +858,10 @@ export function CRMSidePanel({ conversation }: Props) {
           <SemLista vazio="Sem leads." erro={erro} onTentarDeNovo={() => setTentativa((n) => n + 1)} />
         )}
       </section>
+      </BlocoPainel>
 
-      <Separator />
 
+      <BlocoPainel id="pedidos">
       <section>
         <h3 className="text-xs font-semibold text-text">
           {t("Pedidos recentes")}
@@ -882,9 +891,10 @@ export function CRMSidePanel({ conversation }: Props) {
           <SemLista vazio="Sem pedidos." erro={erro} onTentarDeNovo={() => setTentativa((n) => n + 1)} />
         )}
       </section>
+      </BlocoPainel>
 
-      <Separator />
 
+      <BlocoPainel id="atividade">
       <section>
         <h3 className="text-xs font-semibold text-text">
           {t("Atividade")}
@@ -923,14 +933,15 @@ export function CRMSidePanel({ conversation }: Props) {
           <SemLista vazio="Sem atividade." erro={erro} onTentarDeNovo={() => setTentativa((n) => n + 1)} />
         )}
       </section>
+      </BlocoPainel>
 
-      <Separator />
 
       {/* Perguntar ao acervo — a MESMA busca que a IA faz, com a origem de cada
           trecho. Não é busca própria: o componente só pergunta e mostra, e quem
           decide limiar/top-K é a rota, que chama `buscarConhecimento`. Colocada
           DEPOIS das seções de trabalho: é consulta, não é o que o atendente abre
           a conversa para fazer. */}
+      <BlocoPainel id="acervo">
       <section>
         <h3 className="text-xs font-semibold">{t("Acervo")}</h3>
         <p className="mt-1 mb-2 text-xs text-muted-foreground">
@@ -938,6 +949,7 @@ export function CRMSidePanel({ conversation }: Props) {
         </p>
         <AcervoSearch />
       </section>
-    </aside>
+      </BlocoPainel>
+    </PainelDoCliente>
   );
 }

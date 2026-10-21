@@ -4,6 +4,8 @@ import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 
 import { useT } from "@/hooks/i18n/useT";
 import { useState } from "react";
+import { NomeDoContatoEditavel } from "@/components/contacts/NomeDoContatoEditavel";
+import { SobreCliente } from "@/components/contacts/SobreCliente";
 import { format } from "date-fns";
 import { ShieldCheck, PencilSimple, LockOpen } from "@/lib/ui/icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,7 +42,6 @@ import { AnonymizeDialog } from "@/components/contacts/AnonymizeDialog";
 import { PropostasDeDado } from "@/components/contacts/PropostasDeDado";
 import { RoteirosDoContato } from "@/components/contacts/RoteirosDoContato";
 import { ConversaNoDossie } from "@/components/kanban/ConversaNoDossie";
-import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { origemDoContato } from "@/lib/leads/origem-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
 import { DialButton } from "@/components/voice/DialButton";
@@ -136,7 +137,7 @@ export function ContactDetailClient({ contactId, paineisDeModulo = [] }: Props) 
   // Uma decisão, um lugar (lib/contacts/rotulo-do-contato.ts). Esta tela era
   // uma das DUAS que ignoravam o telefone: contato com número e sem nome
   // aparecia como "Sem nome" aqui e com o número no inbox.
-  const displayName = rotuloDoContato(contact, t);
+
 
   // Os quatro níveis que quem opera tráfego lê. O jsonb já os recebia dos dois
   // caminhos de entrada — site e clique-para-WhatsApp — e nenhuma tela o abria.
@@ -174,7 +175,7 @@ export function ContactDetailClient({ contactId, paineisDeModulo = [] }: Props) 
           {/* Sem truncar: nome é dado que a tela existe pra mostrar, e cortar
               com reticências sem um jeito de ver o resto violaria o princípio
               de nunca esconder informação crítica. Deixa quebrar linha. */}
-          <h1 className="break-words text-2xl font-semibold tracking-tight">{displayName}</h1>
+          <NomeDoContatoEditavel key={contact.id} contact={contact} as="h1" className="break-words text-2xl font-semibold tracking-tight" />
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             {contact.email && <span>{contact.email}</span>}
             {contact.email && contact.phone_number && <span>•</span>}
@@ -253,6 +254,10 @@ export function ContactDetailClient({ contactId, paineisDeModulo = [] }: Props) 
           </div>
         )}
       </header>
+      <Card className="p-4">
+        <h2 className="font-semibold">{t("Sobre o Cliente")}</h2>
+        <SobreCliente key={contact.id} contactId={contact.id} />
+      </Card>
 
       <ConversaNoDossie conversa={contact.conversa} />
 
