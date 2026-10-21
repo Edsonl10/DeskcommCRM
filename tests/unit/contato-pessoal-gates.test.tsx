@@ -1,9 +1,17 @@
-import { render, screen } from "@testing-library/react";
+import { render as renderSemProviders, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConversationHeader } from "@/components/inbox/ConversationHeader";
 import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
+
+// O cabeçalho agora inclui a edição do cadastro pelo mesmo contexto do app.
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return renderSemProviders(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 
 /** Recuperação de contatos pessoais anteriores; novas marcações não são oferecidas. */
 
