@@ -250,6 +250,9 @@ test("administrador controla entrada no funil e equipe consulta o estado", async
 }) => {
   await login(page, "admin");
   await page.goto("/app/kanban");
+  const { data: outraAntes, error: erroOutraAntes } = await db.from("organizations").select("settings").eq("id", outraOrg).single();
+  expect(erroOutraAntes).toBeNull();
+  expect(outraAntes).not.toBeNull();
   const controle = page.getByRole("switch", {
     name: "Adicionar contatos automaticamente ao funil",
   });
@@ -269,7 +272,7 @@ test("administrador controla entrada no funil e equipe consulta o estado", async
     .select("settings")
     .eq("id", outraOrg)
     .single();
-  expect(isolado?.settings).toEqual({ teste_isolamento: true });
+  expect(isolado?.settings).toEqual(outraAntes!.settings);
   const ctx = await browser.newContext();
   try {
     const equipe = await ctx.newPage();

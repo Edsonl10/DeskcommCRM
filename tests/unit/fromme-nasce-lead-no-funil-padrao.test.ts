@@ -59,6 +59,7 @@ const SESSION = { id: "sess-1", organization_id: ORG, is_warmup_complete: true, 
 interface Cena {
   /** A organização tem `crm_pipelines.is_default = true` com etapa? */
   funilPadrao: boolean;
+  entradaAutomatica?: boolean;
   /** O contato JÁ tem lead aberto (conversa que já existia, card já nascido). */
   leadAberto: boolean;
   /**
@@ -129,6 +130,7 @@ function makeAdmin(c: Cena, opcoes: Opcoes = {}) {
         return { data: { bot_silenced_until: null }, error: null };
       }
       if (name === "contacts" && mode === "select") return { data: CONTATO_NOVO, error: null };
+      if (name === "organizations") return { data: { settings: c.entradaAutomatica === false ? { entrada_automatica_funil: false } : {} }, error: null };
       if (name === "crm_pipelines") return { data: c.funilPadrao ? { id: "funil-padrao" } : null, error: null };
       if (name === "crm_stages") return { data: c.funilPadrao ? { id: "etapa-1" } : null, error: null };
       if (name === "crm_leads" && mode === "select") {
@@ -302,6 +304,17 @@ describe("#2448 · a conversa que começa pelo celular nasce no funil padrão", 
     expect(c.inserts["messages"]).toHaveLength(1);
     expect(nascimentos(c)).toHaveLength(0);
     expect(c.inserts["crm_lead_activities"]).toBeUndefined();
+  });
+
+  it("organização desliga entrada automática: a mensagem entra sem criar oportunidade", async () => {
+    const c = novaCena({ entradaAutomatica: false });
+    await enviar(c);
+    expect(c.inserts["messages"]).toHaveLength(1);
+    expect(nascimentos(c)).toHaveLength(0);
+    expect(logger.info).toHaveBeenCalledWith(
+      "waha.ingest: lead nao criado a partir do celular",
+      expect.objectContaining({ motivo: "entrada_automatica_desligada" }),
+    );
   });
 
   it("organização SEM funil padrão → não há card, e o motivo de configuração fica visível", async () => {

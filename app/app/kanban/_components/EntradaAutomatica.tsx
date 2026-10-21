@@ -34,7 +34,7 @@ export function EntradaAutomatica({
   return (
     <Card className="space-y-3 p-4">
       <div className="flex items-center justify-between gap-4">
-        <label htmlFor="entrada-automatica-funil" className="font-medium">
+        <label htmlFor="entrada-automatica-funil" className="block font-medium">
           {t("Adicionar contatos automaticamente ao funil")}
         </label>
         <Switch
