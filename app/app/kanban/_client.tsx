@@ -702,7 +702,7 @@ export function FunisClient({
         <p className="mt-4 text-xs text-muted-foreground" data-testid="funis-rodape-clientes">
           {t(
             "Quem já tem atendimento marcado entra pelo funil de clientes. Sem um funil marcado, entra pelo padrão.",
-          )}
+          )}{" "}{t("Esta regra vale somente quando a entrada automática no funil estiver ligada.")}
         </p>
       ) : (
         <p className="mt-4 text-xs text-muted-foreground" data-testid="funis-rodape-clientes">

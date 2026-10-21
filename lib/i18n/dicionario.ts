@@ -15202,6 +15202,7 @@ export const DICIONARIO: Traducoes = {
   "Salvar alíneas": { es: "Guardar las letras" },
   "Alíneas do art. 15.º salvas.": { es: "Las letras del art. 15.º quedaron guardadas." },
   "Falha ao salvar.": { es: "No se pudo guardar." },
+  "Esta regra vale somente quando a entrada automática no funil estiver ligada.": { es: "Esta regla solo se aplica cuando la entrada automática al embudo está activada." },
   // Entrada automática no funil.
   "Adicionar contatos automaticamente ao funil": { es: "Añadir contactos automáticamente al embudo" },
   "Ligado: novas conversas criam uma oportunidade automaticamente no funil configurado.": { es: "Activado: las nuevas conversaciones crean una oportunidad automáticamente en el embudo configurado." },
