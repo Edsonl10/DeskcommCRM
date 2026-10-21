@@ -702,12 +702,12 @@ export function FunisClient({
         <p className="mt-4 text-xs text-muted-foreground" data-testid="funis-rodape-clientes">
           {t(
             "Quem já tem atendimento marcado entra pelo funil de clientes. Sem um funil marcado, entra pelo padrão.",
-          )}
+          )}{" "}{t("Esta regra vale somente quando a entrada automática no funil estiver ligada.")}
         </p>
       ) : (
         <p className="mt-4 text-xs text-muted-foreground" data-testid="funis-rodape-clientes">
           {t(
-            "Para separar quem já é cliente, ligue “Clientes pela agenda” em Configurações › Tipos de agendamento. Enquanto estiver desligado, todo contato novo entra pelo funil padrão.",
+            "Para separar quem já é cliente, ligue “Clientes pela agenda” em Configurações › Tipos de agendamento. A entrada de novas conversas depende da configuração de entrada automática na tela Funis.",
           )}{" "}
           <Link href="/app/settings/tenant/agenda" className="underline" data-testid="funis-rodape-ligar">
             {t("Abrir Tipos de agendamento")}

@@ -1092,6 +1092,7 @@ export const AUDIT_ACTIONS = [
   // `settings/task-plans` — mesma família de `campaign.settings_updated`.
   "task_plans.settings_updated",
   "settings.client_panel_updated",
+  "settings.pipeline_entry_updated",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

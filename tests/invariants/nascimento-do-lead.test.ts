@@ -211,9 +211,10 @@ describe("o lead NASCE", () => {
     });
     expect(r.criado).toBe(true);
     if (!r.criado) return;
-    const { rows } = await pool.query<{ title: string }>("select title from crm_leads where id = $1", [
-      r.leadId,
-    ]);
+    const { rows } = await pool.query<{ title: string }>(
+      "select title from crm_leads where id = $1",
+      [r.leadId],
+    );
     expect(rows[0]!.title).toBe("Conhecido Andrade");
   });
 
@@ -222,7 +223,9 @@ describe("o lead NASCE", () => {
     // `Contato 543134@lid` gravado. Sem a guarda, o kanban — que hoje está
     // limpo — receberia o resíduo no primeiro card.
     const contato = await criarContato(ORG_VIVA, "Contato 543134@lid");
-    await pool.query("update contacts set phone_number = '+5531955554444' where id = $1", [contato]);
+    await pool.query("update contacts set phone_number = '+5531955554444' where id = $1", [
+      contato,
+    ]);
     const r = await garantirLeadDaConversa(db, {
       organizationId: ORG_VIVA,
       contactId: contato,
@@ -231,9 +234,10 @@ describe("o lead NASCE", () => {
     });
     expect(r.criado).toBe(true);
     if (!r.criado) return;
-    const { rows } = await pool.query<{ title: string }>("select title from crm_leads where id = $1", [
-      r.leadId,
-    ]);
+    const { rows } = await pool.query<{ title: string }>(
+      "select title from crm_leads where id = $1",
+      [r.leadId],
+    );
     expect(rows[0]!.title).not.toMatch(/@lid|@c\.us/);
     // Cai no telefone, que é informação útil — melhor que "Sem nome".
     expect(rows[0]!.title).toBe("+5531955554444");
@@ -250,9 +254,10 @@ describe("o lead NASCE", () => {
     expect(r.criado).toBe(true);
     if (!r.criado) return;
 
-    const { rows } = await pool.query<{ title: string }>("select title from crm_leads where id = $1", [
-      r.leadId,
-    ]);
+    const { rows } = await pool.query<{ title: string }>(
+      "select title from crm_leads where id = $1",
+      [r.leadId],
+    );
     expect(rows[0]!.title).toBe("Novo contato pelo WhatsApp");
   });
 });
@@ -295,10 +300,9 @@ describe("UM lead por DEMANDA, não um por mensagem", () => {
     expect(primeira.criado).toBe(true);
     if (!primeira.criado) return;
 
-    await pool.query(
-      "update crm_leads set status = 'won', closed_at = now() where id = $1",
-      [primeira.leadId],
-    );
+    await pool.query("update crm_leads set status = 'won', closed_at = now() where id = $1", [
+      primeira.leadId,
+    ]);
 
     const segunda = await garantirLeadDaConversa(db, dados);
     // Sem o filtro `status='open'`, este caso devolveria `ja_existe` — é ele que
@@ -466,5 +470,42 @@ describe("três mensagens seguidas NÃO viram três negócios", () => {
     expect(naoCriados[0] && "motivo" in naoCriados[0] ? naoCriados[0].motivo : "?").toBe(
       "ja_existe",
     );
+  });
+});
+
+describe("controle da entrada automática", () => {
+  it("false bloqueia nascimento, religar permite próxima mensagem", async () => {
+    const contato = await criarContato(ORG_VIVA, "Entrada opcional");
+    try {
+      await pool.query(
+        "update organizations set settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{entrada_automatica_funil}', 'false') where id=$1",
+        [ORG_VIVA],
+      );
+      const dados = {
+        organizationId: ORG_VIVA,
+        contactId: contato,
+        conversationId: CONVERSA,
+        nomeDoContato: "Entrada opcional",
+      };
+      expect(await garantirLeadDaConversa(db, dados)).toEqual({
+        criado: false,
+        motivo: "entrada_automatica_desligada",
+      });
+      const antes = await pool.query(
+        "select id from crm_leads where organization_id=$1 and contact_id=$2",
+        [ORG_VIVA, contato],
+      );
+      expect(antes.rows).toHaveLength(0);
+      await pool.query(
+        "update organizations set settings = settings - 'entrada_automatica_funil' where id=$1",
+        [ORG_VIVA],
+      );
+      expect((await garantirLeadDaConversa(db, dados)).criado).toBe(true);
+    } finally {
+      await pool.query(
+        "update organizations set settings = settings - 'entrada_automatica_funil' where id=$1",
+        [ORG_VIVA],
+      );
+    }
   });
 });

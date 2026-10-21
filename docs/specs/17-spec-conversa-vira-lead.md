@@ -49,6 +49,10 @@ mover.
 
 ---
 
+## Atualização de 21/10/2026 — controle pela organização
+
+CONFIRMADO: a criação automática pode ser desligada por administrador em Funis, para toda a organização (`organizations.settings.entrada_automatica_funil`). Ausente preserva ligado. Desligado, as conversas seguem no atendimento, sem criação automática de oportunidade; cards existentes permanecem. Inclusão manual, importações e automações mantêm suas regras. Religamento vale nas próximas mensagens, sem backfill. Contatos sem oportunidade não entram nos acompanhamentos baseados em leads. Contrato atual: `docs/features/entrada-automatica-funil.md`. Esta decisão substitui o “sempre” da decisão (a) abaixo.
+
 ## 2. Decisões fechadas
 
 | # | decisão | consequência |

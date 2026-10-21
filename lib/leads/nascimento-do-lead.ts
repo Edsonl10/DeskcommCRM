@@ -51,11 +51,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { marcaDaOrigem, origemDeCampanhaDaConversa } from "@/lib/campanhas/origem-do-lead";
 
+import { entradaAutomaticaLigada } from "./entrada-automatica";
 import { logger } from "@/lib/logger";
 import { ORIGEM_DO_WHATSAPP } from "@/lib/channels/origem-do-negocio";
 
-import { lerClientePelaAgenda } from "@/lib/contacts/cliente-pela-agenda";
-import { ehIdentificadorTecnico, rotuloDoContato, SEM_NOME } from "@/lib/contacts/rotulo-do-contato";
+import { clientePelaAgendaLigado } from "@/lib/schemas/settings";
+import {
+  ehIdentificadorTecnico,
+  rotuloDoContato,
+  SEM_NOME,
+} from "@/lib/contacts/rotulo-do-contato";
 
 import { emitLeadActivity } from "./activity-emitter";
 
@@ -102,6 +107,7 @@ const ORIGEM_PADRAO: OrigemDoNascimento = ORIGEM_DO_WHATSAPP;
  * "não devia nascer" de "falhou ao nascer", e a segunda é a que custa caro.
  */
 export type MotivoSemLead =
+  | "entrada_automatica_desligada"
   | "ja_existe" // o contato já tem lead aberto: um por demanda, não um por mensagem
   | "contato_bloqueado" // pediu para sair; criar oportunidade seria desrespeito registrado
   | "contato_pessoal" // marcado como pessoal (spec 21): não é oportunidade, nunca nasce
@@ -273,7 +279,9 @@ export async function garantirLeadDaConversa(
     // `first_service_at` viaja no select que JÁ existe: decidir o funil não custa
     // uma consulta a mais no caminho quente da ingestão. É por isso que o fato
     // mora numa coluna de `contacts`, e não é derivado da agenda a cada inbound.
-    .select("is_blocked,is_personal,display_name,name,phone_number,source,source_metadata,first_service_at")
+    .select(
+      "is_blocked,is_personal,display_name,name,phone_number,source,source_metadata,first_service_at",
+    )
     .eq("organization_id", organizationId)
     .eq("id", contactId)
     .maybeSingle();
@@ -294,6 +302,23 @@ export async function garantirLeadDaConversa(
 
   if (existente) return { criado: false, motivo: "ja_existe" };
 
+  // Controle da organização: afeta somente nascimento automático; cards já
+  // existentes e criação manual mantêm seus caminhos. Falha de leitura não
+  // autoriza criar: evita ignorar uma decisão de quem administra.
+  const { data: organizacao, error: erroSettings } = await db
+    .from("organizations")
+    .select("settings")
+    .eq("id", organizationId)
+    .maybeSingle();
+  if (erroSettings || !organizacao)
+    return {
+      criado: false,
+      motivo: "erro",
+      detalhe: "Falha ao ler a configuração de entrada no funil.",
+    };
+  if (!entradaAutomaticaLigada(organizacao.settings))
+    return { criado: false, motivo: "entrada_automatica_desligada" };
+
   // 3 · onde entra
   //
   // Cliente que volta a escrever não é captação: ele tem histórico, e o funil de
@@ -305,11 +330,9 @@ export async function garantirLeadDaConversa(
   // ⚠️ E SÓ COM A REGRA LIGADA NA ORGANIZAÇÃO (migration 0262). Desligada, a
   // coluna fica congelada no que era quando a regra estava ligada, e rotear por
   // ela seria decidir o funil com um fato vencido. A leitura do interruptor só
-  // acontece quando o contato TEM a data — o caso comum (contato sem data) não
-  // paga consulta a mais — e falha de leitura cai no funil de entrada, que é a
-  // regra que o cabeçalho deste arquivo já declara.
+  // usa o mesmo snapshot de settings consultado acima para a entrada automática.
   const ehCliente =
-    contato?.first_service_at != null && (await lerClientePelaAgenda(db, organizationId));
+    contato?.first_service_at != null && clientePelaAgendaLigado(organizacao.settings);
   // A CAMPANHA ganha do padrão quando declara funil (migration 0378): é a
   // escolha mais específica, e quem montou a campanha sabe onde quer medir o
   // resultado dela. Campanha sem funil declarado, ou conversa que não nasceu de
