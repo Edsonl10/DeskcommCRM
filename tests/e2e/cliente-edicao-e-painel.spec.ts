@@ -294,4 +294,7 @@ test("administrador controla entrada no funil e equipe consulta o estado", async
   });
   await controle.click();
   await expect(controle).toBeChecked();
+  await expect(controle).toBeEnabled();
+  await page.reload();
+  await expect(controle).toBeChecked();
 });

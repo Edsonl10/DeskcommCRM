@@ -20,11 +20,11 @@ export function EntradaAutomatica({
     setSalvando(true);
     setErro(null);
     try {
-      const resposta = await apiClient.patch<{ entrada_automatica: boolean }>(
+      const resposta = await apiClient.patch<{ data: { entrada_automatica: boolean } }>(
         "/api/v1/settings/entrada-funil",
         { entrada_automatica: proximo },
       );
-      setValor(resposta.entrada_automatica);
+      setValor(resposta.data.entrada_automatica);
     } catch (e) {
       setErro(e instanceof Error ? e.message : t("Falha ao salvar."));
     } finally {
