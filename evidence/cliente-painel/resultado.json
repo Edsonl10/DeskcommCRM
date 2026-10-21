@@ -1,0 +1,128 @@
+{
+  "commit": "a9fd7fb5109a8900c2a24655b208c2f027792d33",
+  "validated_source": "2f24b9c866555e2299baa79e05d2f6a2d9b8c76d",
+  "images": {
+    "app": "ghcr.io/edsonl10/deskcommcrm@sha256:56cb7775ff12032b51dea0be894f5e1a2ed65562e2758808056459b27d62a773",
+    "worker": "ghcr.io/edsonl10/deskcomm-worker@sha256:a9c7b8703240da652387713edbc931ae46e29f9b8ba357483ff7c0a10a383978",
+    "scheduler": "ghcr.io/edsonl10/deskcomm-scheduler@sha256:e5e2c67f6c2e5d9fe2df0d99fcbbbe513d417484564e1de768d526f72bc0e2ad"
+  },
+  "rollback": {
+    "app": "crm-cliente-retorno-app:20261021-150946",
+    "worker": "crm-cliente-retorno-worker:20261021-150946",
+    "scheduler": "crm-cliente-retorno-scheduler:20261021-150946"
+  },
+  "backup": "/opt/backups/crm-cliente-painel-20261021-150946",
+  "status": "instalado",
+  "health": {
+    "status": "healthy",
+    "version": "a9fd7fb"
+  },
+  "backup_files": [
+    {
+      "name": "db-20261021-150946.sql.gz",
+      "size": 24585010
+    },
+    {
+      "name": "waha-20261021-150946.tgz",
+      "size": 1619802
+    }
+  ],
+  "deploy_script_sha256": "3a69cd85b1589549c7f5eb2813f68466746a9fd817aafd8e5837a311354a7f95",
+  "tree": "f50f7a9d01f32a2a92082d959c561221fd801081",
+  "source_checks": [
+    {
+      "id": 119284426964,
+      "name": "verify",
+      "result": "success"
+    },
+    {
+      "id": 119289235637,
+      "name": "invariants",
+      "result": "success"
+    },
+    {
+      "id": 119292742485,
+      "name": "e2e",
+      "result": "success"
+    },
+    {
+      "id": 119285028233,
+      "name": "imagens-ok",
+      "result": "success"
+    },
+    {
+      "id": 119290338364,
+      "name": "build-and-size",
+      "result": "success"
+    }
+  ],
+  "workflow_runs": {
+    "ci": 39616930555,
+    "e2e": 39616930533,
+    "images": 39616930466,
+    "perf": 39616930459,
+    "published_images": 39620859678
+  },
+  "publication_checks": [
+    {
+      "id": 119299402466,
+      "name": "juntar-manifestos",
+      "result": "success"
+    },
+    {
+      "id": 119299599660,
+      "name": "imagens-ok",
+      "result": "success"
+    }
+  ],
+  "tests": {
+    "unit_files_passed": 1821,
+    "unit_cases_passed": 19153,
+    "unit_expected_fail": 1,
+    "e2e_part1_passed": 157,
+    "feature_cases_seconds": [
+      20.8,
+      14
+    ],
+    "e2e_parts_passed": 6,
+    "installer_simulations_passed": 6,
+    "negative_control": "2 expected failures after removing custom_fields preservation; restored and passing"
+  },
+  "production_verification": {
+    "app_worker_scheduler": "healthy",
+    "public_root_http": 200,
+    "public_app_http": 307,
+    "inbox_name_edit_controls": 2,
+    "inbox_about_edit_control": true,
+    "team_configuration_open_and_cancel": true,
+    "contact_detail_name_and_about_controls": true,
+    "production_contact_data_changed_for_verification": false
+  },
+  "preserved": {
+    "caddyfile": true,
+    "other_env_bytes": true,
+    "other_compose_containers": true
+  },
+  "schema_migrations_applied": 0,
+  "rollback_exercised_on_server": false,
+  "visual_evidence": {
+    "artifact_id": 12354651331,
+    "sha256": "c7fb329525e74e5992b93f01d151ebaeed4c56920b4333c9a0fa030cd240dc68",
+    "files": [
+      "inbox.png",
+      "cadastro.png",
+      "configuracao.png",
+      "configuracao-celular.png"
+    ],
+    "data": "synthetic",
+    "desktop": [
+      1280,
+      720
+    ],
+    "mobile": [
+      390,
+      844
+    ],
+    "visually_reviewed": true
+  }
+}
