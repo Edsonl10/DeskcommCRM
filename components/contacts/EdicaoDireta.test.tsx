@@ -44,9 +44,9 @@ describe("edição direta do cadastro", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Editar nome do contato" }));
     await userEvent.clear(screen.getByRole("textbox", { name: "Nome do contato" }));
-    expect(screen.getByRole("button", { name: "Salvar", exact: true })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Salvar$/ })).toBeDisabled();
     await userEvent.type(screen.getByRole("textbox"), " Maria Silva ");
-    await userEvent.click(screen.getByRole("button", { name: "Salvar", exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: /^Salvar$/ }));
     expect(save).toHaveBeenCalledWith({ name: "Maria Silva" });
   });
   it("cancelar o nome não dispara escrita", async () => {
@@ -63,7 +63,7 @@ describe("edição direta do cadastro", () => {
     await userEvent.click(screen.getByRole("button", { name: "Editar Sobre o Cliente" }));
     await userEvent.clear(screen.getByRole("textbox"));
     await userEvent.type(screen.getByRole("textbox"), "Texto a preservar");
-    await userEvent.click(screen.getByRole("button", { name: "Salvar", exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: /^Salvar$/ }));
     await waitFor(() => expect(save).toHaveBeenCalledWith({ sobre_cliente: "Texto a preservar" }));
     expect(screen.getByRole("textbox")).toHaveValue("Texto a preservar");
   });

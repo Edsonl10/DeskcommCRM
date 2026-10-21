@@ -5,6 +5,7 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { audit } from "@/lib/audit";
+import { fail } from "@/lib/api/wrappers";
 import { BLOCOS_DO_PAINEL } from "@/lib/inbox/painel-do-cliente";
 import { GET, PATCH } from "./route";
 
@@ -111,7 +112,7 @@ describe("configuração do painel por organização", () => {
     } as never);
     expect((await PATCH(request({ ordem: BLOCOS_DO_PAINEL }))).status).toBe(403);
     expect(createAdminClient).not.toHaveBeenCalled();
-    vi.mocked(requireSupportWrite).mockResolvedValue(new Response(null, { status: 403 }));
+    vi.mocked(requireSupportWrite).mockResolvedValue(fail("forbidden_scope", "Somente leitura.", 403));
     expect((await PATCH(request({ ordem: BLOCOS_DO_PAINEL }))).status).toBe(403);
   });
 });
