@@ -1,6 +1,5 @@
 {
   "pr": 28,
-  "source": "33d021c52b4ba8d93e0ded9f568e7aaaa6cb861a",
   "source_tree": "f6d7d7abf9a429b5d572a7fcab0979ca85123cfc",
   "typecheck": "passed with 6 GB heap",
   "lint": "passed",
@@ -16,7 +15,9 @@
   "full_unit_local": "interrupted under resource load; not approved",
   "database_local": "Docker unavailable",
   "e2e_local": "Docker unavailable",
-  "ci": "source 33d021c failed: outdated unit fixture, label display and isolation fixture defaults; corrections pending next complete CI",
-  "production": "unchanged; deployment access unavailable",
-  "ci_corrections_cases": 36
+  "ci": "Final source c4118b54505b5e81a20427d16eab4e841b94df83: all five gates and six E2E parts passed",
+  "production": "Installed fa722b49e2faceaebe7b13b6c93f61a7e2f537d6; see publicacao.json",
+  "ci_corrections_cases": 36,
+  "historical_validation_source": "33d021c52b4ba8d93e0ded9f568e7aaaa6cb861a",
+  "response_fix_local_cases": 23
 }
