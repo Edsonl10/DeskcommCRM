@@ -10915,6 +10915,15 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      fn_agent_handoff_department: {
+        Args: {
+          p_organization_id: string
+          p_conversation_id: string
+          p_contact_id: string
+          p_department_name: string
+        }
+        Returns: string
+      }
       fn_conversation_assign_department: {
         Args: {
           p_conversation_id: string
