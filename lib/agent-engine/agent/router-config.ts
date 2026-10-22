@@ -11,10 +11,12 @@
  *     nunca derruba o turno.
  */
 import type pg from 'pg';
+import { humanRouterFromConfig } from '@/lib/ai/agents/human-router';
 import { CLASSIFIER_CONTEXT_MESSAGES, MAX_CLASSIFIER_CONTEXT_MESSAGES } from '@/lib/ai/classifier-context';
 
 export interface RouterMember {
   agentId: string;
+  destinationDepartmentId?: string | null;
   intentName: string;
   intentDescription: string;
   examples: string[];
@@ -60,6 +62,8 @@ export interface LoadedRouter {
   contextMessageCount?: number;
   fallbackAgentId: string | null;
   members: RouterMember[];
+  humanRouting?: boolean;
+  fallbackDepartmentId?: string | null;
 }
 
 interface RouterRow {
@@ -83,14 +87,15 @@ export async function loadActiveRouter(
   db: pg.Pool,
   organizationId: string,
   channelSessionId: string,
+  options?: { includeInactive: boolean; routerId: string },
 ): Promise<LoadedRouter | null> {
   const { rows: routerRows } = await db.query<RouterRow>(
     `select id, name, config, fallback_agent_id
      from ai_routers
      where organization_id = $1
        and channel_session_id = $2
-       and is_active`,
-    [organizationId, channelSessionId],
+       and (is_active or $3::boolean) and ($4::uuid is null or id=$4::uuid)`,
+    [organizationId, channelSessionId, options?.includeInactive ?? false, options?.routerId ?? null],
   );
   const router = routerRows[0];
   if (router === undefined) return null;
@@ -130,7 +135,11 @@ export async function loadActiveRouter(
       ? cfg.context_message_count
       : CLASSIFIER_CONTEXT_MESSAGES;
 
+  const human = humanRouterFromConfig(router.config);
+  const humanRouting = router.config?.human_routing != null;
   return {
+    humanRouting,
+    fallbackDepartmentId: human.success ? human.data.fallback_department_id : null,
     id: router.id,
     name: router.name,
     classifierModel,
@@ -139,7 +148,10 @@ export async function loadActiveRouter(
     minConfidence,
     contextMessageCount,
     fallbackAgentId: router.fallback_agent_id,
-    members: memberRows.map((m) => ({
+    members: humanRouting ? (human.success ? human.data.routes.map((r) => ({
+      agentId: `department:${r.department_id}`, intentName: r.intent_name,
+      intentDescription: r.intent_description, examples: r.examples, destinationDepartmentId: r.department_id,
+    })) : []) : memberRows.map((m) => ({
       agentId: m.agent_id,
       intentName: m.intent_name,
       intentDescription: m.intent_description,

@@ -76,3 +76,19 @@ describe('loadActiveRouter — provedor do classificador', () => {
     }
   });
 });
+
+describe('setores humanos no roteador existente', () => {
+  const dept = '55555555-5555-4555-8555-555555555555';
+  it('projeta intenções e reserva humanas sem exigir membros de IA', async () => {
+    const db = poolSeq([{ rows: [{ id: 'r', name: 'Triagem', fallback_agent_id: null, config: { human_routing: {
+      fallback_department_id: dept, routes: [{ intent_name: 'Cobrança', intent_description: 'Pagamento existente', examples: ['boleto'], department_id: dept }],
+    } } }] }, { rows: [] }]);
+    const r = await loadActiveRouter(db, 'org', 'canal');
+    expect(r).toMatchObject({ humanRouting: true, fallbackDepartmentId: dept, members: [{ intentName: 'Cobrança', destinationDepartmentId: dept }] });
+  });
+  it('política malformada não devolve os membros antigos de IA', async () => {
+    const db = poolSeq([{ rows: [{ id: 'r', config: { human_routing: {} } }] }, { rows: [{ agent_id: 'antigo', intent_name: 'comprar' }] }]);
+    const r = await loadActiveRouter(db, 'org', 'canal');
+    expect(r).toMatchObject({ humanRouting: true, fallbackDepartmentId: null, members: [] });
+  });
+});

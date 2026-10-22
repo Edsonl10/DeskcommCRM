@@ -16,6 +16,7 @@ import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/require-role";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { humanRouterFromConfig, humanRouterDepartments } from "@/lib/ai/agents/human-router";
 import { MAX_CLASSIFIER_CONTEXT_MESSAGES } from "@/lib/ai/classifier-context";
 
 export const dynamic = "force-dynamic";
@@ -122,7 +123,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
 
   const { data: existing, error: loadErr } = await admin
     .from("ai_routers")
-    .select("id, config")
+    .select("id, config, fallback_agent_id")
     .eq("id", id)
     .eq("organization_id", org.orgId)
     .maybeSingle();
@@ -131,6 +132,18 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
   }
   if (!existing) {
     return fail("not_found", t("Router não encontrado."), 404, { requestId });
+  }
+
+  const mergedConfig = { ...((existing.config ?? {}) as Record<string, unknown>), ...patch.config };
+  if (mergedConfig.human_routing != null) {
+    const human = humanRouterFromConfig(mergedConfig);
+    if (!human.success) return fail("validation_failed", t("Confira as intenções e o setor de reserva."), 422, { requestId });
+    const fallbackAgent = patch.fallback_agent_id === undefined ? existing.fallback_agent_id : patch.fallback_agent_id;
+    if (fallbackAgent) return fail("validation_failed", t("Escolha setores humanos ou agentes de IA para este roteador."), 422, { requestId });
+    const ids = humanRouterDepartments(human.data);
+    const departments = await admin.from("departments").select("id").eq("organization_id", org.orgId).eq("is_active", true).in("id", ids);
+    if (departments.error) return fail("internal_error", t("Não foi possível conferir os setores."), 500, { requestId });
+    if (departments.data?.length !== ids.length) return fail("validation_failed", t("Escolha setores ativos desta organização."), 422, { requestId });
   }
 
   const update: Record<string, unknown> = {};

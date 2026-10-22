@@ -85,7 +85,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const admin = createAdminClient();
   const { data: router, error: routerErr } = await admin
     .from("ai_routers")
-    .select("id, channel_session_id")
+    .select("id, channel_session_id, is_active")
     .eq("id", id)
     .eq("organization_id", org.orgId)
     .maybeSingle();
@@ -97,8 +97,10 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   }
 
   const pool = getSkillsPool();
-  const loaded = await loadActiveRouter(pool, org.orgId, router.channel_session_id);
-  if (!loaded || loaded.id !== id) {
+  const loaded = router.is_active === false
+    ? await loadActiveRouter(pool, org.orgId, router.channel_session_id, { includeInactive: true, routerId: id })
+    : await loadActiveRouter(pool, org.orgId, router.channel_session_id);
+  if (!loaded || loaded.id !== id || (router.is_active === false && !loaded.humanRouting)) {
     return fail(
       "state_conflict",
       t("O router precisa estar ativo (is_active=true) para ser testado."),
@@ -150,7 +152,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   // Sem veredito, ou abaixo do mínimo, produção cai no fallback/genérico — e o
   // painel de teste não pode fingir que casou (review whole-branch item 3).
   const agenteDo = (v: IntentVerdict | null): string | null =>
-    destinoDoVeredito(loaded, undefined, null, v).membro?.agentId ?? loaded.fallbackAgentId;
+    loaded.humanRouting ? null : destinoDoVeredito(loaded, undefined, null, v).membro?.agentId ?? loaded.fallbackAgentId;
   const nomeDoAgente = async (agentId: string | null): Promise<string | null> => {
     if (!agentId) return null;
     const { data: agentRow } = await admin
@@ -166,12 +168,25 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   // é resposta da IA: a tela a mostra como "não respondeu", e o Jev decidindo
   // não vale no lugar dela (R2).
   const iaRespondeu = verdict !== null && verdict.falhou !== true;
-  const agentId = agenteDo(verdict);
+  const effectiveVerdict = independente
+    ? (jevConfiavel ? escolhaDoJev?.veredito ?? verdict : verdict)
+    : (estadoDoJev === "decidindo" && iaRespondeu ? escolhaDoJev?.veredito ?? verdict : verdict);
+  const humanDestination = loaded.humanRouting
+    ? destinoDoVeredito(loaded, undefined, null, effectiveVerdict).membro?.destinationDepartmentId ?? loaded.fallbackDepartmentId ?? null
+    : null;
+  const department = humanDestination ? await admin.from("departments").select("name").eq("organization_id", org.orgId).eq("id", humanDestination).eq("is_active", true).maybeSingle() : null;
+  const agentId = loaded.humanRouting ? null : agenteDo(verdict);
   const agentName = await nomeDoAgente(agentId);
   const agenteDoJev = escolhaDoJev === null ? null : agenteDo(escolhaDoJev.veredito);
 
   return ok(
     {
+      ...(loaded.humanRouting ? {
+        destination_type: "department",
+        department_id: humanDestination,
+        department_name: department?.data?.name ?? null,
+        destination_available: Boolean(department?.data),
+      } : {}),
       ia_consultada: iaConsultada,
       modo_roteador: modo,
       intent_name: iaRespondeu ? verdict.intentName : null,

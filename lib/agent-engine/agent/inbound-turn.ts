@@ -159,6 +159,7 @@ import { janelaDeEnvioAberta, proximaAberturaDaJanela } from '../pacing/engine';
 import { loadChannelKnobs } from '../pacing/store';
 import { avisarJanelaFechada, resolverAvisoDeJanela } from '../pacing/aviso-de-janela';
 import { resolveConversationTurn, type TurnAgentResolution } from './resolve-turn-agent';
+import { handoffRouterDepartment } from './department-handoff';
 import {
   hasOpenCaseForContact,
   getCaseAwaitingLead,
@@ -1963,6 +1964,24 @@ async function executarTurnoDoAgente(
     }
   }
 
+  // Queue transfers do not send WhatsApp and do not wait for the sending window.
+  const routed = preview
+    ? { config: preview.agent, routerId: null, intentName: null, confidence: null, outcome: 'preview' }
+    : input.resolvedAgent ?? await resolveConversationTurn(pool, deps.llmCfg, {
+        tenantId, leadId, jobId: liveJob().id,
+        channelSessionId: input.channelSessionId,
+        conversationId: input.conversationId,
+        inbound: liveJob().kind === 'inbound_turn',
+      }, { log: runLog, jev: deps.jev });
+  if (!preview && 'humanRouting' in routed && routed.humanRouting) {
+    if (!routed.destinationDepartmentId) throw new Error('human_router_destination_unavailable');
+    await handoffRouterDepartment(pool, {
+      tenantId, leadId, conversationId: input.conversationId,
+      departmentId: routed.destinationDepartmentId, intentName: routed.intentName,
+    }, runLog);
+    return; // No conversational model, funnel mutation, reply or follow-up.
+  }
+
   // JANELA ANTI-BAN (7h–22h por padrão, fuso do tenant): fora dela o turno é
   // ADIADO, não gasto.
   //
@@ -2047,14 +2066,6 @@ async function executarTurnoDoAgente(
     }
   }
 
-  const routed = preview
-    ? { config: preview.agent, routerId: null, intentName: null, confidence: null, outcome: 'preview' }
-    : input.resolvedAgent ?? await resolveConversationTurn(pool, deps.llmCfg, {
-        tenantId, leadId, jobId: liveJob().id,
-        channelSessionId: input.channelSessionId,
-        conversationId: input.conversationId,
-        inbound: liveJob().kind === 'inbound_turn',
-      }, { log: runLog, jev: deps.jev });
   const agentConfig = routed.config;
   // #2155 — o destino do card. `in` porque o ramo de preview/campanha devolve um
   // objeto literal SEM estes campos: sem a guarda, o tipo da união recusa a leitura.

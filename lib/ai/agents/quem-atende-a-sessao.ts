@@ -57,6 +57,13 @@ function sqlDoPortao(doNumero: (coluna: string) => string, ignorarPausados: bool
          where r.organization_id = $1 and r.is_active
            and ${doNumero("r.channel_session_id")}
            and (
+             -- O roteador humano tem destino executável sem agente publicado.
+             exists (
+               select 1 from departments d
+               where d.organization_id = r.organization_id and d.is_active
+                 and d.id::text = r.config #>> '{human_routing,fallback_department_id}'
+             )
+             or
              -- O fallback e os membros contam pelo que PODEM EXECUTAR, não por
              -- existirem. A versão anterior media fallback_agent_id is not null
              -- e a existência de LINHA em ai_router_members — e as duas

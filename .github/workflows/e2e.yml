@@ -1138,6 +1138,7 @@ jobs:
         olhar-telas-do-epico.spec.ts
         jev-decisoes-rapidas.spec.ts
         jev-roteador.spec.ts
+        roteador-setores-humanos.spec.ts
         jev-pedidos.spec.ts
         jev-followup.spec.ts
         buffer-ssr-caixa-orfa.spec.ts

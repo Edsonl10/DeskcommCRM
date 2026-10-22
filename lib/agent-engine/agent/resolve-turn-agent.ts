@@ -79,6 +79,8 @@ import { corpoDaMensagem, type CorpoDaMensagemRow } from '../edge/crm/get-lead-c
 
 
 export interface TurnAgentResolution {
+  humanRouting?: boolean;
+  destinationDepartmentId?: string | null;
   config: PublishedAgentConfig | null; // null ⇒ turno segue no genérico (comportamento atual)
   routerId: string | null;
   intentName: string | null;
@@ -197,7 +199,7 @@ export function destinoDoVeredito(
  * como discordância. Carregar os dois agentes a cada turno custaria mais que isso.
  */
 export function agenteDoDestino(router: LoadedRouter, destino: DestinoDoVeredito): string {
-  return destino.membro?.agentId ?? router.fallbackAgentId ?? 'fallback';
+  return destino.membro?.agentId ?? (router.humanRouting ? `department:${router.fallbackDepartmentId ?? 'unavailable'}` : router.fallbackAgentId ?? 'fallback');
 }
 
 export async function resolveTurnAgent(
@@ -222,6 +224,7 @@ export async function resolveTurnAgent(
   deps: ResolveTurnAgentDeps,
 ): Promise<TurnAgentResolution> {
   const inicioDoRoteamento = Date.now();
+  let humanRouter: LoadedRouter | null = null;
   const _loadActiveRouter = deps.loadActiveRouter ?? loadActiveRouter;
   const _loadAgentById = deps.loadPublishedAgentConfigById ?? loadPublishedAgentConfigById;
   const _loadAgentBySession = deps.loadPublishedAgentConfig ?? loadPublishedAgentConfig;
@@ -252,6 +255,7 @@ export async function resolveTurnAgent(
     }
 
     const router = await _loadActiveRouter(db, input.tenantId, input.channelSessionId);
+    if (router?.humanRouting) humanRouter = router;
     if (router === null) {
       return {
         config: await _loadAgentBySession(db, input.tenantId, input.channelSessionId),
@@ -267,6 +271,7 @@ export async function resolveTurnAgent(
       outcome: 'no_match' | 'classifier_failed',
       confidence: number | null,
     ): Promise<TurnAgentResolution> => {
+      if (router.humanRouting) return { config: null, humanRouting: true, destinationDepartmentId: router.fallbackDepartmentId ?? null, routerId: router.id, intentName: null, confidence, outcome };
       if (router.fallbackAgentId === null) {
         // Regra 5: sem fallback declarado, quem atende é o agente publicado da
         // SESSÃO — o comportamento de antes do router existir. `null` aqui
@@ -310,6 +315,7 @@ export async function resolveTurnAgent(
       intentName: string | null,
       confidence: number | null,
     ): Promise<TurnAgentResolution> => {
+      if (router.humanRouting) return { config: null, humanRouting: true, destinationDepartmentId: member.destinationDepartmentId ?? null, routerId: router.id, intentName, confidence, outcome };
       const agentId = member.agentId;
       const config = await _loadAgentById(db, input.tenantId, agentId);
       if (config === null) {
@@ -441,6 +447,8 @@ export async function resolveTurnAgent(
     });
     return resultado;
   } catch (err) {
+    // A human-only router must never fall through to a conversational agent.
+    if (humanRouter) return { config: null, humanRouting: true, destinationDepartmentId: humanRouter.fallbackDepartmentId ?? null, routerId: humanRouter.id, intentName: null, confidence: null, outcome: 'classifier_failed' };
     deps.log.warn('resolve-turn-agent: erro inesperado no router — turno cai no fluxo sem router', {
       error: err instanceof Error ? err.message : String(err),
     });

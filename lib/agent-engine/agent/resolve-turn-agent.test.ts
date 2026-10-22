@@ -841,3 +841,32 @@ describe('2155 — destino de funil na intenção casada', () => {
     expect(out.destinationPipelineId ?? null).toBeNull();
   });
 });
+
+describe('roteador para setores humanos', () => {
+  const dept = '55555555-5555-4555-8555-555555555555';
+  const reserve = '66666666-6666-4666-8666-666666666666';
+  const human = router({ humanRouting: true, fallbackDepartmentId: reserve, members: [
+    { agentId: `department:${dept}`, destinationDepartmentId: dept, intentName: 'financeiro', intentDescription: 'boleto e pagamento existente', examples: [] },
+  ] });
+  it.each([
+    ['boleto vencido', { intentName: 'financeiro', confidence: .95 }, dept],
+    ['bom dia', { intentName: null, confidence: .8 }, reserve],
+    ['quero orçamento', { intentName: 'financeiro', confidence: .1 }, reserve],
+    ['preciso de atendente', null, reserve],
+  ])('%s escolhe setor sem carregar agente', async (signal, verdict, expected) => {
+    const byId = vi.fn(); const bySession = vi.fn();
+    const out = await resolveTurnAgent({} as never, {} as never,
+      { ...baseInput, signal, stickyAgentId: null, stickyIntent: null },
+      makeDeps({ loadActiveRouter: vi.fn().mockResolvedValue(human), classifyIntent: vi.fn().mockResolvedValue(verdict), loadPublishedAgentConfigById: byId, loadPublishedAgentConfig: bySession }));
+    expect(out).toMatchObject({ humanRouting: true, destinationDepartmentId: expected, config: null });
+    expect(byId).not.toHaveBeenCalled(); expect(bySession).not.toHaveBeenCalled();
+  });
+  it('erro inesperado também vai à reserva humana, sem cair no bot genérico', async () => {
+    const bySession = vi.fn();
+    const out = await resolveTurnAgent({} as never, {} as never,
+      { ...baseInput, signal: 'boleto', stickyAgentId: null, stickyIntent: null },
+      makeDeps({ loadActiveRouter: vi.fn().mockResolvedValue(human), classifyIntent: vi.fn().mockRejectedValue(new Error('offline')), loadPublishedAgentConfig: bySession }));
+    expect(out).toMatchObject({ humanRouting: true, destinationDepartmentId: reserve, outcome: 'classifier_failed', config: null });
+    expect(bySession).not.toHaveBeenCalled();
+  });
+});
