@@ -1,5 +1,14 @@
 # PROJECT_STATE
 
+## Em preparação — triagem Comercial/Financeiro (22/10/2026)
+- Agente `Triagem — Comercial e Financeiro` salvo em rascunho, GPT-5.4 Mini e credencial da instalação; não publicado. Financeiro recebe assuntos financeiros; demais assuntos, Comercial.
+- Diagnóstico confirmado: a ferramenta MCP de atribuição só aceita usuário; a passagem nativa não tinha destino por setor. Contador `steps_count=0` do teste não prova ausência de ferramentas: o registro não é preenchido pelo preview.
+- Correção em trabalho: campo opcional `departamento` na passagem nativa; função restrita ao runtime resolve nome na organização, preserva aceite humano/encerramento e emite o evento já consumido pela distribuição por setor. Migration 9007 e baseline; sem nomes ou tenants fixos no código.
+- Local: typecheck com 6 GB aprovado; lint completo sem erros (avisos existentes); 40 testes direcionados aprovados. Controle negativo em worktree isolada: retirar o encaminhamento produz exatamente 3 falhas em 8 casos; correção restaurada, 8/8 aprovados. Fragmento de release válido.
+- PR #30: https://github.com/Edsonl10/DeskcommCRM/pull/30, rascunho. Fonte inicial 12bdde3: verify completo, build e distribuição específica PG17 aprovados; banco e E2E ainda em execução. Revisão acrescentou preservação do escolhido pelo rodízio em repetição da passagem, com invariante dedicado; nova fonte deve validar essa emenda.
+- Suíte local ampla: 2.120 arquivos/22.114 casos aprovados, 14 falhas; uma posição de baseline corrigida e retestada, demais 13 por IPC/DNS do ambiente. Não é verde integral. Repetição concorrente do typecheck foi encerrada por memória; aprovação inicial e typecheck do CI registrados separadamente.
+- Instalação bloqueada: revisão automática negou acesso ao hpanel.hostinger.com por escopo. Pedir autorização específica para acessar a VPS, fazer backup e instalar após CI. Não usar outra via para contornar a negativa. Docker local indisponível; prova em par e ativação ainda pendentes. Sem alteração em produção nesta entrega.
+
 ## Em validação — entrada automática no funil
 - PR #28: https://github.com/Edsonl10/DeskcommCRM/pull/28 (rascunho), base 60211cc. Usuário autorizou GitHub e instalação após testes; abriu painel/terminal da VPS em 21/10. Não pedir novamente a autorização.
 - Controle em Funis: admin altera, equipe consulta; padrão ligado, false desliga nascimento automático, preserva cards e atendimento. Sem migration/dependências, settings com CAS/auditoria, leitura reutilizada na classificação de clientes.

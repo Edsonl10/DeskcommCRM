@@ -443,6 +443,7 @@ async function corpoDaCentral(
  * tentou, nem o que o cliente pediu com as palavras dele.
  */
 export const requestHumanHandoffInputSchema = z.strictObject({
+  departamento: z.string().trim().min(1).max(100).optional(),
   reason: z.string().min(1).max(500).optional(),
   por_que: z.string().min(1).max(500).optional(),
   o_que_tentei: z
@@ -458,7 +459,7 @@ export const requestHumanHandoffInputSchema = z.strictObject({
 });
 
 const PAYLOAD_TEACHING =
-  'Campos aceitos: por_que (por que você está passando, em uma frase), o_que_tentei (lista curta ' +
+  'Campos aceitos: departamento (nome exato do setor configurado, opcional), por_que (por que você está passando, em uma frase), o_que_tentei (lista curta ' +
   'do que você já tentou, com o desfecho de cada um), cliente_quer (o que a pessoa está pedindo, ' +
   'nas palavras dela). `reason` ainda é aceito como sinônimo de por_que. Nada além disso. Lead, ' +
   'organização e conversa vêm do runtime, nunca do payload da tool.';
@@ -516,6 +517,15 @@ export async function applyRequestHumanHandoff(
   // `por_que` vence `reason` porque `reason` é o sinônimo antigo — quem preenche
   // os dois está declarando o mesmo campo duas vezes.
   const declarado = parsed.data;
+  // O nome é declaração do modelo; a função resolve o destino na organização
+  // confiável e trava a conversa antes de alterar qualquer estado. Nunca usa
+  // UUID inventado nem toma atendimento já aceito por uma pessoa.
+  if (declarado.departamento !== undefined) {
+    await guardServiceEffect();
+    await db.query('select public.fn_agent_handoff_department($1,$2,$3,$4)', [
+      ids.tenantId, ids.conversationId, ids.leadId, declarado.departamento,
+    ]);
+  }
   const porQue = declarado.por_que ?? declarado.reason ?? null;
   const briefing = montarBriefingDaPassagem({
     checkpoint: opts.contextoDoTurno?.checkpoint ?? null,

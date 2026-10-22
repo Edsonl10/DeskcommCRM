@@ -148,7 +148,7 @@
       "col": 3,
       "type": "frontend",
       "label": "Handoff",
-      "sublabel": "humano: roteamento G5"
+      "sublabel": "humano: setor validado + distribuição G5"
     },
     {
       "id": "memoryscreen",

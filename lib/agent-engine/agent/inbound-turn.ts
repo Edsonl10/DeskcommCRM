@@ -366,7 +366,9 @@ export const AGENT_TOOL_DEFS = {
       'o sistema manda um aviso padrão no seu lugar. Acionada a ferramenta, encerre o turno. ' +
       'NUNCA diga ao lead que "já chamei alguém" ou "já passei para a equipe" sem ter chamado esta ' +
       'ferramenta NO MESMO turno — a frase no passado não substitui a ação, e ninguém é avisado de verdade. ' +
-      'Preencha por_que, o_que_tentei e cliente_quer — quem assumir só vê o que você escrever aqui.',
+      'Preencha por_que, o_que_tentei e cliente_quer — quem assumir só vê o que você escrever aqui. ' +
+      'Para triagem por setor, preencha departamento com o nome exato configurado. O sistema resolve ' +
+      'o destino e aplica a distribuição do setor; não escolha um atendente por conta própria.',
     // Schema LARGO para o SDK (o modelo vê o campo); a validação REAL é a whitelist .strict()
     // + guard de prototype pollution dentro de applyRequestHumanHandoff — campo extra/forjado
     // vira erro de ENSINO ao modelo, nunca exceção do SDK nem strip silencioso.
@@ -381,6 +383,7 @@ export const AGENT_TOOL_DEFS = {
     // é por isso que eles trazem exemplo em vez de definição.
     inputSchema: z
       .object({
+        departamento: z.string().optional().describe('nome exato do setor configurado para receber a conversa; omita se não houver destino específico'),
         por_que: z
           .string()
           .optional()
