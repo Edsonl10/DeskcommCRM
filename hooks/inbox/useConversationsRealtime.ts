@@ -1,4 +1,5 @@
 "use client";
+import { serializarFiltrosAvancados, type FiltrosAvancados } from "@/lib/inbox/filtros-avancados";
 import type { InboxView } from "@/lib/inbox/visoes";
 
 import { hashKey, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
@@ -84,7 +85,7 @@ export type StatusDeConversa =
   | "closed"
   | "archived";
 
-export interface ConversationsFilters {
+export interface ConversationsFilters extends FiltrosAvancados {
   view?: InboxView;
   /** Um status ou vários — a aba Fila precisa de dois (open + pending). */
   status?: StatusDeConversa | readonly StatusDeConversa[];
@@ -164,6 +165,7 @@ export function useConversationsRealtime(
       if (filters.comando && filters.comando.length > 0) {
         qs.set("comando", filters.comando.join(","));
       }
+      serializarFiltrosAvancados(qs, filters);
       if (filters.view) qs.set("view", filters.view);
       if (filters.exclude_finished) qs.set("exclude_finished", "true");
       if (filters.assigned_to) qs.set("assigned_to", filters.assigned_to);

@@ -1207,6 +1207,7 @@ jobs:
         filtro-por-marcador-pela-tela.spec.ts
         fonte-de-captacao-assina-os-envios.spec.ts
         inbox-busca-e-filtros-dizem-a-verdade.spec.ts
+        inbox-filtros-avancados.spec.ts
         mapas-em-provedores.spec.ts
         modulo-de-dados-na-ficha-do-contato.spec.ts
         painel-de-configuracao-da-instalacao.spec.ts
@@ -1534,6 +1535,12 @@ jobs:
       # endereçada por digest, então o que já veio de um registro não é
       # baixado de novo do outro.
       #
+      # Em 22/10/2026, run 39827367289 (duas rodadas), ambos os registros
+      # recusaram o pull. Nas duas últimas tentativas, removemos o override
+      # herdado do setup-cli: o CLI 2.117.0 tenta ECR, GHCR e Docker Hub por
+      # imagem (GetRegistryImageUrls em apps/cli-go/internal/utils/docker.go,
+      # tag v2.117.0 de supabase/cli). Com override, ele só usa um registro.
+      #
       # `-x studio,postgres-meta`: menos imagens, menos requisições ao
       # registro. Nenhuma spec, script ou passo deste workflow fala com o
       # Studio (porta 54323) nem com o postgres-meta (que só o Studio usa):
@@ -1549,7 +1556,7 @@ jobs:
           mv supabase/migrations /tmp/migrations-off
           mkdir -p supabase/migrations
           esperas=(0 20 60 120)
-          registros=(ghcr.io public.ecr.aws ghcr.io public.ecr.aws)
+          registros=(ghcr.io public.ecr.aws automatico automatico)
           for tentativa in 1 2 3 4; do
             espera=${esperas[$((tentativa - 1))]}
             registro=${registros[$((tentativa - 1))]}
@@ -1558,7 +1565,11 @@ jobs:
               supabase stop --no-backup || true
               sleep "$espera"
             fi
-            if SUPABASE_INTERNAL_IMAGE_REGISTRY="$registro" supabase start -x studio,postgres-meta 2>&1 | tee /tmp/supabase-start.log; then
+            comando=(env "SUPABASE_INTERNAL_IMAGE_REGISTRY=$registro")
+            if [ "$registro" = automatico ]; then
+              comando=(env -u SUPABASE_INTERNAL_IMAGE_REGISTRY)
+            fi
+            if "${comando[@]}" supabase start -x studio,postgres-meta 2>&1 | tee /tmp/supabase-start.log; then
               exit 0
             fi
             if ! grep -qE 'toomanyrequests|failed to pull docker image|error pulling image|TLS handshake timeout|i/o timeout|connection reset by peer' /tmp/supabase-start.log; then
@@ -1566,7 +1577,7 @@ jobs:
               exit 1
             fi
           done
-          echo "::error title=supabase start falhou 4 vezes baixando imagens::ghcr.io e public.ecr.aws recusaram o pull nas 4 tentativas (esperas de 20s, 60s e 120s). É limite de taxa ou rede do registro, não o PR — rerode a parte."
+          echo "::error title=supabase start falhou 4 vezes baixando imagens::GHCR, ECR e fallback nativo (incluindo Docker Hub) não concluíram o pull nas 4 tentativas (esperas de 20s, 60s e 120s). É limite de taxa ou rede do registro, não o PR — rerode a parte."
           exit 1
 
       # O baseline é um dump `--schema-only`: ele USA os tipos das extensões

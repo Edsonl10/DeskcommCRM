@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "Filtros avançados do Inbox", "subtitle": "Uma seleção para lista e contagens", "output": "inbox-filtros-avancados.html", "quality_profile": "standard" },
+  "lanes": [{ "id": "ui", "label": "Interface" }, { "id": "api", "label": "Consulta" }],
+  "mainPath": ["barra", "janela", "lista"],
+  "nodes": [
+    { "id": "barra", "lane": "ui", "col": 1, "type": "frontend", "label": "InboxFilters", "sublabel": "tags compactas e funil" },
+    { "id": "janela", "lane": "ui", "col": 2, "type": "frontend", "label": "InboxAdvancedFilters", "sublabel": "rascunho e salvar" },
+    { "id": "lista", "lane": "api", "col": 3, "type": "backend", "label": "conversations/_handler", "sublabel": "filtros antes da paginação, organização e RLS" },
+    { "id": "contagem", "lane": "api", "col": 3, "type": "backend", "label": "conversations/counts", "sublabel": "mesmos predicados validados" }
+  ],
+  "edges": [
+    { "from": "barra", "to": "janela", "label": "abre com estado aplicado" },
+    { "from": "janela", "to": "lista", "label": "Salvar → layout → hook" },
+    { "from": "janela", "to": "contagem", "label": "Salvar → contagens" },
+    { "from": "lista", "to": "barra", "label": "resultado filtrado" },
+    { "from": "contagem", "to": "barra", "label": "badges filtrados" }
+  ]
+}

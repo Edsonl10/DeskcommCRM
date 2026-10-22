@@ -1,7 +1,7 @@
 "use client";
 import { useT } from "@/hooks/i18n/useT";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CaretLeft, CaretRight, MagnifyingGlass } from "@/lib/ui/icons";
+import { CaretLeft, CaretRight, MagnifyingGlass, Funnel } from "@/lib/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,8 @@ import { useContactTagVocabulary } from "@/hooks/contacts/useContactTagVocabular
 import { useConversationTagVocabulary } from "@/hooks/inbox/useConversationTags";
 import { useConversationCounts } from "@/hooks/inbox/useConversationCounts";
 import type { Role } from "@/lib/auth/types";
+import type { FiltrosAvancados } from "@/lib/inbox/filtros-avancados";
+import { InboxAdvancedFilters, quantidadeDeFiltros } from "./InboxAdvancedFilters";
 
 import { INBOX_VIEWS, permissaoGlobalInbox, type InboxView } from "@/lib/inbox/visoes";
 export type InboxTab = InboxView | "mine" | "unassigned" | "archived";
@@ -43,7 +45,7 @@ export function visibleInboxTabs(role: Role, permissions: unknown): InboxTab[] {
   return INBOX_TABS.filter((tab) => tab.value !== "all" || permissaoGlobalInbox(role, permissions, "all")).map((tab) => tab.value);
 }
 
-export interface InboxFiltersValue {
+export interface InboxFiltersValue extends FiltrosAvancados {
   tab: InboxTab;
   search: string;
   onlyUnread: boolean;
@@ -70,6 +72,8 @@ interface Props {
 
 export function InboxFilters({ value, onChange }: Props) {
   const t = useT();
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const quantidade = quantidadeDeFiltros(value);
   const [searchInput, setSearchInput] = useState(value.search);
   const tabsListRef = useRef<HTMLDivElement>(null);
   const [moreTabs, setMoreTabs] = useState({ left: false, right: false });
@@ -172,6 +176,10 @@ export function InboxFilters({ value, onChange }: Props) {
     tag: etiquetas,
     tagMode: value.tagMode,
     channel_session_id: value.channel_session_id,
+    department_ids: value.department_ids,
+    assigned_user_ids: value.assigned_user_ids,
+    last_message_from: value.last_message_from,
+    last_message_before: value.last_message_before,
   });
 
   const tabs = activeOrg
@@ -373,7 +381,7 @@ export function InboxFilters({ value, onChange }: Props) {
           </button>
         </div>
 
-        {(showChannelSwitch || mostrarSeletorDeTag) && (
+        {(
           <div className="flex gap-2">
             {showChannelSwitch && (
               <Select
@@ -426,7 +434,7 @@ export function InboxFilters({ value, onChange }: Props) {
                   <button
                     type="button"
                     className={cn(
-                      "h-8 min-w-0 flex-1 truncate rounded-full border border-transparent bg-surface-elevated px-3 text-left text-xs shadow-none",
+                      "h-8 min-w-0 max-w-60 flex-1 truncate rounded-full border border-transparent bg-surface-elevated px-3 text-left text-xs shadow-none",
                       "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       etiquetas.length > 0 && "border-accent bg-accent-soft text-accent",
                     )}
@@ -504,9 +512,27 @@ export function InboxFilters({ value, onChange }: Props) {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <button
+              type="button"
+              aria-label={t("Filtros de conversas")}
+              title={t("Filtros")}
+              aria-haspopup="dialog"
+              aria-expanded={filtrosAbertos}
+              onClick={() => setFiltrosAbertos(true)}
+              className={cn(
+                "relative flex size-8 shrink-0 items-center justify-center rounded-full border focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+                quantidade ? "border-accent bg-accent-soft text-accent" : "border-border bg-surface-elevated text-text-muted hover:text-text",
+              )}
+            >
+              <Funnel size={16} weight="fill" aria-hidden />
+              {quantidade > 0 && <span className="absolute -top-1 -right-1 min-w-4 rounded-full bg-accent px-1 text-[10px] text-accent-foreground">{quantidade}</span>}
+            </button>
           </div>
         )}
       </div>
+      {filtrosAbertos && (
+        <InboxAdvancedFilters value={value} onChange={onChange} onClose={() => setFiltrosAbertos(false)} channels={channels ?? []} tags={opcoesDoSeletor} />
+      )}
 
       {/* As setas aparecem só quando há abas fora da área visível; a faixa e o
           sublinhado continuam com a altura compacta do Inbox. */}

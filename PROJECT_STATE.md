@@ -1,5 +1,18 @@
 # PROJECT_STATE
 
+## Em implementação — filtros avançados do Inbox (22/10/2026)
+- Pedido e implantação autorizados nesta sessão: reduzir campo de tags e colocar funil ao lado, com filtros das referências.
+- Tags até 240 px; janela com não lidas, grupos, instância, etiquetas E/OU, período da última mensagem, departamentos e atendentes com múltipla seleção/busca/chips. Rascunho até Salvar; Limpar preserva aba/busca.
+- Contrato aditivo em lista e counts: IDs repetidos/UUIDs, datas ISO, validação comum e WHERE antes da paginação; escopo/RLS preservados. Sem schema/migration/dependência nova.
+- Typecheck completo e lint sem erros aprovados (avisos existentes); 108 casos relacionados e 270 casos finais de filtros/idioma/mapas/matriz aprovados. Suíte ampla local sem resumo final (interrompida ao encerrar o turno); houve falhas de IPC/DNS e não é verde integral. Spec sintética incluída na matriz E2E com prova desktop/celular. Docker local indisponível; banco/prova visual dependem do CI.
+- Usuário autorizou explicitamente publicar o código desta melhoria no GitHub público `Edsonl10/DeskcommCRM` e implantar após validação. Terminal local sem autenticação GitHub; publicação pela conexão GitHub autenticada. Nenhuma alteração desta melhoria em produção até este registro.
+- Console Hostinger acessível: conferida instalação da triagem #30 em `07f7d5f`, migration 9007 aplicada, app/worker/scheduler saudáveis. Preservar Caddyfile local e backups não rastreados. Script coordenado `/opt/backups/crm-cliente-painel-20261021-201752/deploy-coordenado.py` revisado: lock, cinco gates, árvore validada idêntica, digests/revisão, backup conferido de banco/sessões, preservação de configurações e retorno dos três serviços. Esta melhoria não altera banco.
+- Controle negativo em worktree própria: retirar o predicado de departamento causou exatamente uma falha em cinco; restaurado, 5/5 aprovados. Branch local `feat/inbox-filtros-avancados`, fonte inicial `3b2899665441e2a40d283abfe2a67dbfc8673c78`; publicação por API tem árvore integralmente idêntica à local.
+- PR #31: fonte e39af064 com verify completo, invariants PG17, build e imagens AMD64/ARM64 aprovados. E2E partes 2/3/4/6 aprovadas; funil passou em 6,4 s e capturas sintéticas desktop/celular conferidas e versionadas. Partes 1/5 bloquearam no pull GHCR/ECR em duas rodadas, antes dos testes. Nas últimas tentativas, habilitado fallback nativo do CLI 2.117.0, incluindo Docker Hub, sem reduzir testes nem gates. Nova fonte precisa repetir CI integral antes de instalar.
+- Contrato e mapa em `docs/features/inbox-filtros-avancados.md` e `docs/architecture/inbox-filtros-avancados.architecture.json`.
+
+- Main documental #32 incorporada antes da implantação, preservando o recibo e os limites da triagem; nenhum código de runtime mudou nessa integração. Nova validação integral exigida para a árvore final.
+
 ## Triagem Comercial/Financeiro — instalada, agente em rascunho (22/10/2026)
 - PR #30 integrado em `07f7d5f7f51b53cd372abcc3eb2d32640205fb05`, árvore `08ddca92c8b2c69d1b1a673db6a92f8e9b591d0d`. Fonte final `65ffec8`: todos os gates aprovados; CI/PG15/PG17 39773461961, E2E 39773462014, build 39773461964 e imagens 39773461963. Publicação do merge 39788054831 e demais gates do merge aprovados.
 - VPS `/opt/DeskcommCRM`: app, worker e scheduler instalados por digests da publicação, revisão `07f7d5f`; saúde interna healthy, Supabase/Redis/WAHA ok, domínio `/` 200 e `/app` 307. Caddyfile local e demais serviços preservados. Backup validado do banco, sessão WhatsApp, configuração e imagens anteriores: `/opt/backups/crm-triagem-20261022-174956`; recibo `recibo-triagem.json`. Migration 9007 aplicada em transação; função somente service_role.
