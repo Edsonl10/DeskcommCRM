@@ -5,7 +5,7 @@ Instalado o PR #31 em `605fde4b0a6c742f82a9c48677df0a8f3644882e`. A árvore `3ea
 ## Provas visuais
 
 - `evidence/inbox-filtros-avancados/desktop.png` e `evidence/inbox-filtros-avancados/mobile.png` (390 × 844): dados sintéticos, run 39827367289/parte 6, fonte e39af064. Campos legíveis e rodapé acessível no celular. O código de runtime não mudou desde essas capturas.
-- `evidence/inbox-filtros-avancados/publicado.png`: barra da instalação após a atualização, com tag medida em 240 px e funil ao lado. Recorte sem clientes. Janela abriu, mostrou Departamento/Atendente sem erro e Salvar fechou corretamente.
+- `evidence/inbox-filtros-avancados/publicado.jpg`: barra da instalação após a atualização, com tag medida em 240 px e funil ao lado. Recorte sem clientes. Janela abriu, mostrou Departamento/Atendente sem erro e Salvar fechou corretamente.
 
 ## Validação final
 
