@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "./helpers/test";
 import { loginComoAdmin, lerCreds } from "./helpers/login-admin";
@@ -103,7 +103,8 @@ test("roteador salva setores sem agente e permite teste inativo", async ({ page 
       .select("id", { head: true, count: "exact" })
       .eq("channel_session_id", channel);
     expect(after.count).toBe(before.count);
-    await page.screenshot({ path: "test-results/roteador-setores-humanos.png", fullPage: true });
+    mkdirSync("evidence/roteador-setores-humanos", { recursive: true });
+    await page.screenshot({ path: "evidence/roteador-setores-humanos/editor.png", fullPage: true });
   } finally {
     await ensure(db.from("ai_routers").delete().eq("id", router));
     await ensure(db.from("channel_sessions").delete().eq("id", channel));
