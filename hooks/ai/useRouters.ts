@@ -54,6 +54,7 @@ export interface RouterDetailState {
 export interface RouterTestResult {
   destination_type?: "department" | "agent";
   department_id?: string | null;
+  destination_intent_name?: string | null;
   department_name?: string | null;
   destination_available?: boolean;
   ia_consultada?: boolean;

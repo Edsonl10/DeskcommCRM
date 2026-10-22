@@ -308,7 +308,7 @@ export function RouterEditorClient({
     <Button variant={!humanMode ? "default" : "outline"} onClick={() => { if (router.config?.human_routing != null) setIsActive(false); setHumanMode(false); }}>{t("Agentes de IA")}</Button>
     <Button variant={humanMode ? "default" : "outline"} onClick={() => setHumanMode(true)}>{t("Setores humanos")}</Button>
   </div>;
-  if (humanMode) return <div className="space-y-4">{modeChooser}<HumanRouterPanel key={router.id + JSON.stringify(router.config)} router={router} departments={departments} classifierModels={classifierModels} channelName={channel?.display_name ?? t("Número removido")} /></div>;
+  if (humanMode) return <div className="space-y-4">{modeChooser}<HumanRouterPanel key={router.id + JSON.stringify(router.config)} router={router} departments={departments} classifierModels={classifierModels} channelName={channel ? channel.display_name : t("Número removido")} /></div>;
 
   return (
     <div className="flex flex-col gap-4">

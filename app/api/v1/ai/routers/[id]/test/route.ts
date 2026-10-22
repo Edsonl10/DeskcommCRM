@@ -171,8 +171,9 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const effectiveVerdict = independente
     ? (jevConfiavel ? escolhaDoJev?.veredito ?? verdict : verdict)
     : (estadoDoJev === "decidindo" && iaRespondeu ? escolhaDoJev?.veredito ?? verdict : verdict);
+  const humanMatch = loaded.humanRouting ? destinoDoVeredito(loaded, undefined, null, effectiveVerdict).membro : null;
   const humanDestination = loaded.humanRouting
-    ? destinoDoVeredito(loaded, undefined, null, effectiveVerdict).membro?.destinationDepartmentId ?? loaded.fallbackDepartmentId ?? null
+    ? humanMatch?.destinationDepartmentId ?? loaded.fallbackDepartmentId ?? null
     : null;
   const department = humanDestination ? await admin.from("departments").select("name").eq("organization_id", org.orgId).eq("id", humanDestination).eq("is_active", true).maybeSingle() : null;
   const agentId = loaded.humanRouting ? null : agenteDo(verdict);
@@ -184,6 +185,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
       ...(loaded.humanRouting ? {
         destination_type: "department",
         department_id: humanDestination,
+        destination_intent_name: humanMatch?.intentName ?? null,
         department_name: department?.data?.name ?? null,
         destination_available: Boolean(department?.data),
       } : {}),

@@ -10,7 +10,7 @@ O teste de agente registra uma proposta sem transferir clientes. O contador de p
 
 ## Configuração e validação
 
-As regras de assunto são instruções do agente, e os setores/métodos são configurados em Equipe > Departamentos. O teste Comercial/Financeiro precisa conferir o campo `departamento` na proposta e o destino real após instalar app, worker e migration. Publicar o agente exige vincular o número e é uma ação posterior ao teste.
+Na passagem feita por agente conversacional, as regras de assunto são instruções do agente. Para triagem exclusiva, o roteador agora oferece o modo **Setores humanos**, configurado por intenção e setor de reserva, sem agente publicado. Os setores/métodos continuam em Equipe > Departamentos. O caminho está descrito em `docs/architecture/roteador-setores-humanos.md`; salvar inativo permite testar antes de ativar no WhatsApp. O teste Comercial/Financeiro precisa conferir o campo `departamento` na proposta e o destino real após instalar app, worker e migration. Publicar o agente exige vincular o número e é uma ação posterior ao teste.
 
 ## Sistema Vivo
 

@@ -299,7 +299,7 @@ export function HumanRouterPanel({
                 <strong>{test.data.department_name ?? t("Setor indisponível")}</strong>
               </p>
               <p className="text-sm text-muted-foreground">
-                {test.data.intent_name ?? t("Destino de reserva")}
+                {test.data.destination_intent_name ?? t("Destino de reserva")}
               </p>
               {!test.data.destination_available && (
                 <p role="alert">
