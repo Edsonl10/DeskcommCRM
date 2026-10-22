@@ -29,4 +29,4 @@ Destino: núcleo. É uma ampliação da consulta de conversas existente, útil c
 
 Unidade: validação dos dois contratos, serialização de todas as escolhas, predicados e limites de período, edição em rascunho e limpeza sem perda de aba/busca. Regressão: filtros/contagens/etiquetas/grupos/i18n. Spec `tests/e2e/inbox-filtros-avancados.spec.ts`: organização e usuários sintéticos, cinco conversas contrastantes, combinação pela tela, duas linhas/contador 2, limpeza/contador 5, fechamento sem aplicar, entradas inválidas e janela em 390 × 844. Capturas geradas pelo CI em `evidence/inbox-filtros-avancados/`.
 
-O ambiente local sem Docker não prova banco nem tela real; essas medições dependem da execução da spec no CI antes da implantação.
+A fonte final `50b342f` passou nos cinco checks, incluindo banco PG17 e seis partes E2E. O novo cenário do funil passou em 5,6 s. Integração `605fde4`, com árvore idêntica à fonte validada, instalada por digests após backup e conferida na tela. Recibo e capturas em `evidence/inbox-filtros-avancados/`. O ambiente local sem Docker não foi usado como prova de banco ou tela real.
