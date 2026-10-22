@@ -134,6 +134,16 @@ describe("triagem da IA encaminha ao setor sem tomar o aceite humano", () => {
       ).toBe(1);
     },
   );
+  it("repetição da passagem preserva quem o rodízio já escolheu", async () => {
+    await q("update departments set name='Financeiro' where id=$1", [otherDepartment]);
+    await q("insert into department_members(organization_id,department_id,user_id) values($1,$2,$3)", [org,otherDepartment,ana]);
+    const a = await conversation(department);
+    await passar(a.id,a.contact,"Financeiro");
+    await q("select fn_conversation_assign($1,$2,$3,'routing',null,true)", [org,a.id,ana]);
+    await passar(a.id,a.contact,"Financeiro");
+    expect((await q("select assigned_to_user_id from conversations where id=$1",[a.id])).rows[0].assigned_to_user_id).toBe(ana);
+    expect((await q("select count(*)::int n from conversation_assignment_events where conversation_id=$1 and reason='transfer'",[a.id])).rows[0].n).toBe(1);
+  });
   it("outro tenant, contato trocado, setor inativo e nome inexistente não alteram conversa", async () => {
     const a = await conversation(department);
     const antes = (await q("select row_to_json(c) estado from conversations c where id=$1", [a.id]))

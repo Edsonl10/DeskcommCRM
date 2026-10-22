@@ -24,7 +24,7 @@ begin
   if v_count <> 1 then
     raise exception 'department_not_found_or_ambiguous' using errcode='PT422';
   end if;
-  if v_conv.assigned_department_id=v_department and v_conv.assigned_to_user_id is null
+  if v_conv.assigned_department_id=v_department
      and v_conv.bot_silenced_until='infinity'::timestamptz and v_conv.last_handoff_at is not null then
     return v_department;
   end if;
