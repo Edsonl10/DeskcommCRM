@@ -1,4 +1,5 @@
 "use client";
+import { serializarFiltrosAvancados, type FiltrosAvancados } from "@/lib/inbox/filtros-avancados";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import {
@@ -30,7 +31,7 @@ export interface ConversationCounts {
 }
 
 /** Os filtros auxiliares ligados na barra, que a contagem tem de aplicar junto. */
-export interface FiltrosDaContagem {
+export interface FiltrosDaContagem extends FiltrosAvancados {
   search?: string;
   is_group?: boolean;
   unread?: boolean;
@@ -68,6 +69,7 @@ export function useConversationCounts(
   if (filtros.search) qs.set("search", filtros.search);
   if (filtros.is_group) qs.set("is_group", "true");
   if (filtros.channel_session_id) qs.set("channel_session_id", filtros.channel_session_id);
+  serializarFiltrosAvancados(qs, filtros);
   const sufixo = qs.toString();
 
   return useQuery({

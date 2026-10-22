@@ -1,3 +1,4 @@
+import { camposDosFiltrosAvancados, periodoValido } from "@/lib/inbox/filtros-avancados";
 /**
  * Schemas Zod do EPIC-03 Inbox + Messaging.
  *
@@ -240,6 +241,7 @@ export const CONVERSATION_TERMINAL_STATUSES = ["closed", "archived"] as const;
 export const CONVERSATION_QUEUE_STATUSES = ["open", "pending"] as const;
 
 export const listConversationsQuerySchema = z.object({
+  ...camposDosFiltrosAvancados,
   /**
    * Um status, ou vários separados por vírgula (`?status=open,pending`).
    *
@@ -426,7 +428,7 @@ export const listConversationsQuerySchema = z.object({
   contact_id: z.string().uuid().optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-});
+}).refine(periodoValido, { message: "Período inválido.", path: ["last_message_before"] });
 
 export type ListConversationsQuery = z.infer<typeof listConversationsQuerySchema>;
 

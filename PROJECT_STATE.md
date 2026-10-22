@@ -1,5 +1,15 @@
 # PROJECT_STATE
 
+## Em implementação — filtros avançados do Inbox (22/10/2026)
+- Pedido e implantação autorizados nesta sessão: reduzir campo de tags e colocar funil ao lado, com filtros das referências.
+- Tags até 240 px; janela com não lidas, grupos, instância, etiquetas E/OU, período da última mensagem, departamentos e atendentes com múltipla seleção/busca/chips. Rascunho até Salvar; Limpar preserva aba/busca.
+- Contrato aditivo em lista e counts: IDs repetidos/UUIDs, datas ISO, validação comum e WHERE antes da paginação; escopo/RLS preservados. Sem schema/migration/dependência nova.
+- Typecheck completo e lint sem erros aprovados (avisos existentes); 108 casos relacionados e 270 casos finais de filtros/idioma/mapas/matriz aprovados. Suíte ampla ainda em execução. Spec sintética incluída na matriz E2E com prova desktop/celular. Docker local indisponível; banco/prova visual dependem do CI.
+- Usuário autorizou explicitamente publicar o código desta melhoria no GitHub público `Edsonl10/DeskcommCRM` e implantar após validação. Terminal local sem autenticação GitHub; publicação pela conexão GitHub autenticada. Nenhuma alteração desta melhoria em produção até este registro.
+- Console Hostinger acessível e autenticado: app/worker/scheduler reais ainda em `fa722b49e2faceaebe7b13b6c93f61a7e2f537d6`, checkout no mesmo SHA e somente Caddyfile alterado entre rastreados. Há backups Caddy não rastreados: preservar todos. Script coordenado anterior está em `/opt/backups/crm-cliente-painel-20261021-201752/deploy-coordenado.py` (9.061 bytes); leitura/revisão ainda incompleta. A triagem #30 foi integrada depois da versão instalada e exige avaliar migration 9007/compatibilidade antes de instalar a nova main.
+- Controle negativo em worktree própria: retirar o predicado de departamento causou exatamente uma falha em cinco; restaurado, 5/5 aprovados. Branch local `feat/inbox-filtros-avancados`, fonte inicial `3b2899665441e2a40d283abfe2a67dbfc8673c78`; sem publicação remota.
+- Contrato e mapa em `docs/features/inbox-filtros-avancados.md` e `docs/architecture/inbox-filtros-avancados.architecture.json`.
+
 ## Em preparação — triagem Comercial/Financeiro (22/10/2026)
 - Agente `Triagem — Comercial e Financeiro` salvo em rascunho, GPT-5.4 Mini e credencial da instalação; não publicado. Financeiro recebe assuntos financeiros; demais assuntos, Comercial.
 - Diagnóstico confirmado: a ferramenta MCP de atribuição só aceita usuário; a passagem nativa não tinha destino por setor. Contador `steps_count=0` do teste não prova ausência de ferramentas: o registro não é preenchido pelo preview.

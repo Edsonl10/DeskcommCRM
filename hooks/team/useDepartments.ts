@@ -12,7 +12,7 @@ export interface Department {
   created_at: string; updated_at: string; department_members: DepartmentMember[];
 }
 const KEY = ["team", "departments"] as const;
-export function useDepartments() { return useQuery({ queryKey: KEY, queryFn: () => apiClient.get<{ data: Department[] }>("/api/v1/departments") }); }
+export function useDepartments(opts?: { enabled?: boolean }) { return useQuery({ enabled: opts?.enabled ?? true, queryKey: KEY, queryFn: () => apiClient.get<{ data: Department[] }>("/api/v1/departments") }); }
 export function useCreateDepartment() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (input: DepartmentInput) => apiClient.post("/api/v1/departments", input), onSuccess: () => { toast.success("Departamento criado."); qc.invalidateQueries({ queryKey: KEY }); }, onError: showApiError });
