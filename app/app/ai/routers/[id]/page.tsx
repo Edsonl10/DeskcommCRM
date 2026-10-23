@@ -29,7 +29,7 @@ export default async function RouterEditorPage({ params }: { params: Promise<{ i
 
   const supabase = await createClient();
 
-  const [{ data: routerRow }, { data: memberRows }, { data: agentRows }, channelSessions] =
+  const [{ data: routerRow }, { data: memberRows }, { data: agentRows }, channelSessions, { data: departments }] =
     await Promise.all([
       supabase
         .from("ai_routers")
@@ -50,6 +50,7 @@ export default async function RouterEditorPage({ params }: { params: Promise<{ i
         .is("archived_at", null)
         .order("name", { ascending: true }),
       listSelectableChannels(supabase, activeOrg.orgId),
+      supabase.from("departments").select("id, name").eq("organization_id", activeOrg.orgId).eq("is_active", true).order("name", { ascending: true }),
     ]);
 
   if (!routerRow) notFound();
@@ -76,6 +77,7 @@ export default async function RouterEditorPage({ params }: { params: Promise<{ i
         agents={agents}
         channelSessions={channelSessions}
         classifierModels={classifierModels}
+        departments={departments ?? []}
       />
     </div>
   );

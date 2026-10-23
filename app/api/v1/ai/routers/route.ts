@@ -1,3 +1,4 @@
+import { humanRouterFromConfig } from "@/lib/ai/agents/human-router";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 /**
  * GET  /api/v1/ai/routers — lista routers da org (agent+), com member_count.
@@ -22,17 +23,17 @@ import { NEW_ROUTER_CONTEXT_MESSAGES, MAX_CLASSIFIER_CONTEXT_MESSAGES } from "@/
 
 export const dynamic = "force-dynamic";
 
-const ROUTER_LIST_COLUMNS = "id, name, channel_session_id, is_active, fallback_agent_id, updated_at";
+const ROUTER_LIST_COLUMNS = "id, name, channel_session_id, is_active, fallback_agent_id, updated_at, config";
 
 const createRouterSchema = z.object({
   name: z.string().min(1).max(120),
   channel_session_id: z.string().uuid(),
   fallback_agent_id: z.string().uuid().nullable().optional(),
   config: z.record(z.string(), z.unknown()).optional().refine((c) =>
-    c?.context_message_count === undefined ||
+    c?.human_routing == null && (c?.context_message_count === undefined ||
     (typeof c.context_message_count === "number" && Number.isInteger(c.context_message_count) &&
-      c.context_message_count >= 0 && c.context_message_count <= MAX_CLASSIFIER_CONTEXT_MESSAGES),
-    "context_message_count deve ser inteiro entre 0 e 16"),
+      c.context_message_count >= 0 && c.context_message_count <= MAX_CLASSIFIER_CONTEXT_MESSAGES)),
+    "Configure setores humanos pelo editor do roteador; context_message_count deve ser inteiro entre 0 e 16"),
 });
 
 // ---------------------------------------------------------------------------
@@ -69,7 +70,7 @@ export async function GET(_req: NextRequest): Promise<Response> {
     counts.set(m.router_id, (counts.get(m.router_id) ?? 0) + 1);
   }
 
-  const result = (routers ?? []).map((r) => ({ ...r, member_count: counts.get(r.id) ?? 0 }));
+  const result = (routers ?? []).map((r) => ({ ...r, member_count: humanRouterFromConfig(r.config).data?.routes.length ?? counts.get(r.id) ?? 0 }));
 
   return ok({ routers: result }, { requestId });
 }

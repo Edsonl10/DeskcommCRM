@@ -37,6 +37,33 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  // Encaminhamento direto do roteador para departamentos.
+  "Destino do roteador": { es: "Destino del enrutador" },
+  "Agentes de IA": { es: "Agentes de IA" },
+  "Setores humanos": { es: "Departamentos humanos" },
+  "Escolha um setor": { es: "Elige un departamento" },
+  "Encaminhar para setores humanos": { es: "Derivar a departamentos humanos" },
+  "Identifica o assunto e transfere para a fila do setor, usando a distribuição de atendentes já configurada. O roteador encerra a participação da IA após a transferência.": { es: "Identifica el tema y transfiere a la cola del departamento, usando la distribución de agentes ya configurada. El enrutador finaliza la participación de la IA después de la transferencia." },
+  "Salve inativo para testar antes de ativar no WhatsApp.": { es: "Guarda inactivo para probar antes de activar en WhatsApp." },
+  "Modelo classificador": { es: "Modelo clasificador" },
+  "Automático (padrão da organização)": { es: "Automático (predeterminado de la organización)" },
+  "Setor de reserva": { es: "Departamento de reserva" },
+  "Recebe os assuntos sem intenção correspondente, com pouca confiança ou quando o classificador falhar.": { es: "Recibe los temas sin intención correspondiente, con poca confianza o cuando falla el clasificador." },
+  "Cadastre ao menos um setor ativo para continuar.": { es: "Registra al menos un departamento activo para continuar." },
+  "Exemplos (um por linha)": { es: "Ejemplos (uno por línea)" },
+  "Setor de destino": { es: "Departamento de destino" },
+  "Adicionar intenção": { es: "Añadir intención" },
+  "Salvar roteador": { es: "Guardar enrutador" },
+  "Testar encaminhamento": { es: "Probar derivación" },
+  "Mostra o setor que receberia a mensagem, sem transferir conversas nem enviar mensagens ao WhatsApp.": { es: "Muestra el departamento que recibiría el mensaje, sin transferir conversaciones ni enviar mensajes a WhatsApp." },
+  "Mensagem de teste": { es: "Mensaje de prueba" },
+  "Salve as alterações antes de testar.": { es: "Guarda los cambios antes de probar." },
+  "Setor indisponível": { es: "Departamento no disponible" },
+  "Destino de reserva": { es: "Destino de reserva" },
+  "Confira se o setor ainda está ativo antes de ativar o roteador.": { es: "Comprueba que el departamento siga activo antes de activar el enrutador." },
+  "Escolha o número de WhatsApp que ele vai atender. Depois de criado, você define as intenções e para qual agente ou setor cada uma vai.": { es: "Elige el número de WhatsApp que atenderá. Después de crearlo, defines las intenciones y a qué agente o departamento va cada una." },
+  "Um roteador entende o que o cliente quer e entrega a conversa para o agente ou setor certo — plugado em um número de WhatsApp.": { es: "Un enrutador entiende lo que quiere el cliente y entrega la conversación al agente o departamento adecuado — conectado a un número de WhatsApp." },
+
   "Filtros de conversas": { es: "Filtros de conversaciones" },
   "Filtros": { es: "Filtros" },
   "Todas as instâncias": { es: "Todas las instancias" },

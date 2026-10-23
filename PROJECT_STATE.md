@@ -1,5 +1,10 @@
 # PROJECT_STATE
 
+## Roteador para setores — em validação (23/10/2026)
+- PR #33: modo Setores humanos no roteador existente. Ativar/desativar, editar intenções e trocar setores de destino/reserva pela tela; sem migration nova. Regra inicial aprovada: Financeiro para assuntos financeiros, Comercial como reserva. Manter desativado na homologação.
+- Fonte anterior 275c6c7: verify, invariants PG15/17, build e imagens aprovados; quatro partes E2E aprovadas, duas repetidas por quota externa de download antes da suíte. Integração com main 73c8f89 preserva filtros do Inbox e traduções dos dois recursos; exige nova rodada sobre a árvore integrada.
+- Instalação do modo humano e testes reais ainda pendentes. Agente antigo permanece em rascunho. Usar backup validado, publicação CI dos três serviços por digest e lock de publicação; preservar Caddyfile e demais serviços.
+
 ## Produção — filtros avançados do Inbox (22/10/2026)
 - PR #31 integrado e instalado em `605fde4b0a6c742f82a9c48677df0a8f3644882e`. Fonte validada `50b342f67f9ad7afa79ca0c3e84d9ea4a1c53ff3`; árvore integralmente idêntica `3eac37d6c64b218ce5ac2d6d4a81225af591c775`.
 - Tags até 240 px e funil ao lado. Janela com não lidas, grupos, instância, etiquetas E/OU, período da última mensagem, departamentos e atendentes com busca/seleção múltipla. Salvar aplica à lista/contagens; fechar descarta; Limpar preserva aba/busca. Contrato aditivo validado antes da paginação, mantendo organização/RLS. Sem migration ou dependência nova.

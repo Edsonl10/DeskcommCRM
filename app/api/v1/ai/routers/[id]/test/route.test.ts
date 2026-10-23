@@ -474,3 +474,24 @@ vi.mock("@/lib/impersonate/support", async (importOriginal) => ({
   requireSupportWrite: vi.fn(async () => null),
   authenticatedSessionId: vi.fn(async () => "f2200000-0000-4000-8000-000000000099"),
 }));
+
+describe('prévia de setor humano inativo', () => {
+  const dept = '77777777-7777-4777-8777-777777777777';
+  it.each([['Cobrança', .95], [null, .2]])('mostra o destino de %s sem transferir conversa', async (intentName, confidence) => {
+    mockAuthzOk();
+    const reads: string[] = [];
+    vi.mocked(createAdminClient).mockReturnValue({ from(table: string) {
+      reads.push(table);
+      if (!['ai_routers', 'departments'].includes(table)) throw new Error(`unexpected read ${table}`);
+      const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: table === 'ai_routers' ? { id: ROUTER_ID, channel_session_id: SESSION_ID, is_active: false } : { name: 'Equipe de cobrança' }, error: null }) }; return q;
+    } } as never);
+    vi.mocked(loadActiveRouter).mockResolvedValue({ id: ROUTER_ID, name: 'Triagem', humanRouting: true, fallbackDepartmentId: dept, fallbackAgentId: null, classifierModel: null, classifierProvider: null, sticky: false, minConfidence: .6, members: [{ agentId: `department:${dept}`, destinationDepartmentId: dept, intentName: 'Cobrança', intentDescription: 'boleto', examples: [] }] });
+    vi.mocked(classifyIntent).mockResolvedValue({ intentName, confidence });
+    const { POST } = await import('./route');
+    const res = await POST(req({ message: 'segunda via' }), ctx());
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toMatchObject({ destination_type: 'department', department_id: dept, department_name: 'Equipe de cobrança', destination_available: true, agent_id: null });
+    expect(loadActiveRouter).toHaveBeenCalledWith(expect.anything(), ORG_ID, SESSION_ID, { includeInactive: true, routerId: ROUTER_ID });
+    expect(reads).toEqual(['ai_routers', 'departments']);
+  });
+});

@@ -49,12 +49,15 @@ import { useFollowupFlows } from "@/hooks/followup/useFollowupFlows";
 import { usePipelines, usePipelineStages } from "@/hooks/webhooks/useWebhookSources";
 import { useT } from "@/hooks/i18n/useT";
 
+import { HumanRouterPanel } from "./_human-router";
+
 interface AgentLite {
   id: string;
   name: string;
 }
 
 interface Props {
+  departments?: AgentLite[];
   routerId: string;
   initialState: RouterDetailState;
   agents: AgentLite[];
@@ -118,6 +121,7 @@ export function RouterEditorClient({
   agents,
   channelSessions,
   classifierModels,
+  departments = [],
 }: Props) {
   const t = useT();
   const nextRouter = useNextRouter();
@@ -126,6 +130,7 @@ export function RouterEditorClient({
   const { data } = useRouterData(routerId, initialState);
   const router = data?.router ?? initialState.router;
   const members = data?.members ?? initialState.members;
+  const [humanMode, setHumanMode] = React.useState(initialState.router.config?.human_routing != null);
 
   const channel = channelSessions.find((c) => c.id === router.channel_session_id);
 
@@ -194,6 +199,7 @@ export function RouterEditorClient({
   const currentMembers = draftMembers.map(camposDoMembro);
 
   const dirty =
+    router.config?.human_routing != null ||
     name !== baseline.name ||
     isActive !== baseline.isActive ||
     fallbackAgentId !== baseline.fallbackAgentId ||
@@ -251,6 +257,7 @@ export function RouterEditorClient({
     }
     try {
       if (
+        router.config?.human_routing != null ||
         name !== baseline.name ||
         isActive !== baseline.isActive ||
         fallbackAgentId !== baseline.fallbackAgentId ||
@@ -260,7 +267,7 @@ export function RouterEditorClient({
         const [provider, modelId] = classifier.split("::");
         await updateRouter.mutateAsync({
           name,
-          is_active: isActive,
+          is_active: router.config?.human_routing != null ? false : isActive,
           fallback_agent_id: fallbackAgentId || null,
           // O PATCH mescla `config` com a existente, então mandar só estes dois
           // campos preserva sticky/min_confidence.
@@ -268,6 +275,7 @@ export function RouterEditorClient({
             ...(classifier === AUTO
               ? { classifier_model: null, classifier_provider: null }
               : { classifier_model: modelId, classifier_provider: provider }),
+            human_routing: null,
             context_message_count: contextMessageCount,
           },
         });
@@ -296,8 +304,15 @@ export function RouterEditorClient({
     testRouter.mutate(testMessage, { onError: showApiError });
   }
 
+  const modeChooser = <div className="flex flex-wrap items-center gap-2" aria-label={t("Destino do roteador")}>
+    <Button variant={!humanMode ? "default" : "outline"} onClick={() => { if (router.config?.human_routing != null) setIsActive(false); setHumanMode(false); }}>{t("Agentes de IA")}</Button>
+    <Button variant={humanMode ? "default" : "outline"} onClick={() => setHumanMode(true)}>{t("Setores humanos")}</Button>
+  </div>;
+  if (humanMode) return <div className="space-y-4">{modeChooser}<HumanRouterPanel key={router.id + JSON.stringify(router.config)} router={router} departments={departments} classifierModels={classifierModels} channelName={channel ? channel.display_name : t("Número removido")} /></div>;
+
   return (
     <div className="flex flex-col gap-4">
+      {modeChooser}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <Link

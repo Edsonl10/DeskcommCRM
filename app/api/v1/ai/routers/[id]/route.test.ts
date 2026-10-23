@@ -67,3 +67,42 @@ describe("GET /api/v1/ai/routers/:id", () => {
     expect(selects.ai_router_members).toContain("flow_pointer_id");
   });
 });
+
+describe('PATCH destino humano', () => {
+  const dept = '66666666-6666-4666-8666-666666666666';
+  const human = { fallback_department_id: dept, routes: [{ intent_name: 'Cobrança', intent_description: 'Boleto existente', examples: [], department_id: dept }] };
+  async function patch(config: unknown, found: string[]) {
+    vi.mocked(requireRole).mockResolvedValue({ ok: true, user: { id: 'u', idioma: 'pt-BR' }, org: { orgId: ORG_ID } } as never);
+    const filters: unknown[][] = []; const writes: unknown[] = [];
+    vi.mocked(createAdminClient).mockReturnValue({ from(table: string) {
+      const q = {
+        select: () => q,
+        eq: (...args: unknown[]) => { filters.push([table, ...args]); return q; },
+        maybeSingle: async () => ({ data: { id: ROUTER_ID, config: {}, fallback_agent_id: null }, error: null }),
+        in: async () => ({ data: found.map((id) => ({ id })), error: null }),
+        update: (value: unknown) => { writes.push(value); return q; },
+        then: (resolve: (value: unknown) => unknown) => Promise.resolve({ error: null }).then(resolve),
+      }; return q;
+    } } as never);
+    const { PATCH } = await import('./route');
+    const response = await PATCH(new NextRequest(`http://x/api/v1/ai/routers/${ROUTER_ID}`, { method: 'PATCH', body: JSON.stringify({ is_active: false, fallback_agent_id: null, config: { human_routing: config } }) }), { params: Promise.resolve({ id: ROUTER_ID }) });
+    return { response, filters, writes };
+  }
+  it('salva no roteador existente, conferindo os setores ativos da organização', async () => {
+    const { response, filters, writes } = await patch(human, [dept]);
+    expect(response.status).toBe(200);
+    expect(filters).toContainEqual(['departments', 'organization_id', ORG_ID]);
+    expect(filters).toContainEqual(['departments', 'is_active', true]);
+    expect(writes).toEqual([expect.objectContaining({ is_active: false, config: { human_routing: human } })]);
+  });
+  it('recusa setor de outra organização ou inativo sem atualizar o roteador', async () => {
+    const { response, writes } = await patch(human, []);
+    expect(response.status).toBe(422); expect(writes).toEqual([]);
+  });
+  it('recusa política inválida e intenções repetidas', async () => {
+    for (const config of [{}, { ...human, routes: [...human.routes, { ...human.routes[0], intent_name: ' cobrança ' }] }]) {
+      const { response, writes } = await patch(config, [dept]);
+      expect(response.status).toBe(422); expect(writes).toEqual([]);
+    }
+  });
+});

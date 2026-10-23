@@ -1,3 +1,4 @@
+import { humanRouterFromConfig } from "@/lib/ai/agents/human-router";
 import { redirect } from "next/navigation";
 
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
@@ -25,7 +26,7 @@ export default async function RoutersPage() {
   const [{ data: routerRows }, { data: memberRows }, channelSessions] = await Promise.all([
     supabase
       .from("ai_routers")
-      .select("id, name, channel_session_id, is_active, fallback_agent_id, updated_at")
+      .select("id, name, channel_session_id, is_active, fallback_agent_id, updated_at, config")
       .eq("organization_id", activeOrg.orgId)
       .order("created_at", { ascending: false }),
     supabase.from("ai_router_members").select("router_id").eq("organization_id", activeOrg.orgId),
@@ -39,7 +40,7 @@ export default async function RoutersPage() {
 
   const routers: RouterListItem[] = (routerRows ?? []).map((r) => ({
     ...r,
-    member_count: counts.get(r.id) ?? 0,
+    member_count: humanRouterFromConfig(r.config).data?.routes.length ?? counts.get(r.id) ?? 0,
   }));
 
   return (
@@ -48,7 +49,7 @@ export default async function RoutersPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{traduzir("Roteadores", idioma)}</h1>
         <p className="text-sm text-muted-foreground">
           {traduzir(
-            "Um roteador entende o que o cliente quer e entrega a conversa para o agente certo — plugado em um número de WhatsApp.",
+            "Um roteador entende o que o cliente quer e entrega a conversa para o agente ou setor certo — plugado em um número de WhatsApp.",
             idioma,
           )}
         </p>

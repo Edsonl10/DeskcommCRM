@@ -1,3 +1,6 @@
+import { haQuemAtendaASessao } from "@/lib/ai/agents/quem-atende-a-sessao";
+import { loadActiveRouter } from "@/lib/agent-engine/agent/router-config";
+import { handoffRouterDepartment } from "@/lib/agent-engine/agent/department-handoff";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Pool } from "pg";
@@ -134,6 +137,23 @@ describe("triagem da IA encaminha ao setor sem tomar o aceite humano", () => {
       ).toBe(1);
     },
   );
+  it("roteador humano abre o dreno sem agente publicado e transfere pelo handoff nativo", async () => {
+    const router = randomUUID();
+    await q("insert into ai_routers(id,organization_id,channel_session_id,name,is_active,config) values($1,$2,$3,'Triagem humana',true,$4)", [router, org, channel, JSON.stringify({ human_routing: { fallback_department_id: department, routes: [{ intent_name: 'Cobrança', intent_description: 'Boleto', examples: [], department_id: otherDepartment }] } })]);
+    try {
+      expect(await haQuemAtendaASessao(pool, org, channel)).toBe(true);
+      expect(await haQuemAtendaASessao(pool, randomUUID(), channel)).toBe(false);
+      const loaded = await loadActiveRouter(pool, org, channel);
+      expect(loaded?.members[0]?.destinationDepartmentId).toBe(otherDepartment);
+      const a = await conversation();
+      await handoffRouterDepartment(pool, { tenantId: org, leadId: a.contact, conversationId: a.id, departmentId: otherDepartment, intentName: 'Cobrança' }, { info: vi.fn(), warn: vi.fn(), error: vi.fn() });
+      const row = (await q("select c.force_human,v.assigned_department_id,v.status,v.bot_silenced_until::text silence from contacts c join conversations v on v.contact_id=c.id where v.id=$1", [a.id])).rows[0];
+      expect(row).toMatchObject({ force_human: true, assigned_department_id: otherDepartment, status: 'pending', silence: 'infinity' });
+      expect((await q("select origem from passagens_de_atendimento where conversation_id=$1", [a.id])).rows[0]?.origem).toBe('runtime_nativo');
+      await q("update ai_routers set is_active=false where id=$1", [router]);
+      expect(await haQuemAtendaASessao(pool, org, channel)).toBe(false);
+    } finally { await q("delete from ai_routers where id=$1", [router]); }
+  });
   it("repetição da passagem preserva quem o rodízio já escolheu", async () => {
     await q("update departments set name='Financeiro' where id=$1", [otherDepartment]);
     await q("insert into department_members(organization_id,department_id,user_id) values($1,$2,$3)", [org,otherDepartment,ana]);

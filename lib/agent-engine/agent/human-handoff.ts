@@ -478,6 +478,7 @@ export async function applyRequestHumanHandoff(
   ids: HandoffIds,
   opts: {
     conversationSummary: string;
+    origem?: OrigemDaPassagem;
     /** Ver `performHumanHandoff` — o desfecho do aviso vira linha no aviso da Central. */
     avisoAoLead?: DesfechoDoAviso;
     /**
@@ -555,7 +556,7 @@ export async function applyRequestHumanHandoff(
   await performHumanHandoff(db, ids, {
     reason: porQue ?? 'requested_human',
     conversationSummary: briefing.body,
-    passagem: { origem: 'ferramenta_do_modelo', motivoCodigo: 'requested_human', briefing },
+    passagem: { origem: opts.origem ?? 'ferramenta_do_modelo', motivoCodigo: 'requested_human', briefing },
     ...(opts.avisoAoLead !== undefined ? { avisoAoLead: opts.avisoAoLead } : {}),
     ...(derivacaoPendente !== null ? { derivacaoPendente } : {}),
     log: opts.log,

@@ -156,7 +156,7 @@ function CreateRouterDialog({
           <DialogTitle>{t("Novo roteador")}</DialogTitle>
           <DialogDescription>
             {t(
-              "Escolha o número de WhatsApp que ele vai atender. Depois de criado, você define as intenções e para qual agente cada uma vai.",
+              "Escolha o número de WhatsApp que ele vai atender. Depois de criado, você define as intenções e para qual agente ou setor cada uma vai.",
             )}
           </DialogDescription>
         </DialogHeader>
