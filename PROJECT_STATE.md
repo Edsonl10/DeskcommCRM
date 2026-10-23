@@ -1,9 +1,11 @@
 # PROJECT_STATE
 
-## Roteador para setores — em validação (23/10/2026)
-- PR #33: modo Setores humanos no roteador existente. Ativar/desativar, editar intenções e trocar setores de destino/reserva pela tela; sem migration nova. Regra inicial aprovada: Financeiro para assuntos financeiros, Comercial como reserva. Manter desativado na homologação.
-- Fonte anterior 275c6c7: verify, invariants PG15/17, build e imagens aprovados; quatro partes E2E aprovadas, duas repetidas por quota externa de download antes da suíte. Integração com main 73c8f89 preserva filtros do Inbox e traduções dos dois recursos; exige nova rodada sobre a árvore integrada.
-- Instalação do modo humano e testes reais ainda pendentes. Agente antigo permanece em rascunho. Usar backup validado, publicação CI dos três serviços por digest e lock de publicação; preservar Caddyfile e demais serviços.
+## Roteador para setores — instalado e desativado (23/10/2026)
+- PR #33 integrado e instalado em `9f8db02c7d5e0f40d71222cfb6a5452f23f3e6e7`, árvore `027a2fc64ab144c02b8bece7228a636c7dac993b` idêntica à fonte aprovada `16ea3dd`. Preserva os filtros do Inbox. Cinco checks aprovados: CI/PG15/PG17 39937253661, build 39937253671, imagens 39937253677 e seis partes E2E 39937253682.
+- Editor existente: modo Setores humanos, ativar/desativar, editar intenções e trocar setores de destino/reserva. Teste isolado comprova troca dos dois setores, ativação, recarga, conferência no banco e desativação; passou em 14,3 s, parte 5 com 71 casos. Sem migration nova. Destino: núcleo opcional.
+- VPS: app/worker/scheduler instalados pelos digests da publicação 39940255513, saudáveis, versão 9f8db02; domínio / 200 e /app 307. Backup validado em `/opt/backups/crm-roteador-20261023-104815`, script/recibo privados preservados. Caddyfile, demais configurações e serviços preservados; lock de publicação usado.
+- Configuração real salva e recarregada em Atendimento Inicial: **DESATIVADO**, intenção Financeiro → Financeiro, reserva Comercial, GPT-5.4 Mini e chave existente. Sete exemplos pela tela aprovaram os destinos esperados, incluindo pedido explícito ao Financeiro, saudação, pedido genérico de atendente e negação. Nenhum cliente transferido ou WhatsApp enviado; ativação em tráfego real é posterior. Agente anterior permanece em rascunho.
+- Evidências e digests: `evidence/roteador-setores-humanos/README.md` e `resultado.json`. Prova nativa capacidade → roteador → handoff no banco fresco dos dois PG do CI. Limite: classificação pela tela não prova atendimento WhatsApp ponta a ponta. Local: typecheck/lint e 140 casos pertinentes aprovados; controle negativo anterior 2 de 3 falhas previstas ao retirar a transferência.
 
 ## Produção — filtros avançados do Inbox (22/10/2026)
 - PR #31 integrado e instalado em `605fde4b0a6c742f82a9c48677df0a8f3644882e`. Fonte validada `50b342f67f9ad7afa79ca0c3e84d9ea4a1c53ff3`; árvore integralmente idêntica `3eac37d6c64b218ce5ac2d6d4a81225af591c775`.

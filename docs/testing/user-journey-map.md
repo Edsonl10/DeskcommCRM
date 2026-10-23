@@ -3424,3 +3424,7 @@ Cobertura adicionada em `tests/e2e/inbox-reabrir-e-contato-ocupado.spec.ts`: por
 # Filtros avançados do Inbox
 
 - `tests/e2e/inbox-filtros-avancados.spec.ts`: funil ao lado da tag compacta; múltiplos departamentos/atendentes com instância/etiqueta/não lidas/período; comparação da lista e contagem; limpeza/fechamento e janela de 390 × 844. Usa organização e dados sintéticos próprios. Capturas geradas na pasta `evidence/inbox-filtros-avancados/`. Execução pendente na preparação inicial.
+
+## Roteador para setores humanos — 23/10/2026
+
+Editor existente, modo Setores humanos: salva/recarrega e testa inativo, troca os setores de destino e reserva, ativa, confere persistência no banco e desativa. `tests/e2e/roteador-setores-humanos.spec.ts`: aprovado em 14,3 s no E2E 39937253682, fonte 16ea3dd. Captura sintética e sete classificações na instalação real, mantida inativa: `evidence/roteador-setores-humanos/README.md`. Nenhuma mensagem ou transferência real; handoff nativo provado pelos invariantes do banco fresco.

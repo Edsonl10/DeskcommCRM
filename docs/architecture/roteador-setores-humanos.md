@@ -36,4 +36,4 @@ flowchart TD
 
 Provas: resolvedor e loader unitários, operação nativa com invariantes de banco,
 `roteador-transfere-sem-conversar.test.ts`, API com isolamento de organização e
-`roteador-setores-humanos.spec.ts` para salvar/recarregar/testar inativo.
+`roteador-setores-humanos.spec.ts` para salvar/recarregar/testar inativo, trocar os dois setores e ativar/desativar com persistência conferida no banco. Evidências em `evidence/roteador-setores-humanos/README.md`.
