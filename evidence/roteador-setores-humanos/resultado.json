@@ -1,0 +1,89 @@
+{
+  "status": "installed",
+  "date": "2026-10-23",
+  "source": "16ea3dd9601ae091328b749ee37c51c7c785bb33",
+  "installed_commit": "9f8db02c7d5e0f40d71222cfb6a5452f23f3e6e7",
+  "tree": "027a2fc64ab144c02b8bece7228a636c7dac993b",
+  "checks": {
+    "ci": 39937253661,
+    "build": 39937253671,
+    "images": 39937253677,
+    "e2e": 39937253682,
+    "publication": 39940255513
+  },
+  "images": {
+    "app": "ghcr.io/edsonl10/deskcommcrm@sha256:dbc234e512a9a205faaedc296a361ca948bd392db44b1c4d87b7c9ca88b0eef5",
+    "worker": "ghcr.io/edsonl10/deskcomm-worker@sha256:3d20670e6f0fd7d7825f38fe94ea0f140d28f24d8ee761782eefb3780aac1ec8",
+    "scheduler": "ghcr.io/edsonl10/deskcomm-scheduler@sha256:6105b7f69c31ccafffd3efd972be42e08cb125e791df72e7f4efb34976c28ceb"
+  },
+  "health": {
+    "version": "9f8db02",
+    "status": "healthy",
+    "http": {
+      "/": 200,
+      "/app": 307
+    },
+    "other_services_preserved": true
+  },
+  "backup": {
+    "path": "/opt/backups/crm-roteador-20261023-104815",
+    "database_gzip_validated": true,
+    "waha_archive_validated": true,
+    "script_sha256": "151feca98ae287cfbb50fc9b9808887d2ca58e24f4cf1d0ac33cb08a34247940"
+  },
+  "configuration": {
+    "is_active": false,
+    "fallback": "Comercial",
+    "routes": [
+      {
+        "intent": "Financeiro",
+        "department": "Financeiro"
+      }
+    ],
+    "model": "GPT-5.4 Mini",
+    "existing_credential_reused": true
+  },
+  "screen_tests": [
+    {
+      "message": "Preciso da segunda via do boleto",
+      "expected": "Financeiro",
+      "actual": "Financeiro"
+    },
+    {
+      "message": "Quero falar com o financeiro",
+      "expected": "Financeiro",
+      "actual": "Financeiro"
+    },
+    {
+      "message": "Quero orçamento de uma placa de ACM",
+      "expected": "Comercial",
+      "actual": "Comercial"
+    },
+    {
+      "message": "Preciso agendar a instalação da fachada",
+      "expected": "Comercial",
+      "actual": "Comercial"
+    },
+    {
+      "message": "Bom dia",
+      "expected": "Comercial",
+      "actual": "Comercial"
+    },
+    {
+      "message": "Quero falar com um atendente",
+      "expected": "Comercial",
+      "actual": "Comercial"
+    },
+    {
+      "message": "Não é sobre boleto, quero orçamento de uma placa",
+      "expected": "Comercial",
+      "actual": "Comercial"
+    }
+  ],
+  "limits": {
+    "whatsapp_end_to_end": false,
+    "customer_messages_sent": false,
+    "real_customer_transfers": false,
+    "live_activation": false
+  }
+}
