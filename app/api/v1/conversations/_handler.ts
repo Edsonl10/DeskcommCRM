@@ -1,3 +1,4 @@
+import { aplicarFiltrosAvancados } from "@/lib/inbox/filtros-avancados";
 import { roleAtLeast } from "@/lib/auth/types";
 import { aplicarVisaoInbox } from "@/lib/inbox/visoes";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -238,6 +239,7 @@ export async function listConversationsHandler(
   if (q.exclude_finished) {
     query = query.not("status", "in", `(${CONVERSATION_TERMINAL_STATUSES.join(",")})`);
   }
+  query = aplicarFiltrosAvancados(query, q);
   if (q.channel_session_id) query = query.eq("channel_session_id", q.channel_session_id);
   // Canal desativado nunca entra na inbox (quarentena): exclui as conversas
   // dele aqui e nos badges, mantendo o acesso direto por id para auditoria e

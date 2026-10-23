@@ -10,7 +10,7 @@
  * Este teste RODA o script do passo (extraído do e2e.yml, sem cópia) com um
  * `supabase` e um `sleep` falsos no PATH, e mede o comportamento:
  *   - pull recusado duas vezes e depois aceito → verde, com `stop` entre elas
- *     e alternando ghcr.io ↔ public.ecr.aws (a espera sozinha não bastou:
+ *     e usando GHCR, ECR e o fallback nativo sem override (a espera não bastou:
  *     o ghcr.io recusou por 4,5 min seguidos no run 35910532729);
  *   - falha que não é de registro → vermelho NA HORA, sem esperar;
  *   - registro recusando sempre → vermelho depois da 4ª tentativa, com `::error::`.
@@ -80,7 +80,12 @@ process.exit(s.falha ? 1 : 0);
   // `bash -e`, o mesmo shell que o GitHub dá a um `run:` sem `shell:`.
   const r = spawnSync("bash", ["-e", "-c", script], {
     cwd: path.join(raiz, "repo"),
-    env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+    env: {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH}`,
+      // setup-cli exporta GHCR; o fallback precisa remover também este valor herdado.
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: "ghcr.io",
+    },
     encoding: "utf-8",
   });
   const chamadas = readFileSync(path.join(raiz, "chamadas.log"), "utf-8").trim().split("\n");
@@ -93,7 +98,7 @@ const LIMITE = {
 };
 
 describe("e2e.yml — supabase start resiste ao limite do registro", () => {
-  it("tenta de novo, alternando o registro, com stop e espera crescente, e fica verde quando o pull passa", () => {
+  it("usa o fallback nativo sem override herdado após GHCR e ECR, com stop e espera crescente", () => {
     const r = rodar([LIMITE, LIMITE, { texto: "Started supabase local development setup.", falha: false }]);
     expect(r.status, r.saida).toBe(0);
     expect(r.chamadas).toEqual([
@@ -103,7 +108,7 @@ describe("e2e.yml — supabase start resiste ao limite do registro", () => {
       "@public.ecr.aws start -x studio,postgres-meta",
       "stop --no-backup",
       "sleep 60",
-      "@ghcr.io start -x studio,postgres-meta",
+      "@undefined start -x studio,postgres-meta",
     ]);
     expect(r.saida).toContain("::warning");
   });
@@ -117,14 +122,30 @@ describe("e2e.yml — supabase start resiste ao limite do registro", () => {
     expect(r.saida).toContain("::error");
   });
 
+  it("falha de saúde no fallback também interrompe imediatamente", () => {
+    const r = rodar([
+      LIMITE,
+      LIMITE,
+      { texto: "supabase_db is not healthy", falha: true },
+    ]);
+    expect(r.status, r.saida).toBe(1);
+    expect(r.chamadas.filter((c) => c.startsWith("@"))).toEqual([
+      "@ghcr.io start -x studio,postgres-meta",
+      "@public.ecr.aws start -x studio,postgres-meta",
+      "@undefined start -x studio,postgres-meta",
+    ]);
+    expect(r.chamadas).not.toContain("sleep 120");
+    expect(r.saida).toContain("::error title=supabase start falhou (não é o registro)");
+  });
+
   it("registro recusando sempre: vermelho depois da 4ª tentativa, com ::error::", () => {
     const r = rodar([LIMITE]);
     expect(r.status, r.saida).toBe(1);
     expect(r.chamadas.filter((c) => c.startsWith("@")).map((c) => c.split(" ")[0])).toEqual([
       "@ghcr.io",
       "@public.ecr.aws",
-      "@ghcr.io",
-      "@public.ecr.aws",
+      "@undefined",
+      "@undefined",
     ]);
     expect(r.chamadas.filter((c) => c.startsWith("sleep"))).toEqual(["sleep 20", "sleep 60", "sleep 120"]);
     expect(r.saida).toContain("::error title=supabase start falhou 4 vezes");

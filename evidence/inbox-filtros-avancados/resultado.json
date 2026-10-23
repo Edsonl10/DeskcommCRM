@@ -1,0 +1,41 @@
+{
+  "status": "instalado",
+  "fonte_validada": "50b342f67f9ad7afa79ca0c3e84d9ea4a1c53ff3",
+  "integracao": "605fde4b0a6c742f82a9c48677df0a8f3644882e",
+  "arvore_comum": "3eac37d6c64b218ce5ac2d6d4a81225af591c775",
+  "checks": {
+    "verify": "success",
+    "invariants": "success",
+    "build-and-size": "success",
+    "e2e": "success",
+    "imagens-ok": "success"
+  },
+  "runs": {
+    "ci": 39835730362,
+    "perf": 39835730329,
+    "imagens_fonte": 39835730321,
+    "e2e": 39835730408,
+    "publicacao": 39843310500
+  },
+  "e2e": {
+    "funil_segundos": 5.6,
+    "parte_6_aprovados": 61,
+    "parte_3_repeticao_aprovados": 85,
+    "nota": "Primeira rodada da parte 3: PGRST116 ao consultar sessão de voz após QR e antes da confirmação HTTP. Código/teste não alterados; repetição integral aprovada. Cinco demais partes aprovadas na primeira rodada final."
+  },
+  "eficiencia": "Repetição E2E no push da integração cancelada: árvore integralmente idêntica à fonte validada. Downloads antecipados na VPS; gates da fonte preservados.",
+  "images": {
+    "worker": "ghcr.io/edsonl10/deskcomm-worker@sha256:ea4ac6bf3117da5f611ca24dcb997ad512f15e4069e9eaef6d91f3f9a028fbed",
+    "scheduler": "ghcr.io/edsonl10/deskcomm-scheduler@sha256:84471b4fb978749260341922e8da1038c4db3b7b2323da295d090fbf2afb4b58",
+    "app": "ghcr.io/edsonl10/deskcommcrm@sha256:97fc37db84611a04f116e08b794d88859b684e3b096d25e92bfe6b39ef8814fa"
+  },
+  "backup": "/opt/backups/crm-cliente-painel-20261022-195841",
+  "recibo": "/opt/backups/crm-cliente-painel-20261022-195841/recibo.json",
+  "recibo_status": "instalado",
+  "ui": {
+    "tags_largura_px": 240,
+    "funil_visivel": true,
+    "janela_abre_e_salva": true,
+    "captura": "evidence/inbox-filtros-avancados/publicado.jpg"
+  }
+}

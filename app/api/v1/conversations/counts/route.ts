@@ -1,3 +1,4 @@
+import { aplicarFiltrosAvancados, filtrosAvancadosSchema } from "@/lib/inbox/filtros-avancados";
 /**
  * GET /api/v1/conversations/counts — contagens por visão do inbox (G4-02).
  *
@@ -96,6 +97,13 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const org = activeOrg.orgId;
   const sp = req.nextUrl.searchParams;
+  const avancados = filtrosAvancadosSchema.safeParse({
+    department_ids: sp.getAll("department_ids"),
+    assigned_user_ids: sp.getAll("assigned_user_ids"),
+    last_message_from: sp.get("last_message_from") ?? undefined,
+    last_message_before: sp.get("last_message_before") ?? undefined,
+  });
+  if (!avancados.success) return fail("validation_failed", "Filtros inválidos.", 422, { requestId });
   const auxiliares = filtrosAuxiliaresDaContagem(sp);
   const soNaoLidas = contagemSoNaoLidas(sp);
   // ⚠️ O badge conta o MESMO que a lista mostra, então o marcador é lido com
@@ -123,6 +131,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .select("id", { count: "exact", head: true })
       .eq("organization_id", org);
     if (idsDesativados.length > 0) q = q.not("channel_session_id", "in", `(${idsDesativados.join(",")})`);
+    q = aplicarFiltrosAvancados(q, avancados.data);
     for (const [coluna, valor] of auxiliares) q = q.eq(coluna, valor);
     // O marcador entra pela régua da LISTA — a mesma função, não uma segunda.
     q = aplicarMarcadores(q, marcadores, modo);
