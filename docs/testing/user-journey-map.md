@@ -221,7 +221,7 @@ consertos estão em commits próprios desta branch — procure pelas palavras ab
 
 Cadastro → conversa: `inbox-reabrir-e-contato-ocupado.spec.ts` inclui criar um contato pela tela com a lista filtrada, ver a opção de iniciar, aceitar o atendimento com atendente sem visão global, abrir a Inbox pelo id salvo e confirmar que nenhuma mensagem foi enviada. PASS pela tela no run 39432584270 (fonte edc2ed65), em 5,5 s; capturas sintéticas conferidas em `evidence/conversa-apos-cadastro/`. `tests/unit/contato-criado-conversa.test.tsx` cobre também concluir, ausência de telefone, nova tentativa e cancelamento/escolha de canal.
 
-Inbox → histórico e ficha: `tests/e2e/inbox-responder-citando.spec.ts` verifica abertura de histórico extenso no fim, leitura de mensagens antigas e retorno ao fim ao abrir novamente. `tests/e2e/cliente-edicao-e-painel.spec.ts` verifica recolher a ficha, o espaço liberado, a memória após recarga e a reabertura. Cobertura adicionada; execução da prova de tela deve ser registrada após rodar no ambiente fresco.
+Inbox → histórico e ficha: `tests/e2e/inbox-responder-citando.spec.ts` verifica abertura de histórico extenso no fim, leitura de mensagens antigas e retorno ao fim ao abrir novamente. `tests/e2e/cliente-edicao-e-painel.spec.ts` verifica recolher a ficha, o espaço liberado, a memória após recarga e a reabertura. As duas provas passaram no ambiente fresco, no run 40681501625 (fonte `b5a017d`). A captura com dados sintéticos `evidence/inbox-rolagem-ficha/ficha-sintetica.png` mostra o controle da ficha no rodapé, como na barra esquerda.
 
 | # | Caso | Expectativa |
 |---|------|-------------|
