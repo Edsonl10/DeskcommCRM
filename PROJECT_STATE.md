@@ -1,5 +1,12 @@
 # PROJECT_STATE
 
+## Inbox — barra Kanban por departamento em implementação (28/10/2026)
+- Usuário aprovou modelo visual e autorizou implantação. Branch `codex/inbox-kanban-departamentos`, baseada em `4e80b6e`; produção ainda `20a6f01`.
+- Barra por departamento, filtros antes da paginação, contagens exatas (cards e conversas com não lidas), seletor de etiquetas sob a hora e configuração administrativa com CAS. Migration 9008 + baseline guardam/restauram etiquetas por conversa/atendente nas transferências; contato e negociações independentes.
+- Typecheck completo com 6 GB e lint completo sem erros (528 avisos), mais 146 casos direcionados em 18 arquivos aprovados. Guardas de canais/papéis e fragmentos aprovadas. Controle negativo: retirar o predicado de etiqueta causou exatamente 1 falha de 5; restaurado, os 5 passaram.
+- Docker ausente: tentativa local de invariantes recusada. Suíte ampla local encontrou limitações de IPC/rede; execução interrompida, sem aprovação integral. Build local foi encerrado por memória; banco, interface e build da fonte final ainda dependem do CI.
+- Próximo: revisão/controles negativos e verificações locais, PR/CI completo, imagens publicadas pelo GitHub, backup e instalação coordenada por digests, conferência na tela e recibo. Servidor acessível pelo Web console; preservar Caddyfile e demais serviços.
+
 ## Inbox — rolagem e ficha lateral instaladas (28/10/2026)
 - PR #36 integrado e instalado em `20a6f013764231b20a475a28c84ba8b96eae6988`, árvore `bf78c97fdf110bc305beb4da7fe0c4f64e21220c`, idêntica à fonte aprovada `b5a017d`. A abertura aguarda a montagem do histórico e acompanha alterações de tamanho apenas enquanto a pessoa está no fim. Mensagens novas mantêm rolagem suave e a pessoa pode interrompê-la; carregar antigas, buscar e navegar por citações preservam a leitura.
 - No desktop, a ficha pode ser recolhida e reaberta pelo botão no rodapé, no mesmo padrão da barra esquerda; a preferência é local ao navegador e a largura ajustada é preservada. Celular mantém a ficha deslizante existente. Sem alteração de banco ou dependências.

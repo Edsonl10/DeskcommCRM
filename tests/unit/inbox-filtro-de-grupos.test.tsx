@@ -1,3 +1,5 @@
+// A barra tem testes próprios; esta suíte exercita o contrato anterior do layout.
+vi.mock("@/components/inbox/BarraKanbanInbox", () => ({ BarraKanbanInbox: () => null }));
 /**
  * #2103 — o clique em "Grupos" manda `is_group=true`, e o VAZIO explica o que falta.
  *

@@ -7,6 +7,8 @@ import type { Conversation } from "@/lib/types/messaging";
 interface UpdateTagsArgs {
   conversation_id: string;
   tags: string[];
+  expected_assignee?: string | null;
+  expected_tags?: string[];
 }
 
 /** G3-05: aplica/remove tags de uma conversa via PATCH; refaz o inbox. */
@@ -16,7 +18,7 @@ export function useUpdateConversationTags() {
     mutationFn: async (args: UpdateTagsArgs) =>
       apiClient.patch<{ data: Conversation }>(
         `/api/v1/conversations/${args.conversation_id}`,
-        { tags: args.tags },
+        { tags: args.tags, expected_assignee: args.expected_assignee, expected_tags: args.expected_tags },
       ),
     onError: (err) => {
       qc.invalidateQueries({ queryKey: ["conversations"] });
@@ -24,6 +26,7 @@ export function useUpdateConversationTags() {
     },
     onSuccess: (_data, args) => {
       qc.invalidateQueries({ queryKey: ["conversations"] });
+      qc.invalidateQueries({ queryKey: ["conversation-counts"] });
       qc.invalidateQueries({ queryKey: ["conversation", args.conversation_id] });
       // Gravar tag é o que ALIMENTA o vocabulário (`staleTime` de 5 min): sem
       // reler, o marcador recém-criado não aparece no filtro do Inbox nem nas

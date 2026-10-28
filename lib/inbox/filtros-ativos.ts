@@ -22,7 +22,7 @@ export function filtrosAuxiliaresAtivos(filters: ConversationsFilters): string[]
   const ativos: string[] = [];
   if (filters.unread) ativos.push("Não lidos");
   if (filters.search) ativos.push("Busca");
-  if (filters.tag) ativos.push("Etiqueta");
+  if (filters.tag || filters.kanban_tag) ativos.push("Etiqueta");
   if (filters.channel_session_id) ativos.push("Canal");
   if (filters.is_group) ativos.push("Grupos");
   if (filters.department_ids?.length) ativos.push("Departamento");

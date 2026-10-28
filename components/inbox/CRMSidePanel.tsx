@@ -754,6 +754,7 @@ export function CRMSidePanel({ conversation }: Props) {
       {!readonly && <ConversationTagsEditor
         conversationId={conversation.id}
         orgId={conversation.organization_id}
+        assigneeId={conversation.assigned_to_user_id}
         tags={conversation.tags ?? []}
       />}
       </BlocoPainel>

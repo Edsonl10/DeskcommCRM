@@ -42,6 +42,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const url = new URL(req.url);
   const qsParsed = listConversationsQuerySchema.safeParse({
     view: url.searchParams.get("view") ?? undefined,
+    kanban_tag: url.searchParams.get("kanban_tag") ?? undefined,
     department_ids: url.searchParams.getAll("department_ids"),
     assigned_user_ids: url.searchParams.getAll("assigned_user_ids"),
     last_message_from: url.searchParams.get("last_message_from") ?? undefined,

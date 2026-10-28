@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "diagram_type": "fluxo",
+  "meta": {
+    "titulo": "Etiquetas por atendente no Inbox",
+    "resumo": "Departamento configura a barra; conversa e responsável determinam o conjunto ativo."
+  },
+  "lanes": [
+    {
+      "id": "tela",
+      "label": "Inbox"
+    },
+    {
+      "id": "api",
+      "label": "APIs"
+    },
+    {
+      "id": "banco",
+      "label": "Banco"
+    }
+  ],
+  "mainPath": ["config", "barra", "lista"],
+  "nodes": [
+    {
+      "id": "config",
+      "lane": "api",
+      "label": "Configuração por departamento",
+      "sublabel": "GET/PATCH settings/inbox-kanban; settings com CAS e audit"
+    },
+    {
+      "id": "barra",
+      "lane": "tela",
+      "label": "BarraKanbanInbox",
+      "sublabel": "Filtros da lista + duas contagens exatas"
+    },
+    {
+      "id": "menu",
+      "lane": "tela",
+      "label": "EtiquetasKanbanConversa",
+      "sublabel": "Seletor sob a hora; responsável e tags observados"
+    },
+    {
+      "id": "tags",
+      "lane": "api",
+      "label": "PATCH conversations/[id]",
+      "sublabel": "Guardas existentes + conflito de responsável/tags"
+    },
+    {
+      "id": "dados",
+      "lane": "banco",
+      "label": "conversations.tags",
+      "sublabel": "Conjunto ativo indexado; trigger guarda conjuntos por atendente"
+    },
+    {
+      "id": "lista",
+      "lane": "tela",
+      "label": "ConversationList e CRMSidePanel",
+      "sublabel": "Leitura do conjunto ativo; eventos invalidam contagens"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "config",
+      "to": "barra",
+      "label": "Etiquetas e ordem"
+    },
+    {
+      "id": "e2",
+      "from": "config",
+      "to": "menu",
+      "label": "Vocabulário disponível"
+    },
+    {
+      "id": "e3",
+      "from": "barra",
+      "to": "lista",
+      "label": "kanban_tag antes da paginação"
+    },
+    {
+      "id": "e4",
+      "from": "menu",
+      "to": "tags",
+      "label": "Concluir com estado observado"
+    },
+    {
+      "id": "e5",
+      "from": "tags",
+      "to": "dados",
+      "label": "Mutação auditada"
+    },
+    {
+      "id": "e6",
+      "from": "dados",
+      "to": "lista",
+      "label": "Leitura do conjunto atual"
+    },
+    {
+      "id": "e7",
+      "from": "dados",
+      "to": "barra",
+      "label": "Count exato e novas > 0"
+    },
+    {
+      "id": "e8",
+      "from": "tags",
+      "to": "menu",
+      "label": "409/erro preserva rascunho; sucesso fecha e recarrega"
+    }
+  ]
+}

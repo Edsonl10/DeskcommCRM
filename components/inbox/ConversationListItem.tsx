@@ -1,4 +1,5 @@
 "use client";
+import { EtiquetasKanbanConversa } from "./EtiquetasKanbanConversa";
 import { comandoDaVisaoInbox } from "@/lib/inbox/visoes";
 
 import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
@@ -224,6 +225,7 @@ export function ConversationListItem({
   const rotuloCanal = rotuloDoCanalDaConversa(canal, t);
 
   const temSelos =
+    conversation.tags?.length > 0 ||
     visibleTags.length > 0 ||
     (mostrarAtendente && comando.quem === "humano") ||
     (mostrarCanal && rotuloCanal != null) ||
@@ -231,12 +233,13 @@ export function ConversationListItem({
     Boolean(c?.is_anonymized);
 
   return (
+    <div className="relative">
     <button
       type="button"
       data-conversation-id={conversation.id}
       onClick={() => onSelect(conversation.id)}
       className={cn(
-        "group relative flex w-full items-start gap-3 border-b border-border/70 px-3 py-2.5 text-left transition-colors hover:bg-surface-elevated",
+        "group relative flex min-h-20 w-full items-start gap-3 border-b border-border/70 px-3 py-2.5 text-left transition-colors hover:bg-surface-elevated",
         "focus-visible:outline-hidden focus-visible:bg-surface-elevated",
         isSelected && "bg-conversation-selected hover:bg-conversation-selected",
       )}
@@ -328,7 +331,7 @@ export function ConversationListItem({
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <p
             className={cn(
-              "min-w-0 truncate text-[13px]",
+              "min-w-0 truncate pr-7 text-[13px]",
               unread > 0 ? "text-text" : "text-text-muted",
             )}
           >
@@ -344,6 +347,7 @@ export function ConversationListItem({
           )}
         </div>
 
+        {(conversation.tags ?? []).length > 0 && <div className="mt-1.5 flex flex-wrap gap-1 pr-7">{conversation.tags.slice(0, 3).map((tag) => <ChipDeEtiqueta key={tag} tag={tag} className="h-4 max-w-full truncate px-1.5 text-[10px]" />)}{conversation.tags.length > 3 && <span className="text-[10px] text-text-muted">+{conversation.tags.length - 3}</span>}</div>}
         {temSelos && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
             {visibleTags.map((t) => (
@@ -383,5 +387,7 @@ export function ConversationListItem({
         )}
       </div>
     </button>
+    <div className="absolute right-2 top-7"><EtiquetasKanbanConversa conversa={conversation} /></div>
+    </div>
   );
 }

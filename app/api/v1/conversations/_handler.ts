@@ -1,3 +1,4 @@
+import { aplicarEtiquetaKanban } from "@/lib/inbox/kanban";
 import { aplicarFiltrosAvancados } from "@/lib/inbox/filtros-avancados";
 import { roleAtLeast } from "@/lib/auth/types";
 import { aplicarVisaoInbox } from "@/lib/inbox/visoes";
@@ -292,6 +293,7 @@ export async function listConversationsHandler(
   // aqui com a lista inteira faria o TypeScript aceitar e o filtro casar o
   // ARRAY como se fosse um marcador só — lista vazia, sem erro.
   if (q.tag) query = aplicarMarcadores(query, q.tag, q.modo);
+  query = aplicarEtiquetaKanban(query, q.kanban_tag);
 
   // No BANCO, e não em memória: filtrar depois de paginar devolveria páginas curtas —
   // e, quando a página inteira estivesse lida, uma lista vazia que a tela apresentava
@@ -417,6 +419,16 @@ export async function patchConversationHandler(
   input: PatchConversationInput,
 ): Promise<Conversation> {
   const update: Record<string, unknown> = {};
+  let tagsObservedAt: string | undefined;
+  if (input.tags !== undefined && (input.expected_assignee !== undefined || input.expected_tags !== undefined)) {
+    const atual = await getConversationHandler(supabase, ctx, conversationId);
+    if ((input.expected_assignee !== undefined && atual.assigned_to_user_id !== input.expected_assignee)
+      || (input.expected_tags && JSON.stringify([...atual.tags].sort()) !== JSON.stringify([...input.expected_tags].sort())))
+      throw new ApiError(409, "state_conflict", undefined, ctx.requestId, "O atendimento ou suas etiquetas mudaram. Atualize e tente novamente.");
+    if (ctx.actor.type === "user" && atual.assigned_to_user_id !== ctx.actor.id && !roleAtLeast(ctx.inbox_role, "manager"))
+      throw new ApiError(403, "forbidden", undefined, ctx.requestId, "Somente o responsável pode alterar estas etiquetas.");
+    tagsObservedAt = atual.updated_at;
+  }
 
   /**
    * O ATALHO `status='claimed'` PASSA PELA RPC, e não escreve o dono aqui.
@@ -473,10 +485,13 @@ export async function patchConversationHandler(
   const query = Object.keys(update).length > 0
     ? supabase.from("conversations").update(update)
     : supabase.from("conversations");
-  const { data, error } = await query.select(SELECT_COLS)
+  let escrita = query.select(SELECT_COLS)
     .eq("id", conversationId)
-    .eq("organization_id", ctx.organization_id)
-    .maybeSingle();
+    .eq("organization_id", ctx.organization_id);
+  if (tagsObservedAt) escrita = escrita.eq("updated_at", tagsObservedAt);
+  const { data, error } = await escrita.maybeSingle();
+  if (!data && !error && tagsObservedAt)
+    throw new ApiError(409, "state_conflict", undefined, ctx.requestId, "O atendimento mudou. Atualize e tente novamente.");
 
   if (error) {
     throw new ApiError(500, "internal_error", undefined, ctx.requestId, error.message);

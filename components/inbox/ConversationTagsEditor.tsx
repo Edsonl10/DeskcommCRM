@@ -15,10 +15,11 @@ interface Props {
   conversationId: string;
   orgId: string;
   tags: string[];
+  assigneeId?: string | null;
 }
 
 /** G3-05: aplica/remove tags de atendimento na conversa, com sugestão canônica. */
-export function ConversationTagsEditor({ conversationId, orgId, tags }: Props) {
+export function ConversationTagsEditor({ conversationId, orgId, tags, assigneeId }: Props) {
   const t = useT();
   const [draft, setDraft] = useState("");
   const mutation = useUpdateConversationTags();
@@ -26,7 +27,7 @@ export function ConversationTagsEditor({ conversationId, orgId, tags }: Props) {
 
   // Normalização espelha o Zod do PATCH (trim+lowercase); dedup no set.
   function apply(next: string[]) {
-    mutation.mutate({ conversation_id: conversationId, tags: next });
+    mutation.mutate({ conversation_id: conversationId, tags: next, expected_assignee: assigneeId, expected_tags: tags });
   }
 
   function add(raw: string) {
@@ -41,6 +42,8 @@ export function ConversationTagsEditor({ conversationId, orgId, tags }: Props) {
   }
 
   const suggestions = (vocabulary ?? []).filter((v) => !tags.includes(v)).slice(0, 8);
+
+  if (assigneeId === null) return <p className="text-xs text-text-muted">{t("Assuma a conversa para aplicar etiquetas.")}</p>;
 
   return (
     <section>

@@ -46,6 +46,7 @@ export function visibleInboxTabs(role: Role, permissions: unknown): InboxTab[] {
 }
 
 export interface InboxFiltersValue extends FiltrosAvancados {
+  kanban_tag?: string;
   tab: InboxTab;
   search: string;
   onlyUnread: boolean;
@@ -170,6 +171,7 @@ export function InboxFilters({ value, onChange }: Props) {
   // manda o atendente procurar trabalho que não existe — a regra já estava escrita
   // na rota; faltava alcançar os filtros ao lado da aba.
   const { data: counts } = useConversationCounts(activeOrg?.orgId ?? null, {
+    kanban_tag: value.kanban_tag,
     search: value.search,
     unread: value.onlyUnread,
     is_group: value.onlyGroups,

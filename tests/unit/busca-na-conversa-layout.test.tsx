@@ -1,3 +1,5 @@
+// A barra tem testes próprios; esta suíte exercita o contrato anterior do layout.
+vi.mock("@/components/inbox/BarraKanbanInbox", () => ({ BarraKanbanInbox: () => null }));
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { RefObject } from "react";

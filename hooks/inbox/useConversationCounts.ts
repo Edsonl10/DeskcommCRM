@@ -32,6 +32,7 @@ export interface ConversationCounts {
 
 /** Os filtros auxiliares ligados na barra, que a contagem tem de aplicar junto. */
 export interface FiltrosDaContagem extends FiltrosAvancados {
+  kanban_tag?: string;
   search?: string;
   is_group?: boolean;
   unread?: boolean;
@@ -58,6 +59,7 @@ export function useConversationCounts(
   filtros: FiltrosDaContagem = {},
 ) {
   const qs = new URLSearchParams();
+  if (filtros.kanban_tag) qs.set("kanban_tag", filtros.kanban_tag);
   if (filtros.unread) qs.set("unread", "true");
   for (const marcador of marcadoresEscolhidos(
     typeof filtros.tag === "string" ? [filtros.tag] : (filtros.tag ?? []),
