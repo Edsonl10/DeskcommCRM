@@ -226,6 +226,26 @@ test.afterAll(async () => {
 });
 
 test.describe("responder citando", () => {
+  test("abre o histórico extenso nas últimas mensagens e respeita quem sobe", async ({ page }) => {
+    await login(page, creds.users.agent!.email);
+    await abrirConversa(page, conversas[2]!);
+    const fio = page.getByTestId("chat-thread-scroller");
+    await expect(fio.getByText("Atendente citou o pedido", { exact: true })).toBeVisible();
+    const distanciaDoFim = () => fio.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight);
+    await expect.poll(distanciaDoFim).toBeLessThanOrEqual(2);
+
+    await fio.evaluate((el) => { el.scrollTop = 0; });
+    await fio.getByRole("button", { name: "Carregar mais antigas" }).click();
+    // O mesmo texto também aparece na citação; a identidade distingue a
+    // mensagem original da prévia que a referencia.
+    await expect(fio.locator(`[data-message-id="${originalAtendente}"]`)).toBeVisible();
+    expect(await distanciaDoFim()).toBeGreaterThan(120);
+
+    await abrirConversa(page, conversas[0]!);
+    await abrirConversa(page, conversas[2]!);
+    await expect.poll(distanciaDoFim).toBeLessThanOrEqual(2);
+  });
+
   test("citações do cliente e atendente abrem o histórico antigo e preservam autoria após transferência", async ({ page }) => {
     await login(page, creds.users.agent!.email);
     await abrirConversa(page, conversas[2]!);

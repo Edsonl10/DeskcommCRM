@@ -3,7 +3,7 @@
 import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 
 import type { Locale } from "date-fns";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import { format, isToday, isYesterday } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -103,6 +103,10 @@ function ChatThreadDaConversa({
   const claim = useClaimConversation();
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const conteudoRef = useRef<HTMLDivElement | null>(null);
+  // A última posição escolhida pelo atendente, medida antes de o fio crescer.
+  const acompanharFim = useRef(true);
+  const rolandoAutomaticamente = useRef(false);
   const paginasVistas = useRef(0);
   const pedidoDeCitacao = useRef(0);
   const navegacaoEmCurso = useRef(false);
@@ -160,10 +164,14 @@ function ChatThreadDaConversa({
   // Só o TERMO leva à ocorrência. Depender do conjunto de resultados faria cada
   // mensagem nova do tempo real arrancar quem lê de volta à primeira ocorrência.
   useEffect(() => {
-    if (termo)
-      scrollerRef.current
-        ?.querySelector('[data-search-match="true"]')
-        ?.scrollIntoView({ block: "nearest" });
+    if (termo) {
+      const resultado = scrollerRef.current?.querySelector('[data-search-match="true"]');
+      if (resultado) {
+        acompanharFim.current = false;
+        rolandoAutomaticamente.current = false;
+        resultado.scrollIntoView({ block: "nearest" });
+      }
+    }
   }, [termo]);
   const porId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
 
@@ -173,6 +181,8 @@ function ChatThreadDaConversa({
     if (!conversationId) return;
     const pedido = ++pedidoDeCitacao.current;
     navegacaoEmCurso.current = true;
+    acompanharFim.current = false;
+    rolandoAutomaticamente.current = false;
     const conversa = conversationId;
     setAvisoCitacao(null);
     setDestaque(null);
@@ -239,13 +249,10 @@ function ChatThreadDaConversa({
   );
 
   const paginas = q.data?.pages.length ?? 0;
+  const temItens = items.length > 0;
 
-  // Conversa nova: a contagem de páginas recomeça, senão a primeira carga da
-  // próxima conversa seria confundida com um "carregar mais antigas".
-  useEffect(() => {
-    paginasVistas.current = 0;
-    jaAncorou.current = false;
-  }, [conversationId]);
+  // A chave em ChatThread remonta este componente a cada conversa: contagem,
+  // âncora e escolha de acompanhar o fim recomeçam juntas.
 
   // Rola ao fim na primeira carga e quando chega mensagem/nota nova — mas NÃO
   // quando o crescimento veio do "Carregar mais antigas".
@@ -258,51 +265,52 @@ function ChatThreadDaConversa({
   //
   // A segunda guarda cobre o outro caso: se o usuário rolou para ler o
   // histórico, mensagem nova não deve arrancá-lo de onde estava.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const carregouAntigas = paginasVistas.current !== 0 && paginas > paginasVistas.current;
     paginasVistas.current = paginas;
-    if (carregouAntigas || navegacaoEmCurso.current) return;
-
-    /**
-     * A guarda de distância NÃO vale ENQUANTO A ABERTURA NÃO TERMINOU.
-     *
-     * A versão anterior chamava isso de "primeira carga" e media pelo contador
-     * de PÁGINAS da consulta de mensagens — e isso é um proxy, não a coisa. O
-     * fio não é só mensagens: ele intercala notas e **cartões de passagem**, que
-     * chegam de consultas próprias e podem resolver DEPOIS da primeira pintura.
-     *
-     * Medido em 2026-09-18, na prova em tela do cartão "Por que a IA passou para
-     * você", numa conversa SEM mensagens (que é o normal logo depois de uma
-     * passagem): a primeira pintura vem vazia e já consome a "primeira carga";
-     * quando o cartão chega, o efeito roda de novo, a guarda passa a valer, e o
-     * scroller está no topo com o conteúdo recém-nascido embaixo — distância
-     * bem maior que 120px. A guarda concluía "o usuário está lendo o histórico"
-     * de um usuário que não tinha rolado nada, e devolvia sem rolar.
-     *
-     * O efeito visível é o pior possível para esta tela: quem assume vê o
-     * cabeçalho do cartão e o motivo, e o convite **"Assumir e responder" fica
-     * abaixo da dobra do fio** — o gesto existe, está montado, é clicável por
-     * programa e ninguém o vê. Medido por ferramenta: botão em y=1008 numa
-     * janela de 720px.
-     *
-     * `jaAncorou` pergunta o que a guarda precisa saber de verdade — "esta
-     * conversa já chegou ao fim alguma vez, com conteúdo na tela?" —, em vez de
-     * inferir isso da paginação de UMA das três fontes do fio.
-     */
+    if (carregouAntigas) acompanharFim.current = false;
+    const scroller = scrollerRef.current;
+    // Notas/passagens podem chegar durante o esqueleto de mensagens. Não
+    // marcar uma âncora que ainda não existe na tela como concluída.
+    if (!scroller || !bottomRef.current || !items.length || q.isLoading) return;
+    if (carregouAntigas || navegacaoEmCurso.current || !acompanharFim.current) return;
     const primeiraAncoragem = !jaAncorou.current;
-    if (jaAncorou.current) {
-      const sc = scrollerRef.current;
-      if (sc && sc.scrollHeight - sc.scrollTop - sc.clientHeight > 120) return;
+    if (primeiraAncoragem) scroller.scrollTop = scroller.scrollHeight;
+    else rolandoAutomaticamente.current = true;
+    // A abertura é instantânea; mensagens posteriores mantêm a animação já
+    // existente. Sem esta API, a posição ainda chega ao fim diretamente.
+    if (bottomRef.current.scrollIntoView) {
+      bottomRef.current.scrollIntoView({
+        behavior: primeiraAncoragem ? "auto" : "smooth",
+        block: "end",
+      });
+    } else {
+      scroller.scrollTop = scroller.scrollHeight;
+      rolandoAutomaticamente.current = false;
     }
-    // Fio ainda vazio não ancora nada: marcar aqui faria a guarda valer a partir
-    // da pintura em branco, que é exatamente o defeito acima.
-    if (items.length > 0) jaAncorou.current = true;
+    jaAncorou.current = true;
+  }, [items.length, conversationId, paginas, q.isLoading]);
 
-    bottomRef.current?.scrollIntoView({
-      behavior: primeiraAncoragem ? "auto" : "smooth",
-      block: "end",
+  // Uma imagem ou cartão pode mudar de altura depois da primeira pintura.
+  // Enquanto a pessoa está no final, acompanha esse crescimento; ao subir para
+  // ler, não a leva de volta. O observador é desligado ao trocar de conversa.
+  useEffect(() => {
+    const conteudo = conteudoRef.current;
+    const scroller = scrollerRef.current;
+    if (!conteudo || !scroller || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (jaAncorou.current && acompanharFim.current && !navegacaoEmCurso.current) {
+        if (rolandoAutomaticamente.current && bottomRef.current?.scrollIntoView) {
+          bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+        } else {
+          scroller.scrollTop = scroller.scrollHeight;
+        }
+      }
     });
-  }, [items.length, conversationId, paginas]);
+    observer.observe(conteudo);
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, [conversationId, q.isLoading, temItens]);
 
   /**
    * O ESTADO DO CANAL DESTE THREAD, PUBLICADO SEMPRE — inclusive quando não há
@@ -405,92 +413,116 @@ function ChatThreadDaConversa({
           {t("Resultados nas mensagens carregadas")}: {resultados.size}
         </div>
       )}
-      <div ref={scrollerRef} className="min-w-0 flex-1 overflow-y-auto py-2">
-        {q.hasNextPage && (
-          <div className="flex justify-center py-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => q.fetchNextPage()}
-              disabled={q.isFetchingNextPage}
-            >
-              {q.isFetchingNextPage ? t("Carregando…") : t("Carregar mais antigas")}
-            </Button>
-          </div>
-        )}
-
-        {groups.map((g) => (
-          <div key={g.key} className="space-y-1">
-            <div className="sticky top-0 z-10 flex justify-center py-1">
-              <span className="rounded-full bg-background/80 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground backdrop-blur">
-                {dayLabel(g.date, t, localeDaData)}
-              </span>
+      <div
+        ref={scrollerRef}
+        data-testid="chat-thread-scroller"
+        className="min-w-0 flex-1 overflow-y-auto py-2"
+        onWheel={() => { rolandoAutomaticamente.current = false; }}
+        onTouchStart={() => { rolandoAutomaticamente.current = false; }}
+        onPointerDown={() => { rolandoAutomaticamente.current = false; }}
+        onKeyDown={() => { rolandoAutomaticamente.current = false; }}
+        onScroll={(evento) => {
+          if (!jaAncorou.current) return;
+          const el = evento.currentTarget;
+          const pertoDoFim = el.scrollHeight - el.scrollTop - el.clientHeight <= 120;
+          if (rolandoAutomaticamente.current) {
+            if (pertoDoFim) rolandoAutomaticamente.current = false;
+            return;
+          }
+          acompanharFim.current = pertoDoFim;
+        }}
+      >
+        <div ref={conteudoRef}>
+          {q.hasNextPage && (
+            <div className="flex justify-center py-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  acompanharFim.current = false;
+                rolandoAutomaticamente.current = false;
+                  void q.fetchNextPage();
+                }}
+                disabled={q.isFetchingNextPage}
+              >
+                {q.isFetchingNextPage ? t("Carregando…") : t("Carregar mais antigas")}
+              </Button>
             </div>
-            {g.items.map((item) =>
-              item.kind === "passagem" ? (
-                <PassagemCard
-                  key={`passagem-${item.data.id}`}
-                  cartao={item.data}
-                  contatoId={contatoId ?? null}
-                  assumindo={claim.isPending}
-                  // O MESMO gesto do cabeçalho — uma rota, um efeito. Uma
-                  // segunda maneira de assumir seria uma segunda chance de os
-                  // dois caminhos divergirem sobre o que "assumir" faz.
-                  onAssumir={() =>
-                    conversationId &&
-                    claim.mutate({
-                      conversation_id: conversationId,
-                      expected_assignee: dono?.userId ?? null,
-                    })
-                  }
-                />
-              ) : item.kind === "note" ? (
-                <NoteCard
-                  key={`note-${item.data.id}`}
-                  note={item.data}
-                  // Só o autor ou manager+ vê o excluir — o backend barra o resto (403),
-                  // então não mostramos um botão que daria erro.
-                  onDelete={
-                    item.data.created_by_user_id === currentUser.id || canManage
-                      ? () => deleteNote.mutate(item.data.id)
-                      : undefined
-                  }
-                />
-              ) : (
-                <MessageBubble
-                  key={`msg-${item.data.id}`}
-                  message={item.data}
-                  searchMatch={resultados.has(item.data.id)}
-                  destacada={destaque?.conversa === conversationId && destaque.mensagem === item.data.id}
-                  onIrParaMensagem={(id) => void irParaMensagem(id)}
-                  debugCitations={debugCitations}
-                  onResponder={onResponder}
-                  // Uma citação fora das páginas carregadas mantém o botão;
-                  // o clique pagina até alcançar a mensagem original.
-                  citada={porId.get(item.data.reply_to_message_id ?? "") ?? null}
-                  // Sem isto o balão diz "Você" em toda mensagem digitada no
-                  // CRM — inclusive nas do colega, porque `sent_via='user'` só
-                  // registra que um humano digitou, nunca qual.
-                  viewerUserId={currentUser.id}
-                  onEditar={canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
-                    ? (text) => editar.mutateAsync({ id: item.data.id, text }).then(() => undefined)
-                    : undefined}
-                  onApagar={canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
-                    ? () => apagar.mutateAsync(item.data.id).then(() => undefined)
-                    : undefined}
-                  onOcultar={canManage && item.data.direction === "inbound"
-                    ? () => ocultar.mutateAsync(item.data.id).then(() => undefined)
-                    : undefined}
-                  onRestaurar={canManage && item.data.direction === "inbound"
-                    ? () => restaurar.mutateAsync(item.data.id).then(() => undefined)
-                    : undefined}
-                />
-              ),
-            )}
-          </div>
-        ))}
+          )}
 
-        <div ref={bottomRef} />
+          {groups.map((g) => (
+            <div key={g.key} className="space-y-1">
+              <div className="sticky top-0 z-10 flex justify-center py-1">
+                <span className="rounded-full bg-background/80 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground backdrop-blur">
+                  {dayLabel(g.date, t, localeDaData)}
+                </span>
+              </div>
+              {g.items.map((item) =>
+                item.kind === "passagem" ? (
+                  <PassagemCard
+                    key={`passagem-${item.data.id}`}
+                    cartao={item.data}
+                    contatoId={contatoId ?? null}
+                    assumindo={claim.isPending}
+                    // O MESMO gesto do cabeçalho — uma rota, um efeito. Uma
+                    // segunda maneira de assumir seria uma segunda chance de os
+                    // dois caminhos divergirem sobre o que "assumir" faz.
+                    onAssumir={() =>
+                      conversationId &&
+                      claim.mutate({
+                        conversation_id: conversationId,
+                        expected_assignee: dono?.userId ?? null,
+                      })
+                    }
+                  />
+                ) : item.kind === "note" ? (
+                  <NoteCard
+                    key={`note-${item.data.id}`}
+                    note={item.data}
+                    // Só o autor ou manager+ vê o excluir — o backend barra o resto (403),
+                    // então não mostramos um botão que daria erro.
+                    onDelete={
+                      item.data.created_by_user_id === currentUser.id || canManage
+                        ? () => deleteNote.mutate(item.data.id)
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <MessageBubble
+                    key={`msg-${item.data.id}`}
+                    message={item.data}
+                    searchMatch={resultados.has(item.data.id)}
+                    destacada={destaque?.conversa === conversationId && destaque.mensagem === item.data.id}
+                    onIrParaMensagem={(id) => void irParaMensagem(id)}
+                    debugCitations={debugCitations}
+                    onResponder={onResponder}
+                    // Uma citação fora das páginas carregadas mantém o botão;
+                    // o clique pagina até alcançar a mensagem original.
+                    citada={porId.get(item.data.reply_to_message_id ?? "") ?? null}
+                    // Sem isto o balão diz "Você" em toda mensagem digitada no
+                    // CRM — inclusive nas do colega, porque `sent_via='user'` só
+                    // registra que um humano digitou, nunca qual.
+                    viewerUserId={currentUser.id}
+                    onEditar={canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
+                      ? (text) => editar.mutateAsync({ id: item.data.id, text }).then(() => undefined)
+                      : undefined}
+                    onApagar={canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
+                      ? () => apagar.mutateAsync(item.data.id).then(() => undefined)
+                      : undefined}
+                    onOcultar={canManage && item.data.direction === "inbound"
+                      ? () => ocultar.mutateAsync(item.data.id).then(() => undefined)
+                      : undefined}
+                    onRestaurar={canManage && item.data.direction === "inbound"
+                      ? () => restaurar.mutateAsync(item.data.id).then(() => undefined)
+                      : undefined}
+                  />
+                ),
+              )}
+            </div>
+          ))}
+
+          <div ref={bottomRef} />
+        </div>
       </div>
     </div>
   );

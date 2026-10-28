@@ -416,6 +416,40 @@ describe("no layout — duas divisorias arrastáveis (#2579)", () => {
     expect(grade().style.gridTemplateColumns).toBe("324px minmax(0,1fr) 296px");
   });
 
+  it("recolhe e reabre a ficha sem perder sua largura e lembra a escolha", async () => {
+    window.localStorage.setItem(CHAVE_XL, JSON.stringify({ lista: 280, ficha: 340 }));
+    const tela = montar();
+    await alca(1);
+    expect(screen.getByRole("button", { name: "Recolher ficha do contato" })).toHaveTextContent("Recolher");
+    fireEvent.click(screen.getByRole("button", { name: "Recolher ficha do contato" }));
+    const expandir = screen.getByRole("button", { name: "Expandir ficha do contato" });
+    expect(expandir).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById("ficha-do-contato-desktop")).toHaveAttribute("hidden");
+    expect(screen.getAllByRole("separator")).toHaveLength(1);
+    expect(grade().style.gridTemplateColumns).toBe("280px minmax(0,1fr) 40px");
+    expect(window.localStorage.getItem("inbox:ficha-recolhida")).toBe("sim");
+
+    tela.unmount();
+    montar();
+    const reabrir = screen.getByRole("button", { name: "Expandir ficha do contato" });
+    fireEvent.click(reabrir);
+    expect(screen.getByRole("button", { name: "Recolher ficha do contato" })).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById("ficha-do-contato-desktop")).not.toHaveAttribute("hidden");
+    expect((await alca(1)).getAttribute("aria-valuenow")).toBe("340");
+    expect(grade().style.gridTemplateColumns).toBe("280px minmax(0,1fr) 340px");
+  });
+
+  it("a alça recolhida também entra na conta do espaço mínimo da conversa", async () => {
+    larguraGrade = 740;
+    montar();
+    const lista = await alca(0);
+    fireEvent.click(screen.getByRole("button", { name: "Recolher ficha do contato" }));
+    for (let i = 0; i < 10; i++) fireEvent.keyDown(lista, { key: "ArrowRight" });
+    expect(lista).toHaveAttribute("aria-valuenow", "280");
+    expect(grade().style.gridTemplateColumns).toBe("280px minmax(0,1fr) 40px");
+    expect(740 - 280 - 40).toBe(CONVERSA_MINIMA);
+  });
+
   it("a faixa errada não rouba a largura da outra: xl salvo não mexe no md", async () => {
     window.localStorage.setItem(CHAVE_XL, JSON.stringify({ lista: 500, ficha: 400 }));
     janelaEm(1024); // faixa md: padrão da lista é 300, e sem ficha nenhuma
