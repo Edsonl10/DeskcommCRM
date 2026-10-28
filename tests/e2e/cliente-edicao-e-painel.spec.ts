@@ -89,6 +89,27 @@ test.afterAll(async () => {
   for (const pessoa of Object.values(pessoas)) await db.auth.admin.deleteUser(pessoa.id);
 });
 
+test("a ficha recolhe, libera espaço e pode ser reaberta após recarregar", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await login(page, "admin");
+  await page.goto(`/app/inbox?id=${conversa}&filter=all`);
+  const painel = page.getByTestId("painel-cliente");
+  await expect(painel).toBeVisible();
+  const fio = page.getByTestId("chat-thread");
+  const antes = await fio.boundingBox();
+  expect(antes).not.toBeNull();
+  await page.getByRole("button", { name: "Recolher ficha do contato" }).click();
+  await expect(painel).toBeHidden();
+  const depois = await fio.boundingBox();
+  expect(depois!.width - antes!.width).toBeGreaterThan(200);
+  await expect(page.getByRole("separator", { name: "Ajustar largura da ficha do contato" })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Expandir ficha do contato" })).toBeVisible();
+  await page.getByRole("button", { name: "Expandir ficha do contato" }).click();
+  await expect(painel).toBeVisible();
+  await expect(page.getByRole("separator", { name: "Ajustar largura da ficha do contato" })).toBeVisible();
+});
+
 test("nome e resumo editados nas telas persistem; administrador organiza para a equipe", async ({
   page,
   browser,

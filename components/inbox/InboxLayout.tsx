@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/AuthProvider";
@@ -29,7 +29,7 @@ import { InboxKeyboardShortcuts } from "./InboxKeyboardShortcuts";
 import { ShortcutsHelpDialog } from "./ShortcutsHelpDialog";
 import { OpenConversationProvider } from "@/hooks/notifications/OpenConversationContext";
 // ADR-05: ícone de feature sai do mapa canônico, nunca do pacote direto.
-import { CaretLeft, ChatCircle, IdentificationCard, MagnifyingGlass, X } from "@/lib/ui/icons";
+import { CaretDoubleLeft, CaretDoubleRight, CaretLeft, ChatCircle, IdentificationCard, MagnifyingGlass, X } from "@/lib/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -100,11 +100,24 @@ function armazenamentoDoNavegador(): Storage | null {
   }
 }
 
+function lerFichaRecolhida(): boolean {
+  try {
+    return armazenamentoDoNavegador()?.getItem("inbox:ficha-recolhida") === "sim";
+  } catch {
+    return false;
+  }
+}
+
+const naoAssinarFicha = () => () => {};
+const fichaAbertaNoServidor = () => false;
+
 interface InboxLayoutProps {
   initialSelectedId?: string | null;
   /** Rascunho sugerido por integração (issue #1611) — `null` é o caso comum. */
   rascunho?: AvisoDeRascunho | null;
 }
+
+const LARGURA_DA_FICHA_RECOLHIDA = 40;
 
 export function InboxLayout({ initialSelectedId = null, rascunho = null }: InboxLayoutProps = {}) {
   const t = useT();
@@ -170,6 +183,10 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
   const [helpOpen, setHelpOpen] = useState(false);
   /** A ficha do contato como painel deslizante — só existe abaixo do `xl`. */
   const [fichaAberta, setFichaAberta] = useState(false);
+  /** A ficha fixa do desktop é uma preferência deste navegador. */
+  const fichaSalva = useSyncExternalStore(naoAssinarFicha, lerFichaRecolhida, fichaAbertaNoServidor);
+  const [escolhaDaFicha, setEscolhaDaFicha] = useState<boolean | null>(null);
+  const fichaRecolhida = escolhaDaFicha ?? fichaSalva;
   /**
    * A busca dentro da conversa (#1793) pertence à CONVERSA em que foi aberta.
    * Guardar o id junto fecha a busca em qualquer troca — clique, atalho j/k,
@@ -440,11 +457,11 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
   const efetivas: LargurasDoInbox | null = larguras ?? (faixa ? largurasPadrao(faixa) : null);
 
   const estiloDaGrade: CSSProperties | undefined =
-    faixa && larguras
+    faixa && efetivas && (larguras || (faixa.temFicha && fichaRecolhida))
       ? {
           gridTemplateColumns: faixa.temFicha
-            ? `${larguras.lista}px minmax(0,1fr) ${larguras.ficha}px`
-            : `${larguras.lista}px minmax(0,1fr)`,
+            ? `${efetivas.lista}px minmax(0,1fr) ${fichaRecolhida ? LARGURA_DA_FICHA_RECOLHIDA : efetivas.ficha}px`
+            : `${efetivas.lista}px minmax(0,1fr)`,
         }
       : undefined;
 
@@ -465,7 +482,8 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
     evento.stopPropagation();
     evento.currentTarget.setPointerCapture?.(evento.pointerId);
     const base = largurasRef.current ?? efetivas;
-    const temFicha = faixa.temFicha;
+    const temFicha = faixa.temFicha && !fichaRecolhida;
+    const larguraDisponivel = retangulo.width - (faixa.temFicha && fichaRecolhida ? LARGURA_DA_FICHA_RECOLHIDA : 0);
     const faixaAtual = faixa;
 
     const aoMover = (movimento: PointerEvent) => {
@@ -474,7 +492,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
           ? { ...base, lista: movimento.clientX - retangulo.left }
           : { ...base, ficha: retangulo.right - movimento.clientX };
       aplicarLarguras(
-        resolverLarguras({ ...pedido, larguraContainer: retangulo.width, temFicha }),
+        resolverLarguras({ ...pedido, larguraContainer: larguraDisponivel, temFicha }),
       );
     };
     const aoSoltar = () => {
@@ -496,7 +514,11 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
     evento.preventDefault();
     const base = { ...(largurasRef.current ?? efetivas), [coluna]: proximo };
     aplicarLarguras(
-      resolverLarguras({ ...base, larguraContainer: larguraDaGrade(), temFicha: faixa.temFicha }),
+      resolverLarguras({
+        ...base,
+        larguraContainer: larguraDaGrade() - (faixa.temFicha && fichaRecolhida ? LARGURA_DA_FICHA_RECOLHIDA : 0),
+        temFicha: faixa.temFicha && !fichaRecolhida,
+      }),
     );
     gravarLarguras(armazenamentoDoNavegador(), faixa.id, largurasRef.current);
   };
@@ -507,6 +529,25 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
     gravarLarguras(armazenamentoDoNavegador(), faixa.id, null);
     aplicarLarguras(null);
   }, [faixa, aplicarLarguras]);
+
+  const alternarFicha = () => {
+    const proxima = !fichaRecolhida;
+    setEscolhaDaFicha(proxima);
+    try {
+      armazenamentoDoNavegador()?.setItem("inbox:ficha-recolhida", proxima ? "sim" : "nao");
+    } catch {
+      // Sem armazenamento, a escolha vale enquanto o Inbox estiver aberto.
+    }
+    if (!proxima && faixa?.temFicha && largurasRef.current) {
+      const ajustadas = resolverLarguras({
+        ...largurasRef.current,
+        larguraContainer: larguraDaGrade(),
+        temFicha: true,
+      });
+      aplicarLarguras(ajustadas);
+      gravarLarguras(armazenamentoDoNavegador(), faixa.id, ajustadas);
+    }
+  };
 
   // Altura da grade: a conta desconta TUDO que fica acima e abaixo dela.
   //   3.5rem            TopBar (`h-14`, em components/shell/TopBar.tsx)
@@ -775,7 +816,28 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
       </div>
 
       <div className="hidden h-full min-h-0 min-w-0 xl:block">
-        <CRMSidePanel conversation={selectedConversation} />
+        <div className="flex h-full min-h-0 flex-col">
+          <div id="ficha-do-contato-desktop" hidden={fichaRecolhida} className="min-h-0 flex-1">
+            <CRMSidePanel conversation={selectedConversation} />
+          </div>
+          <div className="mt-auto shrink-0 border-l border-t border-border p-1">
+            <button
+              type="button"
+              className={cn(
+                "flex w-full items-center justify-end gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                fichaRecolhida && "justify-center px-2",
+              )}
+              aria-label={t(fichaRecolhida ? "Expandir ficha do contato" : "Recolher ficha do contato")}
+              title={t(fichaRecolhida ? "Expandir ficha do contato" : "Recolher ficha do contato")}
+              aria-expanded={!fichaRecolhida}
+              aria-controls="ficha-do-contato-desktop"
+              onClick={alternarFicha}
+            >
+              {!fichaRecolhida && <span>{t("Recolher")}</span>}
+              {fichaRecolhida ? <CaretDoubleLeft size={14} aria-hidden /> : <CaretDoubleRight size={14} aria-hidden />}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/*
@@ -812,7 +874,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
               className="w-px bg-border transition-colors group-hover:bg-primary group-focus-visible:bg-primary"
             />
           </span>
-          {faixa?.temFicha && (
+          {faixa?.temFicha && !fichaRecolhida && (
             <span
               role="separator"
               aria-orientation="vertical"

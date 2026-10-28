@@ -1,5 +1,10 @@
 # PROJECT_STATE
 
+## Inbox — rolagem e ficha lateral em validação (28/10/2026)
+- Correção preparada em `fix/inbox-rolagem-e-painel`: a abertura aguarda a montagem do histórico e acompanha alterações de tamanho apenas enquanto a pessoa está no fim. Carregar antigas, buscar e navegar por citações preservam a leitura.
+- No desktop, a ficha pode ser recolhida e reaberta pelo botão no rodapé, no mesmo padrão da barra esquerda; a preferência é local ao navegador e a largura ajustada é preservada. Celular mantém a ficha deslizante existente. Sem alteração de banco ou dependências.
+- Testes direcionados: 43 casos aprovados, incluindo carga tardia, troca de conversa, conteúdo que cresce, leitura de antigas, recolher/reabrir e largura mínima. Typecheck e lint completo passaram; controles negativos provocaram as 4 falhas previstas na rolagem e 2 na ficha, depois restaurados e aprovados. A suíte ampla local foi interrompida após falhas de IPC/rede do ambiente; CI e provas de tela com banco fresco ainda precisam ser executados. Nenhuma alteração foi instalada em produção nesta etapa.
+
 ## Roteador para setores — instalado e desativado (23/10/2026)
 - PR #33 integrado e instalado em `9f8db02c7d5e0f40d71222cfb6a5452f23f3e6e7`, árvore `027a2fc64ab144c02b8bece7228a636c7dac993b` idêntica à fonte aprovada `16ea3dd`. Preserva os filtros do Inbox. Cinco checks aprovados: CI/PG15/PG17 39937253661, build 39937253671, imagens 39937253677 e seis partes E2E 39937253682.
 - Editor existente: modo Setores humanos, ativar/desativar, editar intenções e trocar setores de destino/reserva. Teste isolado comprova troca dos dois setores, ativação, recarga, conferência no banco e desativação; passou em 14,3 s, parte 5 com 71 casos. Sem migration nova. Destino: núcleo opcional.
