@@ -106,6 +106,7 @@ function ChatThreadDaConversa({
   const conteudoRef = useRef<HTMLDivElement | null>(null);
   // A última posição escolhida pelo atendente, medida antes de o fio crescer.
   const acompanharFim = useRef(true);
+  const rolandoAutomaticamente = useRef(false);
   const paginasVistas = useRef(0);
   const pedidoDeCitacao = useRef(0);
   const navegacaoEmCurso = useRef(false);
@@ -167,6 +168,7 @@ function ChatThreadDaConversa({
       const resultado = scrollerRef.current?.querySelector('[data-search-match="true"]');
       if (resultado) {
         acompanharFim.current = false;
+        rolandoAutomaticamente.current = false;
         resultado.scrollIntoView({ block: "nearest" });
       }
     }
@@ -180,6 +182,7 @@ function ChatThreadDaConversa({
     const pedido = ++pedidoDeCitacao.current;
     navegacaoEmCurso.current = true;
     acompanharFim.current = false;
+    rolandoAutomaticamente.current = false;
     const conversa = conversationId;
     setAvisoCitacao(null);
     setDestaque(null);
@@ -271,7 +274,20 @@ function ChatThreadDaConversa({
     // marcar uma âncora que ainda não existe na tela como concluída.
     if (!scroller || !bottomRef.current || !items.length || q.isLoading) return;
     if (carregouAntigas || navegacaoEmCurso.current || !acompanharFim.current) return;
-    scroller.scrollTop = scroller.scrollHeight;
+    const primeiraAncoragem = !jaAncorou.current;
+    if (primeiraAncoragem) scroller.scrollTop = scroller.scrollHeight;
+    else rolandoAutomaticamente.current = true;
+    // A abertura é instantânea; mensagens posteriores mantêm a animação já
+    // existente. Sem esta API, a posição ainda chega ao fim diretamente.
+    if (bottomRef.current.scrollIntoView) {
+      bottomRef.current.scrollIntoView({
+        behavior: primeiraAncoragem ? "auto" : "smooth",
+        block: "end",
+      });
+    } else {
+      scroller.scrollTop = scroller.scrollHeight;
+      rolandoAutomaticamente.current = false;
+    }
     jaAncorou.current = true;
   }, [items.length, conversationId, paginas, q.isLoading]);
 
@@ -284,7 +300,11 @@ function ChatThreadDaConversa({
     if (!conteudo || !scroller || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
       if (jaAncorou.current && acompanharFim.current && !navegacaoEmCurso.current) {
-        scroller.scrollTop = scroller.scrollHeight;
+        if (rolandoAutomaticamente.current && bottomRef.current?.scrollIntoView) {
+          bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+        } else {
+          scroller.scrollTop = scroller.scrollHeight;
+        }
       }
     });
     observer.observe(conteudo);
@@ -397,10 +417,19 @@ function ChatThreadDaConversa({
         ref={scrollerRef}
         data-testid="chat-thread-scroller"
         className="min-w-0 flex-1 overflow-y-auto py-2"
+        onWheel={() => { rolandoAutomaticamente.current = false; }}
+        onTouchStart={() => { rolandoAutomaticamente.current = false; }}
+        onPointerDown={() => { rolandoAutomaticamente.current = false; }}
+        onKeyDown={() => { rolandoAutomaticamente.current = false; }}
         onScroll={(evento) => {
           if (!jaAncorou.current) return;
           const el = evento.currentTarget;
-          acompanharFim.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 120;
+          const pertoDoFim = el.scrollHeight - el.scrollTop - el.clientHeight <= 120;
+          if (rolandoAutomaticamente.current) {
+            if (pertoDoFim) rolandoAutomaticamente.current = false;
+            return;
+          }
+          acompanharFim.current = pertoDoFim;
         }}
       >
         <div ref={conteudoRef}>
@@ -411,6 +440,7 @@ function ChatThreadDaConversa({
                 variant="ghost"
                 onClick={() => {
                   acompanharFim.current = false;
+                rolandoAutomaticamente.current = false;
                   void q.fetchNextPage();
                 }}
                 disabled={q.isFetchingNextPage}

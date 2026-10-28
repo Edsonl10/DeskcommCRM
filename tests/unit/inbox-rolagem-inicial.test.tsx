@@ -47,6 +47,7 @@ const mensagem = (id: string) => ({ id, body: id, sent_at: "2026-10-27T12:00:00.
 let dispararRedimensionamento = () => {};
 let alturaOriginal: PropertyDescriptor | undefined;
 let clienteOriginal: PropertyDescriptor | undefined;
+let scrollOriginal: typeof Element.prototype.scrollIntoView;
 
 beforeEach(() => {
   estado.carregando = false;
@@ -58,8 +59,13 @@ beforeEach(() => {
   dispararRedimensionamento = () => {};
   alturaOriginal = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
   clienteOriginal = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+  scrollOriginal = Element.prototype.scrollIntoView;
   Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get: () => estado.altura });
   Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 400 });
+  Element.prototype.scrollIntoView = function () {
+    const scroller = this.closest<HTMLElement>('[data-testid="chat-thread-scroller"]');
+    if (scroller) scroller.scrollTop = estado.altura;
+  };
   vi.stubGlobal("ResizeObserver", class {
     constructor(callback: ResizeObserverCallback) {
       dispararRedimensionamento = () => callback([], this as unknown as ResizeObserver);
@@ -74,6 +80,7 @@ afterEach(() => {
   else delete (HTMLElement.prototype as unknown as { scrollHeight?: number }).scrollHeight;
   if (clienteOriginal) Object.defineProperty(HTMLElement.prototype, "clientHeight", clienteOriginal);
   else delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight;
+  Element.prototype.scrollIntoView = scrollOriginal;
   vi.unstubAllGlobals();
 });
 
@@ -113,6 +120,32 @@ describe("rolagem da conversa", () => {
     estado.paginas = [{ data: [mensagem("anterior"), mensagem("nova")] }];
     tela.rerender(<ChatThread conversationId="a" />);
     expect(fio().scrollTop).toBe(1600);
+  });
+
+  it("a pessoa pode interromper a animação para ler mensagens anteriores", () => {
+    const tela = render(<ChatThread conversationId="a" />);
+    estado.altura = 1600;
+    estado.paginas = [{ data: [mensagem("anterior"), mensagem("nova")] }];
+    tela.rerender(<ChatThread conversationId="a" />);
+    fireEvent.wheel(fio());
+    fio().scrollTop = 200;
+    fireEvent.scroll(fio());
+    estado.altura = 2000;
+    estado.paginas = [{ data: [mensagem("anterior"), mensagem("nova"), mensagem("mais nova")] }];
+    tela.rerender(<ChatThread conversationId="a" />);
+    expect(fio().scrollTop).toBe(200);
+  });
+
+  it("não confunde uma posição intermediária da animação com leitura do histórico", () => {
+    const tela = render(<ChatThread conversationId="a" />);
+    estado.altura = 1600;
+    estado.paginas = [{ data: [mensagem("anterior"), mensagem("nova")] }];
+    tela.rerender(<ChatThread conversationId="a" />);
+    fio().scrollTop = 500;
+    fireEvent.scroll(fio());
+    estado.altura = 1900;
+    act(() => dispararRedimensionamento());
+    expect(fio().scrollTop).toBe(1900);
   });
 
   it("acompanha conteúdo que cresce depois, somente enquanto está no fim", () => {
