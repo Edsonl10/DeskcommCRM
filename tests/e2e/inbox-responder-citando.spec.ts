@@ -236,7 +236,9 @@ test.describe("responder citando", () => {
 
     await fio.evaluate((el) => { el.scrollTop = 0; });
     await fio.getByRole("button", { name: "Carregar mais antigas" }).click();
-    await expect(fio.getByText("Proposta original da Maria", { exact: true })).toBeVisible();
+    // O mesmo texto também aparece na citação; a identidade distingue a
+    // mensagem original da prévia que a referencia.
+    await expect(fio.locator(`[data-message-id="${originalAtendente}"]`)).toBeVisible();
     expect(await distanciaDoFim()).toBeGreaterThan(120);
 
     await abrirConversa(page, conversas[0]!);
