@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { roleAtLeast } from "@/lib/auth/types";
 import { useT } from "@/hooks/i18n/useT";
@@ -24,10 +25,13 @@ export function EtiquetasKanbanConversa({ conversa }: { conversa: ConversationWi
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`${t("Etiquetas Kanban")} — ${conversa.contacts?.display_name ?? conversa.contacts?.name ?? t("Conversa")}`}
-          onClick={(event) => { event.preventDefault(); setOpen(!open); }}
+          aria-label={`${t("Etiquetas Kanban")} — ${rotuloDoContato(conversa.contacts, t)}`}
+          onClick={(event) => {
+            event.preventDefault();
+            setOpen(!open);
+          }}
           title={t("Etiquetas da conversa")}
-          className="flex size-7 items-center justify-center rounded-md border border-transparent hover:border-border hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-accent"
+          className="flex size-11 items-center justify-center rounded-md border border-transparent hover:border-border hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-accent md:size-7"
         >
           <span aria-hidden className="flex h-4 items-start gap-0.5">
             <span className="h-4 w-1 rounded-xs bg-orange-500" />

@@ -130,9 +130,18 @@ test("barra filtra no banco, conta conversas e permite etiquetas e configuraçã
     page.locator("[data-conversation-id]").filter({ hasText: "Cliente Kanban 2" }),
   ).toHaveCount(0);
   // Abrir o ícone é independente de abrir a conversa/marcar como lida.
-  await page
-    .getByRole("button", { name: "Etiquetas Kanban — Cliente Kanban 0", exact: true })
-    .click();
+  const linha = page
+    .locator("[data-conversation-id]")
+    .filter({ hasText: "Cliente Kanban 0" })
+    .locator("..");
+  const icone = linha.getByRole("button", {
+    name: "Etiquetas Kanban — Cliente Kanban 0",
+    exact: true,
+  });
+  const novas = await linha.getByText("3", { exact: true }).boundingBox();
+  const areaIcone = await icone.boundingBox();
+  expect(novas!.x + novas!.width).toBeLessThanOrEqual(areaIcone!.x);
+  await icone.click();
   const menu = page.getByRole("dialog", { name: "Etiquetas da conversa", exact: true });
   await expect(menu.getByRole("checkbox", { name: "em andamento", exact: true })).toBeChecked();
   await expect(etapa).toHaveAccessibleName("em andamento: 2 cards, 1 conversas novas");

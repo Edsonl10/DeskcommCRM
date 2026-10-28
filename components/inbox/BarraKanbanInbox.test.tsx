@@ -50,7 +50,11 @@ describe("controles Kanban", () => {
       assigned_to_user_id: "a",
       assigned_to_user_name: "Ana",
       tags: ["em andamento"],
-      contacts: { ...conversaDeExemplo.conversation.contacts!, display_name: "Cliente sintético" },
+      contacts: {
+        ...conversaDeExemplo.conversation.contacts!,
+        name: "Cliente sintético",
+        display_name: "Nome do canal",
+      },
     };
     render(<EtiquetasKanbanConversa conversa={conversa} />);
     fireEvent.click(screen.getByRole("button", { name: "Etiquetas Kanban — Cliente sintético" }));
@@ -70,15 +74,17 @@ describe("controles Kanban", () => {
   it("uma conversa sem atendente oferece consulta e não grava etiquetas", () => {
     render(
       <EtiquetasKanbanConversa
-        conversa={
-          {
-            ...conversaDeExemplo.conversation,
-            id: "conv",
-            assigned_to_user_id: null,
-            tags: [],
-            contacts: { ...conversaDeExemplo.conversation.contacts!, display_name: "Fila" },
-          }
-        }
+        conversa={{
+          ...conversaDeExemplo.conversation,
+          id: "conv",
+          assigned_to_user_id: null,
+          tags: [],
+          contacts: {
+            ...conversaDeExemplo.conversation.contacts!,
+            name: "Fila",
+            display_name: "Fila",
+          },
+        }}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Etiquetas Kanban — Fila" }));

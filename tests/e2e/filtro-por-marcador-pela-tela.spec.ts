@@ -59,6 +59,9 @@ async function conversaDe(nome: string): Promise<{ contato: string; conversa: st
     contact_id: contato,
     channel_session_id: canal,
     status: "open",
+    // Etiquetas de atendimento pertencem ao responsável atual da conversa.
+    assigned_to_user_id: c.users.manager!.id,
+    human_accepted_at: new Date().toISOString(),
     tags: [],
   });
   await insere("messages", {

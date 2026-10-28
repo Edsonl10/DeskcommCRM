@@ -93,7 +93,7 @@ describe("etiquetas pertencem à conversa com o mesmo atendente", () => {
   it("anônimo não recupera conjuntos anteriores numa atribuição posterior", () =>
     ambiente(async (db, conv, contact) => {
       await atribuir(db, conv, GOV_AGENT_B);
-      await db.query("update contacts set is_anonymized=true where id=$1", [contact]);
+      await db.query("update contacts set is_anonymized=true, anonymized_at=now() where id=$1", [contact]);
       await atribuir(db, conv, GOV_AGENT_A);
       expect(await tags(db, conv)).toEqual([]);
       expect(
