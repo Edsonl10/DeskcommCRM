@@ -100,8 +100,13 @@ test("a ficha recolhe, libera espaço e pode ser reaberta após recarregar", asy
   expect(antes).not.toBeNull();
   await page.getByRole("button", { name: "Recolher ficha do contato" }).click();
   await expect(painel).toBeHidden();
-  const depois = await fio.boundingBox();
-  expect(depois!.width - antes!.width).toBeGreaterThan(200);
+  // Ocultar a ficha e concluir o ajuste da grade são observações distintas.
+  // O efeito que mede a faixa pode terminar após o hidden, especialmente com
+  // as consultas iniciais do Inbox. Espere o resultado visível, mantendo o piso.
+  await expect.poll(async () => {
+    const depois = await fio.boundingBox();
+    return (depois?.width ?? 0) - antes!.width;
+  }).toBeGreaterThan(200);
   await expect(page.getByRole("separator", { name: "Ajustar largura da ficha do contato" })).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole("button", { name: "Expandir ficha do contato" })).toBeVisible();
