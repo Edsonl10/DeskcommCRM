@@ -2,6 +2,8 @@
 
 Destino: núcleo opcional. A operação existente funciona com a barra vazia e sem extensão. Modelo visual e implantação autorizados pelo usuário em 28/10/2026.
 
+A barra apresenta as etiquetas já existentes em `conversations.tags`; o editor lateral e os filtros leem o mesmo conjunto.
+
 ## Comportamento
 
 - O ícone de três colunas fica abaixo da hora e abre seleção múltipla das etiquetas de conversa. Abrir o seletor não abre a conversa nem marca mensagens como lidas. Concluir aplica; fechar sem concluir descarta.
