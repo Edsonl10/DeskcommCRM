@@ -37,3 +37,7 @@ Não há nova ação de IA, envio automático, demanda ou laço de decisão auto
 - A fonte `e4629935145b399e1ed91dd80af21a09a3dc663d` passou nos cinco gates: CI/PG15/PG17 e atualização sobre dados 40857592429, build 40857592433, imagens 40857592276 e seis partes E2E 40857592527. A integração instalada `98d6c51` tem árvore integralmente idêntica.
 - Publicação 40861407459 e instalação coordenada aprovadas. Migration 9008 aplicada; app/worker/scheduler saudáveis, HTTP público conferido e Caddy/demais serviços preservados. Na produção, barra, contadores, seletor e configuração de Comercial foram abertos e conferidos; a persistência por departamento e por atendente foi medida com dados sintéticos no E2E. Recibo e capturas em `evidence/inbox-kanban/README.md`.
 - O ambiente local não tem Docker e teve limites de IPC/rede/memória; o CI nativo é a prova integral de banco, build e interface. Controle negativo do predicado e verificações locais direcionadas foram aprovados.
+
+## Ajustes visuais publicados em 29/10/2026
+
+As faixas, aviso apenas positivo, controle de cor e filtros reorganizados foram instalados na revisão `75ddd985fd9e7c31559d9561f71553101caa6ee4`, com árvore idêntica à fonte `100f3872f9827f763ab2794d65489d1e4fefaa50` aprovada nos cinco gates e nas seis partes E2E. Conferência de produção sem gravar etiquetas/cores nem enviar mensagens; persistência medida com dados sintéticos. Provas e limites: [registro da entrega](../../evidence/inbox-etiquetas-destacadas/README.md).

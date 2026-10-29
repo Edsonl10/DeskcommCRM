@@ -1,6 +1,6 @@
 # Mapa de Jornadas & Testes E2E — Experiência do usuário em VPS fresca
 
-> Ajuste visual de etiquetas (29/10/2026): `tests/e2e/inbox-kanban.spec.ts` mede faixa abaixo da prévia, cores padrão/personalizada com recarga, aviso vermelho apenas positivo e funil ao lado da busca. `tests/e2e/filtro-por-marcador-pela-tela.spec.ts` mantém os percursos de filtro pelo modal de conversas; `tests/e2e/inbox-filtros-avancados.spec.ts` mede a organização dos controles. Não há mudança de banco nem consultas adicionais por linha. Os resultados da execução devem ser lidos no CI do commit, sem inferir conclusão da presença das specs.
+> Ajuste visual de etiquetas (29/10/2026): `tests/e2e/inbox-kanban.spec.ts` mede faixa abaixo da prévia, cores padrão/personalizada com recarga, aviso vermelho apenas positivo e funil ao lado da busca. `tests/e2e/filtro-por-marcador-pela-tela.spec.ts` mantém os percursos de filtro pelo modal de conversas; `tests/e2e/inbox-filtros-avancados.spec.ts` mede a organização dos controles. Não há mudança de banco nem consultas adicionais por linha. A fonte `100f3872f9827f763ab2794d65489d1e4fefaa50` passou nos cinco gates e seis partes E2E; a integração instalada tem árvore idêntica. Prova e limites em `evidence/inbox-etiquetas-destacadas/README.md`.
 
 
 > Fonte da verdade do QA de produto do DeskcommCRM open-source. Cada caso aqui é
