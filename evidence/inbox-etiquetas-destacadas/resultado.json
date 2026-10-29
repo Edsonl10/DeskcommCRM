@@ -1,0 +1,298 @@
+{
+  "schema_version": 1,
+  "title": "Etiquetas destacadas e filtros organizados no Inbox",
+  "date": "2026-10-29",
+  "pull_request": 42,
+  "validated_source": "100f3872f9827f763ab2794d65489d1e4fefaa50",
+  "runtime_source": "75ddd985fd9e7c31559d9561f71553101caa6ee4",
+  "tree": "e0f7964847b214d5e889a096ef09abc0ffab1e46",
+  "identical_validated_and_runtime_tree": true,
+  "gates": [
+    {
+      "name": "verify",
+      "id": 123567483657,
+      "head_sha": "100f3872f9827f763ab2794d65489d1e4fefaa50",
+      "conclusion": "success",
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40906151415/job/123567483657"
+    },
+    {
+      "name": "invariants",
+      "id": 123572095178,
+      "head_sha": "100f3872f9827f763ab2794d65489d1e4fefaa50",
+      "conclusion": "success",
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40906151415/job/123572095178"
+    },
+    {
+      "name": "e2e",
+      "id": 123576474285,
+      "head_sha": "100f3872f9827f763ab2794d65489d1e4fefaa50",
+      "conclusion": "success",
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40906151388/job/123576474285"
+    },
+    {
+      "name": "imagens-ok",
+      "id": 123562627711,
+      "head_sha": "100f3872f9827f763ab2794d65489d1e4fefaa50",
+      "conclusion": "success",
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40906151443/job/123562627711"
+    },
+    {
+      "name": "build-and-size",
+      "id": 123561337108,
+      "head_sha": "100f3872f9827f763ab2794d65489d1e4fefaa50",
+      "conclusion": "success",
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40906151386/job/123561337108"
+    }
+  ],
+  "ci_runs": {
+    "ci": 40906151415,
+    "e2e": 40906151388,
+    "perf": 40906151386,
+    "images": 40906151443
+  },
+  "publication": {
+    "id": 40910561408,
+    "head_sha": "75ddd985fd9e7c31559d9561f71553101caa6ee4",
+    "status": "completed",
+    "conclusion": "success",
+    "event": "push",
+    "head_branch": "main"
+  },
+  "publication_jobs": [
+    {
+      "id": 123577068653,
+      "name": "a-tag-veio-da-main",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123577187597,
+      "name": "build-and-push (deskcomm-scheduler, amd64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123577187938,
+      "name": "build-and-push (deskcomm-voice-agent, arm64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123577187950,
+      "name": "build-and-push (deskcomm-voice-agent, amd64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123577188016,
+      "name": "build-and-push (deskcomm-worker, arm64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123577188020,
+      "name": "build-and-push (deskcomm-worker, amd64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123577188125,
+      "name": "build-and-push (deskcommcrm, amd64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123577188244,
+      "name": "build-and-push (deskcomm-scheduler, arm64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123577188348,
+      "name": "build-and-push (deskcommcrm, arm64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123581837549,
+      "name": "imagem-do-app-sobe (amd64, linux/amd64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123581837677,
+      "name": "imagem-do-app-sobe (arm64, linux/arm64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123581838070,
+      "name": "imagens-de-fundo-sobem (arm64, linux/arm64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123581838289,
+      "name": "imagens-de-fundo-sobem (amd64, linux/amd64)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123583008800,
+      "name": "juntar-manifestos",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123583477652,
+      "name": "imagens-ok",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 123583478368,
+      "name": "promover-stable",
+      "status": "completed",
+      "conclusion": "skipped"
+    }
+  ],
+  "images": {
+    "app": "ghcr.io/edsonl10/deskcommcrm@sha256:6c3dbe866ebb01d20dbc53f29b3b3a0f4933d1b0e9231b0fbe915f0881b71551",
+    "worker": "ghcr.io/edsonl10/deskcomm-worker@sha256:1372068fe550132830eab32e51f6707faa0f41d7810f110fc3004708e2658c06",
+    "scheduler": "ghcr.io/edsonl10/deskcomm-scheduler@sha256:3f2f05386d719493d8012e5de56336b0985e0593196cf05e7787ca89f1a03e62"
+  },
+  "installation": {
+    "source": "75ddd985fd9e7c31559d9561f71553101caa6ee4",
+    "tree": "e0f7964847b214d5e889a096ef09abc0ffab1e46",
+    "previous_source": "9f76bf33bdbe3e35dafcfbe1c7ef3ff5bfe81787",
+    "status": "installed",
+    "schema": "unchanged",
+    "public": {
+      "/": "200",
+      "/app": "307"
+    },
+    "other_services_preserved": true,
+    "health": {
+      "status": "healthy",
+      "version": "75ddd98"
+    },
+    "services": [
+      {
+        "service": "app",
+        "revision": "75ddd985fd9e7c31559d9561f71553101caa6ee4",
+        "image": "ghcr.io/edsonl10/deskcommcrm@sha256:6c3dbe866ebb01d20dbc53f29b3b3a0f4933d1b0e9231b0fbe915f0881b71551",
+        "running": true,
+        "health": "healthy"
+      },
+      {
+        "service": "scheduler",
+        "revision": "75ddd985fd9e7c31559d9561f71553101caa6ee4",
+        "image": "ghcr.io/edsonl10/deskcomm-scheduler@sha256:3f2f05386d719493d8012e5de56336b0985e0593196cf05e7787ca89f1a03e62",
+        "running": true,
+        "health": "healthy"
+      },
+      {
+        "service": "worker",
+        "revision": "75ddd985fd9e7c31559d9561f71553101caa6ee4",
+        "image": "ghcr.io/edsonl10/deskcomm-worker@sha256:1372068fe550132830eab32e51f6707faa0f41d7810f110fc3004708e2658c06",
+        "running": true,
+        "health": "healthy"
+      }
+    ]
+  },
+  "operations": {
+    "backup": "/opt/backups/crm-inbox-etiquetas-20261029-75ddd98",
+    "receipt": "/opt/backups/crm-inbox-etiquetas-20261029-75ddd98/recibo-roteador.json",
+    "helper": "/opt/backups/deploy-inbox-etiquetas-20261029.py",
+    "helper_sha256": "409177ea150e2cb410bf3e9b5852f432e6b8fe3a94c6b69cd5e824b86fc6f8ab",
+    "wrapper": "/opt/backups/run-inbox-etiquetas-20261029.py",
+    "wrapper_sha256": "8b844e04f8ab04e2622e40ba9bbdade51b51064df692ddd736d1d69e89e716fa",
+    "schema": "unchanged",
+    "rollback": "prepared using actual previous images; not used",
+    "coordinated_services": [
+      "app",
+      "worker",
+      "scheduler"
+    ],
+    "voice_agent": "published by workflow; not deployed"
+  },
+  "duplicate_main_runs": [
+    {
+      "name": "e2e",
+      "id": 40910561353,
+      "sha": "75ddd985fd9e7c31559d9561f71553101caa6ee4",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "name": "ci",
+      "id": 40910561130,
+      "sha": "75ddd985fd9e7c31559d9561f71553101caa6ee4",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "name": "perf",
+      "id": 40910561115,
+      "sha": "75ddd985fd9e7c31559d9561f71553101caa6ee4",
+      "status": "completed",
+      "conclusion": "cancelled"
+    }
+  ],
+  "production_smoke": {
+    "list_loaded": true,
+    "tag_strips_below_preview": true,
+    "default_color_visible": true,
+    "zero_new_badges_hidden": true,
+    "funnel_aligned_with_search": true,
+    "groups_button_removed": true,
+    "tags_dropdown_removed": true,
+    "advanced_filters_groups_and_tags_available": true,
+    "color_palette_eight_choices_preview_apply_visible": true,
+    "production_color_write": false,
+    "production_tag_write": false,
+    "message_sent": false,
+    "search_cleared": true,
+    "modals_closed": true,
+    "original_working_tab_untouched": true
+  },
+  "local_validation": {
+    "typecheck": "passed",
+    "targeted_tests": "conversation, filters, bar and colors passed",
+    "negative_control": {
+      "expected_failure_cases": 1,
+      "passed_cases": 3,
+      "restored_passed_cases": 4
+    },
+    "full_unit": "interrupted; not claimed green locally",
+    "full_lint": "killed by memory limit; targeted lint passed",
+    "docker": "unavailable; full database/E2E evidence from native CI"
+  },
+  "synthetic_ui": {
+    "e2e_part_6_job": 123561430739,
+    "passed": 62,
+    "inbox_kanban_seconds": 14.7,
+    "artifact_id": 12913267541,
+    "artifact_sha256": "49421fb759c9138fa75996412947dd5a9dbb4c3c1c004617ca8f52607543b2ea",
+    "screenshots": [
+      {
+        "path": "evidence/inbox-etiquetas-destacadas/etiquetas-sinteticas.png",
+        "sha256": "8f23694dd6d7cd5ada8aef270c0962a2a75d3ba836bea699250da793330d84d0"
+      },
+      {
+        "path": "evidence/inbox-etiquetas-destacadas/configuracao-celular.png",
+        "sha256": "b7a05b30e17a2a696f3bbd5ff34326dd5717937dc3c95ca2770192c6346370f3"
+      }
+    ]
+  },
+  "production_screenshot": {
+    "path": "evidence/inbox-etiquetas-destacadas/publicado.jpg",
+    "sha256": "6f320dbdaa5ccd9358836b967f8b409522bd6f405e7eb60d0697cd2f7ab3a2fa",
+    "scope": "color selector only; no customer details; no color was saved"
+  },
+  "limits": [
+    "Other physical computers were not accessed.",
+    "Color and tag persistence were tested with synthetic data in the native E2E; production smoke was read-only.",
+    "No new load test was performed; database and count query contracts are unchanged."
+  ]
+}
