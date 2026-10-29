@@ -94,10 +94,8 @@ test("funil combina filtros no banco e nas contagens, limpa e cabe no celular", 
   await page.waitForURL(/\/app/);
   await page.goto("/app/inbox?filter=closed");
   await expect(page.getByRole("tab", { name: /^Fechadas/ })).toHaveText(/5/);
-  const tag = page.getByRole("button", { name: "Filtrar por tag", exact: true });
-  await expect(tag).toBeVisible();
-  const tagBounds = await tag.boundingBox();
-  expect(tagBounds!.width).toBeLessThanOrEqual(240);
+  await expect(page.getByRole("button", { name: "Filtrar por tag", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Grupos", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Filtros de conversas", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Filtros", exact: true });
   for (const nome of [

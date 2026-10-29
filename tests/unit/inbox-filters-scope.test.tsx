@@ -14,7 +14,7 @@
  * valendo — inbox filtrado, às vezes vazio, sem nada na tela dizendo por quê.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 import { InboxFilters, visibleInboxTabs, type InboxFiltersValue } from "@/components/inbox/InboxFilters";
 import type * as CanaisModule from "@/hooks/channels/useChannelSessions";
@@ -48,6 +48,12 @@ vi.mock("@/hooks/inbox/useConversationCounts", () => ({
   useConversationCounts: () => ({ data: { waiting: 3, active: 2, all: 5 } }),
 }));
 
+vi.mock("@/hooks/team/useDepartments", () => ({
+  useDepartments: () => ({ data: { data: [] } }),
+}));
+vi.mock("@/hooks/inbox/useAssignableMembers", () => ({
+  useAssignableMembers: () => ({ data: [] }),
+}));
 const VALUE: InboxFiltersValue = { tab: "waiting", search: "", onlyUnread: false };
 
 function setOrg(role: ActiveOrg["role"], visibility_mode: ActiveOrg["visibility_mode"]) {
@@ -212,56 +218,36 @@ describe("InboxFilters — seletor de número e o filtro órfão", () => {
     expect(seletor).toHaveTextContent("Número removido");
   });
 
-  /**
-   * O MESMO tratamento, agora para a etiqueta.
-   *
-   * O canal já tinha: filtro apontando para algo fora da lista mantinha o seletor
-   * e nomeava o removido. A etiqueta não tinha — o seletor inteiro sumia com o
-   * filtro AINDA APLICADO, e a lista ficava num subconjunto, às vezes vazio, sem
-   * nada na tela dizendo que havia filtro nem como tirá-lo.
-   */
-  it("etiqueta fora do vocabulário: o seletor FICA e oferece a etiqueta órfã", () => {
+  it("etiqueta fora do vocabulário continua disponível no funil para remover", () => {
     setOrg("manager", "all");
-    tagsRef.current = [];
-    render(
-      <InboxFilters value={{ ...VALUE, tag: "etiqueta-orfa" }} onChange={() => {}} />,
-    );
-    // ⚠️ `getByLabelText` continua valendo (#1274): o seletor deixou de ser um
-    // `Select` (que era `role="combobox"`) e virou um botão de menu, mas o RÓTULO
-    // ACESSÍVEL é o mesmo — e é por ele que se procura o controle, e por ele que
-    // o dicionário de tradução o indexa.
-    const seletor = screen.getByLabelText("Filtrar por tag");
-    expect(seletor).toBeInTheDocument();
-    expect(seletor).toHaveTextContent("etiqueta-orfa");
+    render(<InboxFilters value={{ ...VALUE, tag: "etiqueta-orfa" }} onChange={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Filtros de conversas" }));
+    expect(screen.getByRole("button", { name: "etiqueta-orfa" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  /**
-   * O filtro da lista casa a caixa da CONVERSA ou a do CONTATO; o seletor tem
-   * de oferecer as duas. Cada caso abaixo vigia um lado: ler só a conversa
-   * esconde o marcador do contato (o relato do #1206), e ler só o contato
-   * esconde o que o atendente ou a IA marcou na conversa.
-   */
-  it("marcador que só existe no CONTATO faz o seletor aparecer", () => {
+  it("marcador que só existe no CONTATO aparece nas opções do funil", () => {
     setOrg("manager", "all");
     tagsDoContatoRef.current = ["vip"];
     render(<InboxFilters value={VALUE} onChange={() => {}} />);
-    expect(screen.getByLabelText("Filtrar por tag")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Filtros de conversas" }));
+    expect(screen.getByRole("button", { name: "vip" })).toBeInTheDocument();
   });
 
-  it("marcador que só existe na CONVERSA faz o seletor aparecer", () => {
+  it("marcador que só existe na CONVERSA aparece nas opções do funil", () => {
     setOrg("manager", "all");
     tagsRef.current = ["reclamacao"];
     render(<InboxFilters value={VALUE} onChange={() => {}} />);
-    expect(screen.getByLabelText("Filtrar por tag")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Filtros de conversas" }));
+    expect(screen.getByRole("button", { name: "reclamacao" })).toBeInTheDocument();
   });
 
-  it("CONTROLE: sem vocabulário e SEM filtro, o seletor de tag não aparece", () => {
-    // Sem este caso, mostrar o seletor SEMPRE passaria no de cima — e a barra
-    // ganharia um controle vazio em toda instalação que nunca usou etiqueta.
+  it("sem vocabulário e sem filtro, informa que não há etiquetas disponíveis", () => {
     setOrg("manager", "all");
-    tagsRef.current = [];
     render(<InboxFilters value={VALUE} onChange={() => {}} />);
-    expect(screen.queryByLabelText("Filtrar por tag")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Filtros de conversas" }));
+    const etiquetas = screen.getByRole("group", { name: "Etiquetas" });
+    expect(within(etiquetas).getByText("Nenhuma opção disponível.")).toBeInTheDocument();
+    expect(within(etiquetas).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("filtro que casa com a lista: nada de 'Número removido'", () => {

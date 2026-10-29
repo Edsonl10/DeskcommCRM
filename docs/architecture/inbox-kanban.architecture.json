@@ -19,7 +19,11 @@
       "label": "Banco"
     }
   ],
-  "mainPath": ["config", "barra", "lista"],
+  "mainPath": [
+    "config",
+    "barra",
+    "lista"
+  ],
   "nodes": [
     {
       "id": "config",
@@ -68,6 +72,12 @@
       "lane": "banco",
       "label": "Policy de leitura do Inbox",
       "sublabel": "Critério único de responsável e permissões; invoker por linha"
+    },
+    {
+      "id": "cores",
+      "lane": "api",
+      "label": "Cores do vocabulário existente",
+      "sublabel": "POST tags/vocabulario definir_cor; provider compartilhado, sem leitura por linha"
     }
   ],
   "edges": [
@@ -142,6 +152,24 @@
       "from": "leitura",
       "to": "barra",
       "label": "Contagens exatas no mesmo escopo"
+    },
+    {
+      "id": "e13",
+      "from": "barra",
+      "to": "cores",
+      "label": "Personalizar → Aplicar cor com confirmação explícita na tela"
+    },
+    {
+      "id": "e14",
+      "from": "cores",
+      "to": "lista",
+      "label": "Cor compartilhada; fallback padrão e contraste automático"
+    },
+    {
+      "id": "e15",
+      "from": "cores",
+      "to": "barra",
+      "label": "Cache invalidado após salvar; falha mantém rascunho"
     }
   ]
 }

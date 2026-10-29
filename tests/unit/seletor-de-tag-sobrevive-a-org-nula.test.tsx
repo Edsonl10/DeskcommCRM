@@ -1,26 +1,4 @@
-/**
- * O SELETOR DE ETIQUETA SOBREVIVE AO VOCABULÁRIO VOLTANDO A `undefined` (#1336),
- * COM DUBLÊS QUE RESPEITAM O `orgId` DOS HOOKS.
- *
- * O gatilho só existe enquanto `mostrarSeletorDeTag` for verdadeiro, e as DUAS
- * pernas dessa condição passaram a depender do vocabulário lembrado
- * (`vocabularioDoSeletor` + `vocabularioConhecido`), não do vocabulário em voo.
- *
- * Os dois hooks de vocabulário têm `enabled: !!orgId` e `queryKey` com o orgId
- * dentro. Os dublês abaixo reproduzem essa semântica: sem orgId, `data` é
- * `undefined`, o mesmo que o react-query devolve para consulta desabilitada ou
- * para chave nova ainda sem dado. Aqui a org nula é só o jeito de levar os DOIS
- * hooks a `undefined`. Em produção, `activeOrg` nulo troca a `key` do
- * `<Providers>` (hooks/auth/AuthProvider.tsx) e remonta a árvore, e o seletor
- * some junto com ela; a oscilação que este arquivo guarda é o vocabulário indo
- * a `undefined` SEM a org mudar (#1336, frente (a), gatilho ainda sem nome).
- *
- * O ganho sobre o irmão `inbox-filtro-de-tag-nao-desmonta`, que mocka os hooks
- * SEM olhar o `orgId`: o caso 1 reprova se o componente deixar de passar a org
- * aos hooks, e o caso 3 guarda a metade `ultimoVocabulario.length > 0` de
- * `vocabularioConhecido` — sem ela, a etiqueta órfã de um filtro aplicado some
- * do menu durante a oscilação, e não há como desmarcá-la.
- */
+/** O funil mantém os vocabulários conhecidos durante oscilação da org e permite desfazer uma etiqueta órfã. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -54,56 +32,54 @@ vi.mock("@/hooks/inbox/useConversationCounts", () => ({
   useConversationCounts: () => ({ data: { unassigned: 1 } }),
 }));
 
-const GATILHO = "Filtrar por tag";
-/** O gatilho deixou de ser um `Select` (#1274): é botão com `aria-label`. */
-const gatilho = () => screen.queryByLabelText(GATILHO);
-const base: InboxFiltersValue = { tab: "unassigned", search: "", onlyUnread: false };
+vi.mock("@/hooks/team/useDepartments", () => ({
+  useDepartments: () => ({ data: { data: [] } }),
+}));
+vi.mock("@/hooks/inbox/useAssignableMembers", () => ({
+  useAssignableMembers: () => ({ data: [] }),
+}));
+const GATILHO = "Filtros de conversas";
+const base: InboxFiltersValue = { tab: "waiting", search: "", onlyUnread: false };
 
 beforeEach(() => {
-  // Radix em jsdom: captura de ponteiro e rolagem até o item não existem aqui.
   Element.prototype.hasPointerCapture = vi.fn(() => false);
   Element.prototype.setPointerCapture = vi.fn();
   Element.prototype.releasePointerCapture = vi.fn();
   Element.prototype.scrollIntoView = vi.fn();
-  activeOrgRef.current = {
-    orgId: "org-1",
-    name: "Org",
-    role: "manager",
-    visibility_mode: "all",
-  };
+  activeOrgRef.current = { orgId: "org-1", name: "Org", role: "manager", visibility_mode: "all" };
   tagsRef.current = ["urgente", "vip"];
 });
 afterEach(cleanup);
 
-describe("seletor de etiqueta x vocabulário voltando a undefined (dublês que respeitam orgId)", () => {
-  it("com org resolvida, o seletor está na tela", () => {
-    render(<InboxFilters value={base} onChange={() => {}} />);
-    expect(gatilho()).not.toBeNull();
+async function abrir(value = base) {
+  const tela = render(<InboxFilters value={value} onChange={() => {}} />);
+  await userEvent.setup({ delay: null }).click(screen.getByRole("button", { name: GATILHO }));
+  return tela;
+}
+
+describe("etiquetas no funil com dublês que respeitam orgId", () => {
+  it("com org resolvida, oferece as etiquetas conhecidas", async () => {
+    await abrir();
+    expect(screen.getByRole("button", { name: "urgente" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "vip" })).toBeInTheDocument();
   });
 
-  it("vocabulário indefinido (org nula no dublê): o seletor permanece", () => {
-    const { rerender } = render(<InboxFilters value={base} onChange={() => {}} />);
-    expect(gatilho()).not.toBeNull();
-
+  it("vocabulário indefinido com org nula preserva as opções do diálogo", async () => {
+    const { rerender } = await abrir();
     activeOrgRef.current = null;
     rerender(<InboxFilters value={{ ...base }} onChange={() => {}} />);
-
-    expect(gatilho()).not.toBeNull();
+    expect(screen.getByRole("dialog", { name: "Filtros" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "vip" })).toBeInTheDocument();
   });
 
-  it("com filtro de etiqueta ÓRFÃ aplicado e vocabulário indefinido, a órfã continua no menu (dá para desfazer)", async () => {
-    // "apagada" está fora do último vocabulário (["urgente", "vip"]): o seletor
-    // fica pela primeira perna de qualquer jeito, mas a opção órfã só entra no
-    // menu enquanto o vocabulário é "conhecido". Com o vocabulário em
-    // `undefined`, quem o mantém conhecido é o `ultimoVocabulario`.
+  it("filtro órfão continua disponível para desmarcar com org nula", async () => {
     const comFiltro: InboxFiltersValue = { ...base, tag: "apagada" };
-    const { rerender } = render(<InboxFilters value={comFiltro} onChange={() => {}} />);
-
+    const { rerender } = await abrir(comFiltro);
     activeOrgRef.current = null;
     rerender(<InboxFilters value={{ ...comFiltro }} onChange={() => {}} />);
-
-    const user = userEvent.setup({ delay: null });
-    await user.click(screen.getByRole("button", { name: GATILHO }));
-    expect(screen.getByRole("menuitemcheckbox", { name: /apagada/ })).toBeInTheDocument();
+    const orfa = screen.getByRole("button", { name: "apagada" });
+    expect(orfa).toHaveAttribute("aria-pressed", "true");
+    await userEvent.setup({ delay: null }).click(orfa);
+    expect(orfa).toHaveAttribute("aria-pressed", "false");
   });
 });

@@ -1,7 +1,7 @@
 // A barra tem testes próprios; esta suíte exercita o contrato anterior do layout.
 vi.mock("@/components/inbox/BarraKanbanInbox", () => ({ BarraKanbanInbox: () => null }));
 /**
- * #2103 — o clique em "Grupos" manda `is_group=true`, e o VAZIO explica o que falta.
+ * #2103 — a escolha "Apenas grupos" no funil manda `is_group=true`, e o VAZIO explica o que falta.
  *
  * Primeiro elo medido: a tela monta a URL da listagem com `is_group=true`.
  * Segundo: com a lista vazia, o operador só ouve "Nenhuma conversa com esses
@@ -62,8 +62,9 @@ function montar() {
 }
 
 async function clicarEmGrupos() {
-  const botao = await screen.findByRole("button", { name: "Grupos" });
-  fireEvent.click(botao);
+  fireEvent.click(await screen.findByRole("button", { name: "Filtros de conversas" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Apenas grupos" }));
+  fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
 }
 
 function urlsPedidas(): string[] {
@@ -76,7 +77,7 @@ describe("inbox: o filtro Grupos (#2103)", () => {
     window.history.replaceState(null, "", "/app/inbox");
   });
 
-  it("clicar em Grupos manda is_group=true na listagem", async () => {
+  it("salvar Apenas grupos no funil manda is_group=true na listagem", async () => {
     montar();
     await clicarEmGrupos();
     await waitFor(() => expect(urlsPedidas().some((u) => u.includes("is_group=true"))).toBe(true));
