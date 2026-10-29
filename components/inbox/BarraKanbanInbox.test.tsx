@@ -1,22 +1,32 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BarraKanbanInbox } from "./BarraKanbanInbox";
 import { EtiquetasKanbanConversa } from "./EtiquetasKanbanConversa";
 import { conversaDeExemplo } from "./__fixtures__/conversa";
-const { salvar, atualizar } = vi.hoisted(() => ({ salvar: vi.fn(), atualizar: vi.fn() }));
+const { salvar, atualizar, contagens } = vi.hoisted(() => ({
+  salvar: vi.fn(),
+  atualizar: vi.fn(),
+  contagens: {
+    data: [{ tag: "em andamento", total: 12, novas: 4 }] as
+      { tag: string; total: number; novas: number }[] | undefined,
+  },
+}));
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   useAuth: () => ({ user: { id: "a", support: null }, activeOrg: { orgId: "org", role: "admin" } }),
 }));
 vi.mock("@/hooks/inbox/useInboxKanban", () => ({
   useInboxKanban: () => ({ data: { barras: {}, departamentos: [] } }),
   useSalvarBarraKanban: () => ({ mutate: salvar, isPending: false }),
-  useContagensKanban: () => ({ data: [{ tag: "em andamento", total: 12, novas: 4 }] }),
+  useContagensKanban: () => contagens,
 }));
 vi.mock("@/hooks/inbox/useConversationTags", () => ({
   useConversationTagVocabulary: () => ({ data: [] }),
   useUpdateConversationTags: () => ({ mutate: atualizar, isPending: false }),
 }));
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  contagens.data = [{ tag: "em andamento", total: 12, novas: 4 }];
+});
 describe("controles Kanban", () => {
   it("mostra dois contadores e aplica/desliga a etapa preservando os demais filtros", () => {
     const onChange = vi.fn();
@@ -27,6 +37,11 @@ describe("controles Kanban", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "em andamento: 12 cards, 4 conversas novas" }),
     );
+    expect(
+      within(
+        screen.getByRole("button", { name: "em andamento: 12 cards, 4 conversas novas" }),
+      ).getByText("4"),
+    ).toBeVisible();
     expect(onChange).toHaveBeenCalledWith({ ...value, kanban_tag: "em andamento" });
     rerender(
       <BarraKanbanInbox
@@ -42,6 +57,22 @@ describe("controles Kanban", () => {
       screen.getByRole("button", { name: "em andamento: 12 cards, 4 conversas novas" }),
     );
     expect(onChange).toHaveBeenLastCalledWith({ ...value, kanban_tag: undefined });
+  });
+  it("não mostra aviso de novas conversas quando a quantidade é zero ou ainda não carregou", () => {
+    const value = { tab: "active" as const, search: "", onlyUnread: false };
+    contagens.data = [{ tag: "em andamento", total: 12, novas: 0 }];
+    const { rerender } = render(
+      <BarraKanbanInbox value={value} filtros={{ view: "active" }} onChange={vi.fn()} />,
+    );
+    const etapa = screen.getByRole("button", { name: "em andamento: 12 cards, 0 conversas novas" });
+    expect(within(etapa).getByText("12")).toBeVisible();
+    expect(within(etapa).queryByText("0")).not.toBeInTheDocument();
+    contagens.data = undefined;
+    rerender(<BarraKanbanInbox value={value} filtros={{ view: "active" }} onChange={vi.fn()} />);
+    const carregando = screen.getByRole("button", {
+      name: "em andamento: … cards, … conversas novas",
+    });
+    expect(within(carregando).getAllByText("…")).toHaveLength(1);
   });
   it("o ícone abre seleção múltipla; salvar leva o responsável e as etiquetas observadas", () => {
     const conversa = {

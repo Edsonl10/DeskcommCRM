@@ -15283,6 +15283,9 @@ export const DICIONARIO: Traducoes = {
   "A configuração mudou. Recarregue a página e tente novamente.": { es: "La configuración cambió. Vuelve a cargar la página e inténtalo de nuevo." },
   "Para separar quem já é cliente, ligue “Clientes pela agenda” em Configurações › Tipos de agendamento. A entrada de novas conversas depende da configuração de entrada automática na tela Funis.": { es: "Para separar a quienes ya son clientes, activa «Clientes por la agenda» en Configuración › Tipos de cita. La entrada de nuevas conversaciones depende de la configuración de entrada automática en la pantalla Embudos." },
   "Desligado: ninguém ganha a etiqueta, a ficha não mostra “Cliente desde” e a entrada de novas conversas depende da configuração na tela Funis. As etiquetas que já existem ficam como estão.": { es: "Desactivado: nadie recibe la etiqueta, la ficha no muestra «Cliente desde» y la entrada de nuevas conversaciones depende de la configuración en la pantalla Embudos. Las etiquetas existentes se mantienen." },
+  "Ao aplicar, a cor é salva nas listas e nos filtros de toda a organização.": { es: "Al aplicar, el color se guarda en las listas y en los filtros de toda la organización." },
+  "Cor padrão": { es: "Color predeterminado" },
+  "Aplicar cor": { es: "Aplicar color" },
 };
 
 /**
@@ -15295,4 +15298,6 @@ export const DICIONARIO: Traducoes = {
 export function traduzir(texto: string, idioma: Idioma): string {
   if (idioma === "pt-BR") return texto;
   return DICIONARIO[texto]?.[idioma] ?? texto;
+
+
 }

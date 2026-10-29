@@ -121,6 +121,19 @@ test("barra filtra no banco, conta conversas e permite etiquetas e configuraçã
   const barra = page.getByRole("region", { name: "Funil de vendas", exact: true });
   const etapa = barra.locator('[data-kanban-tag="em andamento"]');
   await expect(etapa).toHaveAccessibleName("em andamento: 3 cards, 2 conversas novas");
+  await expect(etapa.getByText("2", { exact: true })).toBeVisible();
+  await expect(
+    barra.locator('[data-kanban-tag="aguardando"]').getByText("0", { exact: true }),
+  ).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Grupos", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Filtrar por tag", exact: true })).toHaveCount(0);
+  const busca = await page
+    .getByRole("textbox", { name: "Buscar conversas", exact: true })
+    .boundingBox();
+  const funil = await page
+    .getByRole("button", { name: "Filtros de conversas", exact: true })
+    .boundingBox();
+  expect(Math.abs(busca!.y - funil!.y)).toBeLessThan(2);
   await page.getByRole("combobox", { name: "Departamento da barra Kanban", exact: true }).click();
   await page.getByRole("option", { name: "Comercial Kanban", exact: true }).click();
   await expect(etapa).toHaveAccessibleName("em andamento: 2 cards, 1 conversas novas");
@@ -141,6 +154,16 @@ test("barra filtra no banco, conta conversas e permite etiquetas e configuraçã
   const novas = await linha.getByText("3", { exact: true }).boundingBox();
   const areaIcone = await icone.boundingBox();
   expect(novas!.x + novas!.width).toBeLessThanOrEqual(areaIcone!.x);
+  const faixa = linha.getByRole("group", { name: "Etiquetas da conversa", exact: true });
+  await expect(faixa.getByText("em andamento", { exact: true })).toBeVisible();
+  expect(
+    await faixa
+      .getByText("em andamento", { exact: true })
+      .evaluate((e) => getComputedStyle(e).backgroundColor),
+  ).toBe("rgb(0, 153, 213)");
+  const areaFaixa = await faixa.boundingBox();
+  const previa = await linha.locator("p").first().boundingBox();
+  expect(areaFaixa!.y).toBeGreaterThanOrEqual(previa!.y + previa!.height);
   await icone.click();
   const menu = page.getByRole("dialog", { name: "Etiquetas da conversa", exact: true });
   await expect(menu.getByRole("checkbox", { name: "em andamento", exact: true })).toBeChecked();
@@ -152,6 +175,7 @@ test("barra filtra no banco, conta conversas e permite etiquetas e configuraçã
   await menu.getByRole("button", { name: "Concluir", exact: true }).click();
   await expect(menu).toBeHidden();
   await expect(etapa).toHaveAccessibleName("em andamento: 1 cards, 0 conversas novas");
+  await expect(etapa.getByText("0", { exact: true })).toHaveCount(0);
   await expect(page.locator("[data-conversation-id]")).toHaveCount(1);
   await page.getByRole("button", { name: "Limpar filtro Kanban", exact: true }).click();
   await atualizar("conversations", convs[0]!, { assigned_to_user_id: users[1] });
@@ -167,6 +191,11 @@ test("barra filtra no banco, conta conversas e permite etiquetas e configuraçã
     name: "Personalizar barra · Comercial Kanban",
     exact: true,
   });
+  await dialog.getByRole("button", { name: "Cor da etiqueta em andamento", exact: true }).click();
+  const cores = page.getByRole("dialog", { name: "Cor da etiqueta em andamento", exact: true });
+  await cores.getByRole("button", { name: "Roxo", exact: true }).click();
+  await cores.getByRole("button", { name: "Aplicar cor", exact: true }).click();
+  await expect(cores).toBeHidden();
   await dialog
     .getByRole("button", { name: "Remover etiqueta da barra fechado", exact: true })
     .click();
@@ -175,11 +204,25 @@ test("barra filtra no banco, conta conversas e permite etiquetas e configuraçã
     .click();
   await dialog.getByRole("button", { name: "Salvar para este departamento", exact: true }).click();
   await expect(dialog).toBeHidden();
+  await expect(etapa).toHaveCSS("background-color", "rgb(171, 74, 186)");
+  await expect(
+    linha
+      .getByRole("group", { name: "Etiquetas da conversa", exact: true })
+      .getByText("proposta enviada", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("group", { name: "Etiquetas da conversa", exact: true })
+      .filter({ hasText: "em andamento" })
+      .first()
+      .getByText("em andamento", { exact: true }),
+  ).toHaveCSS("background-color", "rgb(171, 74, 186)");
   await expect(barra.locator("[data-kanban-tag]")).toHaveCount(3);
   await page.reload();
   await page.getByRole("combobox", { name: "Departamento da barra Kanban", exact: true }).click();
   await page.getByRole("option", { name: "Comercial Kanban", exact: true }).click();
   await expect(barra.locator("[data-kanban-tag]")).toHaveCount(3);
+  await expect(etapa).toHaveCSS("background-color", "rgb(171, 74, 186)");
   expect(
     await barra
       .locator("[data-kanban-tag]")

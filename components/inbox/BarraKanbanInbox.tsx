@@ -25,6 +25,7 @@ import {
 import { CaretUp, CaretDown, Gear, X } from "@/lib/ui/icons";
 import type { ConversationsFilters } from "@/hooks/inbox/useConversationsRealtime";
 import type { InboxFiltersValue } from "./InboxFilters";
+import { CorDaEtiquetaKanban } from "./CorDaEtiquetaKanban";
 
 interface Props {
   value: InboxFiltersValue;
@@ -158,6 +159,7 @@ function Etapa({
 }) {
   const t = useT();
   const cor = useCorDaEtiqueta(tag) ?? CORES_KANBAN_PADRAO[tag] ?? null;
+  const novas = contagem?.novas ?? 0;
   return (
     <BotaoDeEtiqueta
       tag={tag}
@@ -169,9 +171,11 @@ function Etapa({
       aria-label={`${tag}: ${contagem?.total ?? "…"} ${t("cards")}, ${contagem?.novas ?? "…"} ${t("conversas novas")}`}
       className={`flex h-8 shrink-0 items-center gap-3 rounded-md border px-2 text-xs font-semibold ${selecionada ? "outline-2 outline-offset-2 outline-accent" : "hover:opacity-85"}`}
     >
-      <span className="flex size-6 items-center justify-center rounded-full bg-red-600 text-xs font-semibold text-white tabular-nums">
-        {contagem?.novas ?? "…"}
-      </span>
+      {novas > 0 && (
+        <span className="flex size-6 items-center justify-center rounded-full bg-red-600 text-xs font-semibold text-white tabular-nums">
+          {novas}
+        </span>
+      )}
     </BotaoDeEtiqueta>
   );
 }
@@ -219,6 +223,7 @@ function Personalizar({
           {draft.map((tag, i) => (
             <div key={tag} className="flex items-center gap-2 rounded-md border p-2 text-sm">
               <span className="min-w-0 flex-1 truncate">{tag}</span>
+              <CorDaEtiquetaKanban tag={tag} disabled={mutation.isPending} />
               <Button
                 size="icon"
                 variant="ghost"

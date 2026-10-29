@@ -12,6 +12,9 @@ import { ChannelLogo } from "@/components/inbox/ChannelLogo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ChipDeEtiqueta } from "@/components/tags/ChipDeEtiqueta";
+import { useCoresDasEtiquetas } from "@/components/tags/CoresDasEtiquetas";
+import { chaveDaEtiqueta } from "@/lib/tags/cor-da-etiqueta";
+import { CORES_KANBAN_PADRAO } from "@/lib/inbox/kanban";
 import { OwnerBadge } from "@/components/kanban/OwnerBadge";
 import {
   comandoDaConversa,
@@ -121,7 +124,8 @@ function relativeTime(iso: string | null, locale: Locale): string {
  */
 function waitingLabel(
   conversation: ConversationWithContact,
-  t: (texto: string) => string = (texto) => texto, locale: Locale,
+  t: (texto: string) => string = (texto) => texto,
+  locale: Locale,
 ): string {
   const since = esperaDaConversa(conversation);
   if (!since) return t("Aguardando");
@@ -143,6 +147,8 @@ export function ConversationListItem({
   const c = conversation.contacts ?? null;
   const displayName = rotuloDoContato(c, t);
   const phoneFallback = c?.phone_number ? phoneForDisplay(c.phone_number) : "??";
+  const cores = useCoresDasEtiquetas();
+  const etiquetasDaConversa = conversation.tags ?? [];
   const tags = c?.tags ?? [];
   const visibleTags = tags.slice(0, 2);
   const overflow = tags.length - visibleTags.length;
@@ -166,12 +172,9 @@ export function ConversationListItem({
    * fallback: duas respostas para o mesmo "desde quando?" na mesma linha, a 40px
    * de distância, seriam a próxima divergência.
    */
-  const horaDaOrdem = naFila
-    ? esperaDaConversa(conversation)
-    : conversation.last_message_at;
+  const horaDaOrdem = naFila ? esperaDaConversa(conversation) : conversation.last_message_at;
   const time = relativeTime(horaDaOrdem, localeDaData);
   const unread = conversation.unread_count_for_assignee ?? 0;
-
 
   /**
    * Quem manda, pela MESMA regra do cabeçalho.
@@ -225,7 +228,6 @@ export function ConversationListItem({
   const rotuloCanal = rotuloDoCanalDaConversa(canal, t);
 
   const temSelos =
-    conversation.tags?.length > 0 ||
     visibleTags.length > 0 ||
     (mostrarAtendente && comando.quem === "humano") ||
     (mostrarCanal && rotuloCanal != null) ||
@@ -234,75 +236,78 @@ export function ConversationListItem({
 
   return (
     <div className="relative">
-    <button
-      type="button"
-      data-conversation-id={conversation.id}
-      onClick={() => onSelect(conversation.id)}
-      className={cn(
-        "group relative flex min-h-20 w-full items-start gap-3 border-b border-border/70 px-3 py-2.5 text-left transition-colors hover:bg-surface-elevated",
-        "focus-visible:outline-hidden focus-visible:bg-surface-elevated",
-        isSelected && "bg-conversation-selected hover:bg-conversation-selected",
-      )}
-      aria-current={isSelected ? "true" : undefined}
-    >
-      {isSelected && (
-        <span className="absolute inset-y-0 left-0 w-0.5 bg-accent" aria-hidden />
-      )}
-      <div className="relative shrink-0">
-        <Avatar className="h-10 w-10">
-          {/* Só monta a <img> quando existe arquivo: sem isso o browser pediria
+      <button
+        type="button"
+        data-conversation-id={conversation.id}
+        onClick={() => onSelect(conversation.id)}
+        className={cn(
+          "group relative block min-h-20 w-full border-b border-border/70 text-left transition-colors hover:bg-surface-elevated",
+          "focus-visible:bg-surface-elevated focus-visible:outline-hidden",
+          isSelected && "bg-conversation-selected hover:bg-conversation-selected",
+        )}
+        aria-current={isSelected ? "true" : undefined}
+      >
+        {isSelected && <span className="absolute inset-y-0 left-0 w-0.5 bg-accent" aria-hidden />}
+        <div className="flex w-full items-start gap-3 px-3 py-2.5">
+          <div className="relative shrink-0">
+            <Avatar className="h-10 w-10">
+              {/* Só monta a <img> quando existe arquivo: sem isso o browser pediria
               a rota para TODO contato da lista e levaria 404 em cada um sem
               foto — que é a maioria. O AvatarFallback do Radix já cobre o caso
               de a imagem não carregar, então as iniciais nunca somem. */}
-          {c?.avatar_storage_path && !c?.is_anonymized ? (
-            <AvatarImage
-              src={`/api/v1/contacts/${c.id}/avatar`}
-              alt=""
-              className="object-cover"
-            />
-          ) : null}
-          <AvatarFallback className="bg-surface-elevated text-xs font-medium text-text-muted">
-            {initials(displayName, phoneFallback)}
-          </AvatarFallback>
-        </Avatar>
-        <span
-          className={cn(
-            "absolute -bottom-0.5 -left-0.5 h-3 w-3 rounded-full border-2 border-background",
-            dot,
-          )}
-          role="img"
-          aria-label={rotuloDoComando}
-          title={rotuloDoComando}
-        />
-        <ChannelLogo channel={canal} size={16} className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background ring-2 ring-background" />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        {naFila && (
-          <div className="mb-1 flex items-center gap-1.5">
-            <span
-              className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-soft px-1 text-[10px] font-medium tabular-nums text-accent"
-              aria-label={`${t("Posição")} ${queuePosition} ${t("na fila")}`}
-            >
-              {queuePosition}º
-            </span>
-            <span className="text-[11px] text-text-muted">
-              {waitingLabel(conversation, t, localeDaData)}
-            </span>
-          </div>
-        )}
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-1.5">
+              {c?.avatar_storage_path && !c?.is_anonymized ? (
+                <AvatarImage
+                  src={`/api/v1/contacts/${c.id}/avatar`}
+                  alt=""
+                  className="object-cover"
+                />
+              ) : null}
+              <AvatarFallback className="bg-surface-elevated text-xs font-medium text-text-muted">
+                {initials(displayName, phoneFallback)}
+              </AvatarFallback>
+            </Avatar>
             <span
               className={cn(
-                "truncate text-sm",
-                unread > 0 ? "font-semibold text-text" : "font-medium text-text",
-                c?.is_anonymized && "font-normal italic text-text-muted",
+                "absolute -bottom-0.5 -left-0.5 h-3 w-3 rounded-full border-2 border-background",
+                dot,
               )}
-            >
-              {displayName}
-            </span>
-            {/*
+              role="img"
+              aria-label={rotuloDoComando}
+              title={rotuloDoComando}
+            />
+            <ChannelLogo
+              channel={canal}
+              size={16}
+              className="absolute -right-1 -bottom-1 h-5 w-5 rounded-full bg-background ring-2 ring-background"
+            />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            {naFila && (
+              <div className="mb-1 flex items-center gap-1.5">
+                <span
+                  className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-soft px-1 text-[10px] font-medium text-accent tabular-nums"
+                  aria-label={`${t("Posição")} ${queuePosition} ${t("na fila")}`}
+                >
+                  {queuePosition}º
+                </span>
+                <span className="text-[11px] text-text-muted">
+                  {waitingLabel(conversation, t, localeDaData)}
+                </span>
+              </div>
+            )}
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span
+                  className={cn(
+                    "truncate text-sm",
+                    unread > 0 ? "font-semibold text-text" : "font-medium text-text",
+                    c?.is_anonymized && "font-normal text-text-muted italic",
+                  )}
+                >
+                  {displayName}
+                </span>
+                {/*
               A ETIQUETA "GRUPO", ao lado do nome.
               `conversations.is_group` já chega no SELECT do handler (schema
               original) — sem este selo, a lista não distingue um grupo de uma
@@ -310,84 +315,109 @@ export function ConversationListItem({
               na mesma linha do tempo (ver `MessageBubble`, que mostra QUEM
               mandou cada mensagem dentro do grupo).
             */}
-            {conversation.is_group && (
-              <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">
-                {t("Grupo")}
-              </Badge>
-            )}
-          </span>
-          <span
-            className="shrink-0 text-[11px] tabular-nums text-text-subtle"
-            // O mesmo lugar da tela mostra duas coisas diferentes conforme a aba:
-            // na Fila é "desde quando o cliente ESPERA" (a mensagem mais antiga sem
-            // resposta — #990), nas outras é "há quanto tempo a conversa mexeu". O
-            // rótulo existe só onde a leitura muda.
-            title={naFila ? t("Desde quando o cliente espera resposta") : undefined}
-          >
-            {time}
-          </span>
-        </div>
+                {conversation.is_group && (
+                  <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">
+                    {t("Grupo")}
+                  </Badge>
+                )}
+              </span>
+              <span
+                className="shrink-0 text-[11px] text-text-subtle tabular-nums"
+                // O mesmo lugar da tela mostra duas coisas diferentes conforme a aba:
+                // na Fila é "desde quando o cliente ESPERA" (a mensagem mais antiga sem
+                // resposta — #990), nas outras é "há quanto tempo a conversa mexeu". O
+                // rótulo existe só onde a leitura muda.
+                title={naFila ? t("Desde quando o cliente espera resposta") : undefined}
+              >
+                {time}
+              </span>
+            </div>
 
-        <div className="mt-0.5 flex items-center justify-between gap-2 pr-12 md:pr-8">
-          <p
-            className={cn(
-              "min-w-0 truncate text-[13px]",
-              unread > 0 ? "text-text" : "text-text-muted",
-            )}
-          >
-            {isAi && mostrarAutomatico ? (
-              <Robot size={12} weight="duotone" className="mr-1 inline align-[-2px]" aria-hidden />
-            ) : null}
-            {truncated}
-          </p>
-          {unread > 0 && (
-            <span className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-semibold tabular-nums text-accent-foreground">
-              {unread}
-            </span>
-          )}
-        </div>
+            <div className="mt-0.5 flex items-center justify-between gap-2 pr-12 md:pr-8">
+              <p
+                className={cn(
+                  "min-w-0 truncate text-[13px]",
+                  unread > 0 ? "text-text" : "text-text-muted",
+                )}
+              >
+                {isAi && mostrarAutomatico ? (
+                  <Robot
+                    size={12}
+                    weight="duotone"
+                    className="mr-1 inline align-[-2px]"
+                    aria-hidden
+                  />
+                ) : null}
+                {truncated}
+              </p>
+              {unread > 0 && (
+                <span className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-semibold text-accent-foreground tabular-nums">
+                  {unread}
+                </span>
+              )}
+            </div>
 
-        {(conversation.tags ?? []).length > 0 && <div className="mt-1.5 flex flex-wrap gap-1 pr-12 md:pr-7">{conversation.tags.slice(0, 3).map((tag) => <ChipDeEtiqueta key={tag} tag={tag} className="h-4 max-w-full truncate px-1.5 text-[10px]" />)}{conversation.tags.length > 3 && <span className="text-[10px] text-text-muted">+{conversation.tags.length - 3}</span>}</div>}
-        {temSelos && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1 pr-12 md:pr-7">
-            {visibleTags.map((t) => (
-              <ChipDeEtiqueta key={t} tag={t} className="h-4 px-1.5 text-[10px]" />
-            ))}
-            {overflow > 0 && (
-              <span className="text-[10px] text-text-muted">+{overflow}</span>
-            )}
-            {mostrarAtendente && comando.quem === "humano" && (
-              <OwnerBadge ownerKind="user" ownerName={comando.nome ?? t("Atendente")} compacto />
-            )}
-            {/* #2383: `min-w-0` + `max-w` + `truncate` — o mesmo tratamento do
+            {temSelos && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1 pr-12 md:pr-7">
+                {visibleTags.map((t) => (
+                  <ChipDeEtiqueta key={t} tag={t} className="h-4 px-1.5 text-[10px]" />
+                ))}
+                {overflow > 0 && <span className="text-[10px] text-text-muted">+{overflow}</span>}
+                {mostrarAtendente && comando.quem === "humano" && (
+                  <OwnerBadge
+                    ownerKind="user"
+                    ownerName={comando.nome ?? t("Atendente")}
+                    compacto
+                  />
+                )}
+                {/* #2383: `min-w-0` + `max-w` + `truncate` — o mesmo tratamento do
                 badge do cabeçalho. Uma linha de badges é `flex-wrap`, então um
                 nome de canal comprido ESTOURARIA a faixa para fora da coluna da
                 lista (critério de aceite: layout utilizável com nomes maiores).
                 O `title` devolve o texto inteiro para quem passa o mouse. */}
-            {mostrarCanal && rotuloCanal && (
-              <Badge
-                variant="outline"
-                className="h-4 min-w-0 max-w-[9rem] gap-1 truncate px-1.5 text-[10px] font-normal text-text-muted"
-                title={`${t("Entrou por")} ${rotuloCanal}`}
-              >
-                <span className="truncate">{rotuloCanal}</span>
-              </Badge>
-            )}
-            {c?.is_blocked && (
-              <Badge variant="destructive" className="h-4 px-1.5 text-[10px]">
-                {t("Bloqueado")}
-              </Badge>
-            )}
-            {c?.is_anonymized && (
-              <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
-                {t("Anonimizado")}
-              </Badge>
+                {mostrarCanal && rotuloCanal && (
+                  <Badge
+                    variant="outline"
+                    className="h-4 max-w-[9rem] min-w-0 gap-1 truncate px-1.5 text-[10px] font-normal text-text-muted"
+                    title={`${t("Entrou por")} ${rotuloCanal}`}
+                  >
+                    <span className="truncate">{rotuloCanal}</span>
+                  </Badge>
+                )}
+                {c?.is_blocked && (
+                  <Badge variant="destructive" className="h-4 px-1.5 text-[10px]">
+                    {t("Bloqueado")}
+                  </Badge>
+                )}
+                {c?.is_anonymized && (
+                  <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
+                    {t("Anonimizado")}
+                  </Badge>
+                )}
+              </div>
             )}
           </div>
+        </div>
+        {etiquetasDaConversa.length > 0 && (
+          <div
+            role="group"
+            aria-label={t("Etiquetas da conversa")}
+            className="flex flex-wrap gap-1 border-t border-border/50 bg-background px-3 py-1.5 pl-16"
+          >
+            {etiquetasDaConversa.map((tag) => (
+              <ChipDeEtiqueta
+                key={tag}
+                tag={tag}
+                cor={cores[chaveDaEtiqueta(tag)] ?? CORES_KANBAN_PADRAO[chaveDaEtiqueta(tag)]}
+                className="min-h-5 max-w-full rounded-sm px-2 py-0.5 text-[10px] leading-tight font-semibold tracking-wide break-words whitespace-normal uppercase"
+              />
+            ))}
+          </div>
         )}
+      </button>
+      <div className={cn("absolute right-2", naFila ? "top-12" : "top-7")}>
+        <EtiquetasKanbanConversa conversa={conversation} />
       </div>
-    </button>
-    <div className={cn("absolute right-2", naFila ? "top-12" : "top-7")}><EtiquetasKanbanConversa conversa={conversation} /></div>
     </div>
   );
 }
