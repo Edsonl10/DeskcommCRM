@@ -1,3 +1,9 @@
+import { z } from "zod";
+import {
+  aplicarEtiquetaKanban,
+  etiquetaKanbanSchema,
+  etiquetasKanbanSchema,
+} from "@/lib/inbox/kanban";
 import { aplicarFiltrosAvancados, filtrosAvancadosSchema } from "@/lib/inbox/filtros-avancados";
 /**
  * GET /api/v1/conversations/counts — contagens por visão do inbox (G4-02).
@@ -19,7 +25,11 @@ import { orgAtivaDaApi } from "@/lib/auth/require-role";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { aplicarMarcadores, modoDeEtiqueta } from "@/lib/inbox/marcador-da-conversa";
 import { createClient } from "@/lib/supabase/server";
-import { idsDeContatosPessoais, aplicarBuscaDeConversas, filtroDeBuscaDeConversas } from "../_handler";
+import {
+  idsDeContatosPessoais,
+  aplicarBuscaDeConversas,
+  filtroDeBuscaDeConversas,
+} from "../_handler";
 
 export const dynamic = "force-dynamic";
 
@@ -47,9 +57,7 @@ export type FiltroDeContagem = readonly [coluna: string, valor: string | boolean
  * e a segunda régua sempre diverge. Enquanto isso, o badge sob busca fica maior
  * que a lista, e isso está declarado, não esquecido.
  */
-export function filtrosAuxiliaresDaContagem(
-  sp: URLSearchParams,
-): FiltroDeContagem[] {
+export function filtrosAuxiliaresDaContagem(sp: URLSearchParams): FiltroDeContagem[] {
   const filtros: FiltroDeContagem[] = [];
   const canal = sp.get("channel_session_id");
   if (canal) filtros.push(["channel_session_id", canal]);
@@ -103,7 +111,26 @@ export async function GET(req: NextRequest): Promise<Response> {
     last_message_from: sp.get("last_message_from") ?? undefined,
     last_message_before: sp.get("last_message_before") ?? undefined,
   });
-  if (!avancados.success) return fail("validation_failed", "Filtros inválidos.", 422, { requestId });
+  if (!avancados.success)
+    return fail("validation_failed", "Filtros inválidos.", 422, { requestId });
+  const kanban = z
+    .object({
+      tag: etiquetaKanbanSchema.optional(),
+      tags: etiquetasKanbanSchema,
+      view: z.enum(["active", "waiting", "ai", "all", "closed"]).default("active"),
+    })
+    .safeParse({
+      tag: sp.get("kanban_tag") ?? undefined,
+      tags: sp.getAll("kanban_tags"),
+      view: sp.get("kanban_view") ?? undefined,
+    });
+  if (!kanban.success) return fail("validation_failed", "Filtros inválidos.", 422, { requestId });
+  if (
+    kanban.data.tags.length &&
+    kanban.data.view === "all" &&
+    !permissaoGlobalInbox(activeOrg.role, activeOrg.inbox_permissions, "all")
+  )
+    return fail("forbidden", "Sem permissão para Todos.", 403, { requestId });
   const auxiliares = filtrosAuxiliaresDaContagem(sp);
   const soNaoLidas = contagemSoNaoLidas(sp);
   // ⚠️ O badge conta o MESMO que a lista mostra, então o marcador é lido com
@@ -125,13 +152,15 @@ export async function GET(req: NextRequest): Promise<Response> {
   // Canal desativado nunca entra na inbox: o mesmo corte da lista, para badge
   // e aba nunca divergirem.
   const idsDesativados = await idsDosCanaisDesativados(supabase, org);
-  const countExact = () => {
+  const countExact = (etiqueta = kanban.data.tag) => {
     let q = supabase
       .from("conversations")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", org);
-    if (idsDesativados.length > 0) q = q.not("channel_session_id", "in", `(${idsDesativados.join(",")})`);
+    if (idsDesativados.length > 0)
+      q = q.not("channel_session_id", "in", `(${idsDesativados.join(",")})`);
     q = aplicarFiltrosAvancados(q, avancados.data);
+    q = aplicarEtiquetaKanban(q, etiqueta);
     for (const [coluna, valor] of auxiliares) q = q.eq(coluna, valor);
     // O marcador entra pela régua da LISTA — a mesma função, não uma segunda.
     q = aplicarMarcadores(q, marcadores, modo);
@@ -142,20 +171,73 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const search = sp.get("search") ?? undefined;
   const busca = await filtroDeBuscaDeConversas(supabase, org, search);
-  const countView = (view: InboxView) => aplicarBuscaDeConversas(aplicarVisaoInbox(countExact(), view, user.id, activeOrg.role, activeOrg.inbox_permissions), busca);
+  const countView = (view: InboxView) =>
+    aplicarBuscaDeConversas(
+      aplicarVisaoInbox(countExact(), view, user.id, activeOrg.role, activeOrg.inbox_permissions),
+      busca,
+    );
   const allowedAll = permissaoGlobalInbox(activeOrg.role, activeOrg.inbox_permissions, "all");
+  if (kanban.data.tags.length) {
+    const porEtiqueta = await Promise.all(
+      kanban.data.tags.map(async (tag) => {
+        const base = () =>
+          aplicarBuscaDeConversas(
+            aplicarVisaoInbox(
+              countExact(tag),
+              kanban.data.view,
+              user.id,
+              activeOrg.role,
+              activeOrg.inbox_permissions,
+            ),
+            busca,
+          );
+        const [total, novas] = await Promise.all([
+          base(),
+          base().gt("unread_count_for_assignee", 0),
+        ]);
+        return {
+          tag,
+          total: total.count ?? 0,
+          novas: novas.count ?? 0,
+          error: total.error ?? novas.error,
+        };
+      }),
+    );
+    const erroKanban = porEtiqueta.find((c) => c.error)?.error;
+    if (erroKanban)
+      return fail("internal_error", "Não foi possível contar as etiquetas.", 500, { requestId });
+    return ok(
+      { kanban: porEtiqueta.map(({ tag, total, novas }) => ({ tag, total, novas })) },
+      { requestId },
+    );
+  }
   const [active, waiting, ai, all, closed, needsAssignment] = await Promise.all([
-    countView("active"), countView("waiting"), countView("ai"),
+    countView("active"),
+    countView("waiting"),
+    countView("ai"),
     allowedAll ? countView("all") : Promise.resolve({ count: 0, error: null }),
     countView("closed"),
-    allowedAll ? aplicarBuscaDeConversas(countExact().eq("inbox_state", "unassigned"), busca) : Promise.resolve({ count: 0, error: null }),
+    allowedAll
+      ? aplicarBuscaDeConversas(countExact().eq("inbox_state", "unassigned"), busca)
+      : Promise.resolve({ count: 0, error: null }),
   ]);
-  const firstErr = active.error ?? waiting.error ?? ai.error ?? all.error ?? closed.error ?? needsAssignment.error;
+  const firstErr =
+    active.error ?? waiting.error ?? ai.error ?? all.error ?? closed.error ?? needsAssignment.error;
   if (firstErr) return fail("internal_error", firstErr.message, 500, { requestId });
-  return ok({
-    active: active.count ?? 0, waiting: waiting.count ?? 0, ai: ai.count ?? 0,
-    all: all.count ?? 0, closed: closed.count ?? 0, needs_assignment: needsAssignment.count ?? 0,
-    mine: active.count ?? 0, fila: waiting.count ?? 0, unassigned: waiting.count ?? 0,
-    automatico: ai.count ?? 0, archived: closed.count ?? 0,
-  }, { requestId });
+  return ok(
+    {
+      active: active.count ?? 0,
+      waiting: waiting.count ?? 0,
+      ai: ai.count ?? 0,
+      all: all.count ?? 0,
+      closed: closed.count ?? 0,
+      needs_assignment: needsAssignment.count ?? 0,
+      mine: active.count ?? 0,
+      fila: waiting.count ?? 0,
+      unassigned: waiting.count ?? 0,
+      automatico: ai.count ?? 0,
+      archived: closed.count ?? 0,
+    },
+    { requestId },
+  );
 }

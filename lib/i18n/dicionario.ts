@@ -37,6 +37,28 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "Vários departamentos": { es: "Varios departamentos" },
+  // Barra Kanban por departamento.
+  "Etiquetas Kanban": { es: "Etiquetas Kanban" },
+  "Etiquetas da conversa": { es: "Etiquetas de la conversación" },
+  "Não foi possível carregar todas as etiquetas.": { es: "No se pudieron cargar todas las etiquetas." },
+  "Somente nesta conversa": { es: "Solo en esta conversación" },
+  "Assuma a conversa para aplicar etiquetas.": { es: "Asume la conversación para aplicar etiquetas." },
+  "Departamento da barra Kanban": { es: "Departamento de la barra Kanban" },
+  "Todos os departamentos": { es: "Todos los departamentos" },
+  "Nenhuma etiqueta nesta barra.": { es: "No hay etiquetas en esta barra." },
+  "Número à esquerda: cards · Vermelho: conversas novas": { es: "Número a la izquierda: tarjetas · Rojo: conversaciones nuevas" },
+  "Configuração por departamento": { es: "Configuración por departamento" },
+  "Acompanhe os filtros da lista": { es: "Se aplican los filtros de la lista" },
+  "Não foi possível carregar a barra de etiquetas.": { es: "No se pudo cargar la barra de etiquetas." },
+  "cards": { es: "tarjetas" },
+  "conversas novas": { es: "conversaciones nuevas" },
+  "Personalizar barra": { es: "Personalizar barra" },
+  "Escolha as etiquetas e a ordem para este departamento.": { es: "Elige las etiquetas y el orden para este departamento." },
+  "Remover etiqueta da barra": { es: "Quitar etiqueta de la barra" },
+  "Nova etiqueta na barra": { es: "Nueva etiqueta en la barra" },
+  "Salvar para este departamento": { es: "Guardar para este departamento" },
+  "Limpar filtro Kanban": { es: "Quitar filtro Kanban" },
   // Encaminhamento direto do roteador para departamentos.
   "Destino do roteador": { es: "Destino del enrutador" },
   "Agentes de IA": { es: "Agentes de IA" },

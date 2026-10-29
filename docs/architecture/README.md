@@ -16,6 +16,7 @@ ser fonte sem ninguém decidir isso.
 
 | arquivo | escopo |
 |---|---|
+| `inbox-kanban.architecture.json` | barra por departamento, filtros/contagens e etiquetas vinculadas à conversa com o atendente |
 | `cadastro-e-conversa.architecture.json` | cadastro manual, confirmação, escolha de canal, recuperação de falha e abertura direta na Inbox |
 | `conversoes-de-anuncios.architecture.json` | venda, entrega, protocolo assíncrono, pendências e reprocessamento |
 | `prospeccao-nativa.architecture.json` | busca comercial, fila gradual, configuração conversacional persistente, sandbox e assistente de voz opcional |

@@ -3430,3 +3430,5 @@ Cobertura adicionada em `tests/e2e/inbox-reabrir-e-contato-ocupado.spec.ts`: por
 ## Roteador para setores humanos — 23/10/2026
 
 Editor existente, modo Setores humanos: salva/recarrega e testa inativo, troca os setores de destino e reserva, ativa, confere persistência no banco e desativa. `tests/e2e/roteador-setores-humanos.spec.ts`: aprovado em 14,3 s no E2E 39937253682, fonte 16ea3dd. Captura sintética e sete classificações na instalação real, mantida inativa: `evidence/roteador-setores-humanos/README.md`. Nenhuma mensagem ou transferência real; handoff nativo provado pelos invariantes do banco fresco.
+
+Inbox → etiquetas Kanban: `tests/e2e/inbox-kanban.spec.ts` cobre seleção de etiquetas pelo ícone sob a hora, contagens de cards/conversas novas, filtro no banco, separação por atendente e configuração por departamento com persistência e celular. Cobertura adicionada; aprovação nativa pendente de execução no CI.

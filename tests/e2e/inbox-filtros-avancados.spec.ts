@@ -128,7 +128,7 @@ test("funil combina filtros no banco e nas contagens, limpa e cabe no celular", 
   await expect(page.getByRole("tab", { name: /^Fechadas/ })).toHaveText(/2/);
   for (let i = 0; i < 5; i++)
     await expect(
-      page.getByRole("button", { name: new RegExp(`Conversa Filtros ${i}`) }),
+      page.locator("[data-conversation-id]").filter({ hasText: `Conversa Filtros ${i}` }),
     ).toHaveCount(i < 2 ? 1 : 0);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Filtros de conversas", exact: true }).click();

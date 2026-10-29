@@ -28,7 +28,7 @@
  * redesenha o chip. Etiqueta sem cor sai idêntica à de antes — inclusive nos
  * testes que já contam com o token.
  */
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -57,5 +57,35 @@ export function ChipDeEtiqueta({ tag, cor, className, children, ...props }: Prop
       {tag}
       {children}
     </Badge>
+  );
+}
+
+/** A mesma cor e contraste do chip, com semântica nativa para filtros clicáveis. */
+export function BotaoDeEtiqueta({
+  tag,
+  cor,
+  prefixo,
+  children,
+  className,
+  onClick,
+  ...props
+}: {
+  tag: string;
+  cor?: string | null;
+  prefixo?: ReactNode;
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "style">) {
+  const corDoProvider = useCorDaEtiqueta(tag);
+  return (
+    <button
+      type="button"
+      {...props}
+      onClick={onClick}
+      className={className}
+      style={estiloDoChip(cor === undefined ? corDoProvider : cor)}
+    >
+      {prefixo}
+      <span className="uppercase">{tag}</span>
+      {children}
+    </button>
   );
 }

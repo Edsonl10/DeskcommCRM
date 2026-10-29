@@ -179,6 +179,8 @@ export const patchConversationSchema = z
     status: conversationStatusSchema.optional(),
     expected_revision: z.number().int().positive().optional(),
     tags: conversationTagsSchema.optional(),
+    expected_assignee: z.uuid().nullable().optional(),
+    expected_tags: conversationTagsSchema.optional(),
   })
   .refine((d) => d.status !== undefined || d.tags !== undefined, {
     message: "Informe status ou tags.",
@@ -241,6 +243,7 @@ export const CONVERSATION_TERMINAL_STATUSES = ["closed", "archived"] as const;
 export const CONVERSATION_QUEUE_STATUSES = ["open", "pending"] as const;
 
 export const listConversationsQuerySchema = z.object({
+  kanban_tag: conversationTagSchema.optional(),
   ...camposDosFiltrosAvancados,
   /**
    * Um status, ou vários separados por vírgula (`?status=open,pending`).

@@ -16,6 +16,7 @@ import {
   type ConversationWithContact,
 } from "@/hooks/inbox/useConversationsRealtime";
 import { useConversation, isNotFound } from "@/hooks/inbox/useConversation";
+import { BarraKanbanInbox } from "./BarraKanbanInbox";
 import { ConversationList } from "./ConversationList";
 import { InboxFilters, type InboxFiltersValue, type InboxTab } from "./InboxFilters";
 import { ChatThread } from "./ChatThread";
@@ -248,6 +249,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
         ? filterValue.search
         : undefined,
       channel_session_id: filterValue.channel_session_id,
+      kanban_tag: filterValue.kanban_tag,
       tag: filterValue.tag,
       tagMode: filterValue.tagMode,
       department_ids: filterValue.department_ids,
@@ -262,6 +264,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
       automaticoDaOrg,
       filterValue.search,
       filterValue.channel_session_id,
+      filterValue.kanban_tag,
       filterValue.tag,
       filterValue.tagMode,
       filterValue.department_ids,
@@ -591,9 +594,11 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
   // deixava. Margem de 2px não é margem, é sorte.
   return (
     <OpenConversationProvider conversationId={selectedId}>
+    <div className="flex h-[calc(100dvh-3.5rem-var(--space-6)-max(var(--space-6),var(--rodape-ocupado,0px)))] min-h-0 flex-col gap-2">
+    <BarraKanbanInbox value={filterValue} filtros={filters} onChange={setFilterValue} />
     <div
       ref={gradeRef}
-      className="grid relative h-[calc(100dvh-3.5rem-var(--space-6)-max(var(--space-6),var(--rodape-ocupado,0px)))] w-full grid-cols-1 md:grid-cols-[300px_1fr] xl:grid-cols-[272px_1fr_296px] 2xl:grid-cols-[300px_1fr_320px]"
+      className="grid relative min-h-0 flex-1 w-full grid-cols-1 md:grid-cols-[300px_1fr] xl:grid-cols-[272px_1fr_296px] 2xl:grid-cols-[300px_1fr_320px]"
       style={estiloDaGrade}
       /*
        * O ESTADO DO TEMPO REAL, LEGÍVEL DE FORA — mesmo par que o dossiê do lead
@@ -638,6 +643,10 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
         )}
       >
         <InboxFilters value={filterValue} onChange={setFilterValue} />
+        {filterValue.kanban_tag && <div className="flex items-center justify-between gap-2 border-b border-border bg-accent-soft px-3 py-2 text-xs text-accent">
+          <span className="truncate">{filterValue.kanban_tag}</span>
+          <button type="button" aria-label={t("Limpar filtro Kanban")} onClick={() => setFilterValue({ ...filterValue, kanban_tag: undefined })}><X size={14} /></button>
+        </div>}
         <div className="min-h-0 flex-1 overflow-hidden">
           <ConversationList
             listQuery={listQ}
@@ -910,6 +919,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
         onToggleHelp={() => setHelpOpen((v) => !v)}
       />
       <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
+    </div>
     </div>
     </OpenConversationProvider>
   );

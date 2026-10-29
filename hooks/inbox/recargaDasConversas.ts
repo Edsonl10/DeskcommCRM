@@ -45,5 +45,6 @@ function descarregar(qc: QueryClient): void {
   }
   agendadas.delete(qc);
   void qc.invalidateQueries({ queryKey: ["conversations"] });
+  void qc.invalidateQueries({ queryKey: ["conversation-counts"] });
   void qc.invalidateQueries({ queryKey: ["conversation"] });
 }
