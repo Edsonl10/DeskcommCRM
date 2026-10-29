@@ -56,6 +56,18 @@
       "lane": "tela",
       "label": "ConversationList e CRMSidePanel",
       "sublabel": "Leitura do conjunto ativo; eventos invalidam contagens"
+    },
+    {
+      "id": "contexto",
+      "lane": "banco",
+      "label": "Contexto de leitura atual",
+      "sublabel": "JWT + vínculos ativos; InitPlan por consulta"
+    },
+    {
+      "id": "leitura",
+      "lane": "banco",
+      "label": "Policy de leitura do Inbox",
+      "sublabel": "Critério único de responsável e permissões; invoker por linha"
     }
   ],
   "edges": [
@@ -106,6 +118,30 @@
       "from": "tags",
       "to": "menu",
       "label": "409/erro preserva rascunho; sucesso fecha e recarrega"
+    },
+    {
+      "id": "e9",
+      "from": "dados",
+      "to": "contexto",
+      "label": "Organização da conversa sob sessão autenticada"
+    },
+    {
+      "id": "e10",
+      "from": "contexto",
+      "to": "leitura",
+      "label": "Contexto calculado uma vez, sem cache entre sessões"
+    },
+    {
+      "id": "e11",
+      "from": "leitura",
+      "to": "lista",
+      "label": "RLS comum à lista, mensagens e contagens"
+    },
+    {
+      "id": "e12",
+      "from": "leitura",
+      "to": "barra",
+      "label": "Contagens exatas no mesmo escopo"
     }
   ]
 }
