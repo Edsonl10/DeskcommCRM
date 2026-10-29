@@ -24,7 +24,7 @@ function abrir(tag = "em andamento") {
       <CorDaEtiquetaKanban tag={tag} />
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: `Cor da etiqueta ${tag}`, exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: `Cor da etiqueta ${tag}` }));
   return qc;
 }
 
@@ -40,12 +40,12 @@ describe("cor da etiqueta na configuração do Inbox", () => {
     expect(screen.getByText("em andamento", { exact: true })).toHaveStyle({
       backgroundColor: "#0099d5",
     });
-    fireEvent.click(screen.getByRole("button", { name: "Roxo", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Roxo" }));
     expect(post).not.toHaveBeenCalled();
     expect(screen.getByText("em andamento", { exact: true })).toHaveStyle({
       backgroundColor: "#ab4aba",
     });
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar cor", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar cor" }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith("/api/v1/tags/vocabulario", {
         acao: "definir_cor",
@@ -59,15 +59,15 @@ describe("cor da etiqueta na configuração do Inbox", () => {
   it("abre na cor atual e retirar a personalização mantém a cor padrão da etapa", async () => {
     corAtual.value = "#ab4aba";
     abrir();
-    expect(screen.getByRole("button", { name: "Roxo", exact: true })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Roxo" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    fireEvent.click(screen.getByRole("button", { name: "Cor padrão", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Cor padrão" }));
     expect(screen.getByText("em andamento", { exact: true })).toHaveStyle({
       backgroundColor: "#0099d5",
     });
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar cor", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar cor" }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith("/api/v1/tags/vocabulario", {
         acao: "definir_cor",
@@ -81,12 +81,12 @@ describe("cor da etiqueta na configuração do Inbox", () => {
     const erro = new Error("Falha sintética");
     post.mockRejectedValue(erro);
     abrir("urgente");
-    fireEvent.click(screen.getByRole("button", { name: "Azul", exact: true }));
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar cor", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Azul" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar cor" }));
     await waitFor(() =>
       expect(mostrarErro).toHaveBeenCalledWith(erro, undefined, undefined, expect.anything()),
     );
-    expect(screen.getByRole("button", { name: "Aplicar cor", exact: true })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Aplicar cor" })).toBeVisible();
     expect(invalidar).not.toHaveBeenCalled();
   });
 
@@ -97,22 +97,22 @@ describe("cor da etiqueta na configuração do Inbox", () => {
     });
     post.mockReturnValue(resposta);
     abrir();
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar cor", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar cor" }));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Salvando…", exact: true })).toBeDisabled(),
+      expect(screen.getByRole("button", { name: "Salvando…" })).toBeDisabled(),
     );
     fireEvent.keyDown(document, { key: "Escape" });
     expect(
-      screen.getByRole("dialog", { name: "Cor da etiqueta em andamento", exact: true }),
+      screen.getByRole("dialog", { name: "Cor da etiqueta em andamento" }),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Roxo", exact: true })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Roxo" })).toBeDisabled();
     await act(async () => {
       concluir({ data: {} });
       await resposta;
     });
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Cor da etiqueta em andamento", exact: true }),
+        screen.queryByRole("dialog", { name: "Cor da etiqueta em andamento" }),
       ).not.toBeInTheDocument(),
     );
   });
