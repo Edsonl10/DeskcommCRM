@@ -196,7 +196,6 @@ test("barra filtra no banco, conta conversas e permite etiquetas e configuraçã
   await cores.getByRole("button", { name: "Roxo", exact: true }).click();
   await cores.getByRole("button", { name: "Aplicar cor", exact: true }).click();
   await expect(cores).toBeHidden();
-  await expect(etapa).toHaveCSS("background-color", "rgb(171, 74, 186)");
   await dialog
     .getByRole("button", { name: "Remover etiqueta da barra fechado", exact: true })
     .click();
@@ -205,6 +204,7 @@ test("barra filtra no banco, conta conversas e permite etiquetas e configuraçã
     .click();
   await dialog.getByRole("button", { name: "Salvar para este departamento", exact: true }).click();
   await expect(dialog).toBeHidden();
+  await expect(etapa).toHaveCSS("background-color", "rgb(171, 74, 186)");
   await expect(
     linha
       .getByRole("group", { name: "Etiquetas da conversa", exact: true })
