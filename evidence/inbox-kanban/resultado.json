@@ -1,0 +1,157 @@
+{
+  "feature": "inbox-kanban-por-departamento",
+  "date": "2026-10-29",
+  "status": "installed",
+  "pull_request": "https://github.com/Edsonl10/DeskcommCRM/pull/38",
+  "validated_source": "e4629935145b399e1ed91dd80af21a09a3dc663d",
+  "installed_source": "98d6c51e567560c394ac7fa6979a3ef193cb3c24",
+  "validated_and_installed_tree": "22795eb540cd3734299643bd6e64d3f22967a6de",
+  "tree_equality_verified": true,
+  "source_checks": [
+    {
+      "name": "verify",
+      "id": 123397113351,
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40857592429/job/123397113351",
+      "conclusion": "success"
+    },
+    {
+      "name": "invariants",
+      "id": 123401120034,
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40857592429/job/123401120034",
+      "conclusion": "success"
+    },
+    {
+      "name": "build-and-size",
+      "id": 123392350243,
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40857592433/job/123392350243",
+      "conclusion": "success"
+    },
+    {
+      "name": "e2e",
+      "id": 123403725328,
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40857592527/job/123403725328",
+      "conclusion": "success"
+    },
+    {
+      "name": "imagens-ok",
+      "id": 123396042731,
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40857592276/job/123396042731",
+      "conclusion": "success"
+    }
+  ],
+  "redundant_post_merge_runs": {
+    "reason": "Árvore da integração integralmente idêntica à fonte aprovada nos cinco gates.",
+    "cancelled_runs": [
+      {
+        "name": "ci",
+        "id": 40861407512
+      },
+      {
+        "name": "perf",
+        "id": 40861407552
+      },
+      {
+        "name": "e2e",
+        "id": 40861407595
+      }
+    ]
+  },
+  "publication": {
+    "run_id": 40861407459,
+    "conclusion": "success",
+    "architectures": [
+      "linux/amd64",
+      "linux/arm64"
+    ],
+    "images": {
+      "app": "ghcr.io/edsonl10/deskcommcrm@sha256:658388a4eca6e354d9aafd99afa466b1345d3cd5c812010220559d4a85db59e7",
+      "worker": "ghcr.io/edsonl10/deskcomm-worker@sha256:9821f938e4922d027c495b8e1f3db1079cdeae6d4abab18f9328aa2bd024bb05",
+      "scheduler": "ghcr.io/edsonl10/deskcomm-scheduler@sha256:74ddd7295716da73f328cc97a5b8f8aeaccee508af9d9a8d868bbff5385ff3fd"
+    }
+  },
+  "tests": {
+    "unit": {
+      "files": 1831,
+      "passed": 19226,
+      "expected_failures": 1
+    },
+    "structural": {
+      "files": 303,
+      "passed": 2972,
+      "skipped": 2
+    },
+    "postgres": {
+      "versions": [
+        15,
+        17
+      ],
+      "isolation_and_invariants": "passed",
+      "update_over_existing_data": "passed"
+    },
+    "e2e": {
+      "run_id": 40857592527,
+      "parts": 6,
+      "result": "success",
+      "contact_panel_collapse_seconds": 9.4
+    },
+    "local": {
+      "targeted_cases": 146,
+      "final_cases": 51,
+      "icon_cases": 8,
+      "typecheck": "passed",
+      "lint": "passed",
+      "negative_control": "1/5 falhou ao retirar o predicado; 5/5 passaram após restauração",
+      "limits": "Docker ausente; suíte ampla/build locais limitados por IPC/rede/memória."
+    }
+  },
+  "deployment": {
+    "previous_source": "20a6f013764231b20a475a28c84ba8b96eae6988",
+    "backup": "/opt/backups/crm-kanban-20261029-98d6c51",
+    "backup_validated": true,
+    "private_receipt": "/opt/backups/crm-kanban-20261029-98d6c51/recibo-roteador.json",
+    "migration": {
+      "number": 9008,
+      "status": "applied",
+      "sql_file_sha256": "730c0627735e32c4720c15a4a466dff2c031cb16080548216e957e58b61d3e42"
+    },
+    "health": {
+      "status": "healthy",
+      "version": "98d6c51",
+      "services": {
+        "app": "healthy",
+        "worker": "healthy",
+        "scheduler": "healthy"
+      }
+    },
+    "public_http": {
+      "/": 200,
+      "/app": 307
+    },
+    "caddyfile_preserved": true,
+    "other_services_preserved": true,
+    "environment_changes": [
+      "APP_IMAGE",
+      "WORKER_IMAGE",
+      "SCHEDULER_IMAGE"
+    ],
+    "rollback_performed": false,
+    "installer_sha256": "1a1fc8b10fbf82958f43fd8f3f8cf94559f31cf12a720a6e1c93ee09d49c24a6",
+    "registry_wrapper_sha256": "5e7a71b75f0fac9804ee201bb74cfd624e45d803e8f571573a7283c229a5d23b"
+  },
+  "production_ui": {
+    "toolbar_and_counters_loaded": true,
+    "label_selector_opened": true,
+    "customizer_opened_and_cancelled": true,
+    "commercial_department_selected_and_customizer_checked": true,
+    "all_departments_restored": true,
+    "actual_tag_or_configuration_saves": false,
+    "preview_tab_left_open": true
+  },
+  "evidence": {
+    "synthetic_source": "d45870dccb5329e2f1681cd181d77982ef2b8273",
+    "synthetic_artifact_id": 12858448234,
+    "production_capture": "evidence/inbox-kanban/publicado.jpg",
+    "capture_scope": "Somente a barra; captura com busca de validação sem resultados.",
+    "production_capture_sha256": "9e8ab14a5f7187f0498ea902c4508369b9ac2ff3310580de7e1f812cc20d7a52"
+  }
+}
