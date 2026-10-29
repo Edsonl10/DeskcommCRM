@@ -1,0 +1,318 @@
+{
+  "status": "installed",
+  "feature_pr": "https://github.com/Edsonl10/DeskcommCRM/pull/40",
+  "source": "d8ad8b7b84f8f833b2b26548693d607c630a6868",
+  "source_tree": "34940ebe334086661ad579db72d309145b91b873",
+  "installed_source": "9f76bf33bdbe3e35dafcfbe1c7ef3ff5bfe81787",
+  "source_gates": [
+    {
+      "name": "e2e",
+      "id": 123460703548,
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40874265034/job/123460703548",
+      "sha": "d8ad8b7b84f8f833b2b26548693d607c630a6868",
+      "conclusion": "success"
+    },
+    {
+      "name": "invariants",
+      "id": 123457993509,
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40874264758/job/123457993509",
+      "sha": "d8ad8b7b84f8f833b2b26548693d607c630a6868",
+      "conclusion": "success"
+    },
+    {
+      "name": "verify",
+      "id": 123452950259,
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40874264758/job/123452950259",
+      "sha": "d8ad8b7b84f8f833b2b26548693d607c630a6868",
+      "conclusion": "success"
+    },
+    {
+      "name": "imagens-ok",
+      "id": 123452678388,
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40874264618/job/123452678388",
+      "sha": "d8ad8b7b84f8f833b2b26548693d607c630a6868",
+      "conclusion": "success"
+    },
+    {
+      "name": "build-and-size",
+      "id": 123448914880,
+      "url": "https://github.com/Edsonl10/DeskcommCRM/actions/runs/40874264523/job/123448914880",
+      "sha": "d8ad8b7b84f8f833b2b26548693d607c630a6868",
+      "conclusion": "success"
+    }
+  ],
+  "publication": {
+    "run": 40878281007,
+    "conclusion": "success",
+    "manifest_job": 123467378766,
+    "images": {
+      "app": "ghcr.io/edsonl10/deskcommcrm@sha256:0c5d3afd35f52fa15ff05ec41fec09f4a2078fcbef2431afe94082b6e693c7a0",
+      "worker": "ghcr.io/edsonl10/deskcomm-worker@sha256:f25b65162872b783ec81ddef7b3ef235a619d990a1f46d371a048362eec9404e",
+      "scheduler": "ghcr.io/edsonl10/deskcomm-scheduler@sha256:7de386741c5bb6db51ef380428d6437f4fbec0b84a974d899e1d613c52e67266"
+    }
+  },
+  "database_ci": {
+    "postgres_15": {
+      "files": 429,
+      "passed": 3370,
+      "expected_fail": 1,
+      "skipped": 2,
+      "new_invariant_cases": 12,
+      "new_invariant_ms": 324
+    },
+    "postgres_17": {
+      "files": 429,
+      "passed": 3370,
+      "expected_fail": 1,
+      "skipped": 2,
+      "new_invariant_cases": 12,
+      "new_invariant_ms": 310
+    }
+  },
+  "verify_metrics": [
+    {
+      "job": 123448998706,
+      "summary": [
+        "2026-10-29T12:40:15.6874843Z  Test Files  611 passed (611)",
+        "2026-10-29T12:40:15.6935578Z       Tests  6141 passed (6141)"
+      ]
+    },
+    {
+      "job": 123448998591,
+      "summary": [
+        "2026-10-29T12:40:08.0238962Z  Test Files  610 passed (610)",
+        "2026-10-29T12:40:08.0274591Z       Tests  6253 passed (6253)"
+      ]
+    },
+    {
+      "job": 123448998611,
+      "summary": [
+        "2026-10-29T12:42:06.8231738Z  Test Files  610 passed (610)",
+        "2026-10-29T12:42:06.8319445Z       Tests  6832 passed | 1 expected fail (6833)"
+      ]
+    },
+    {
+      "job": 123448998691,
+      "summary": [
+        "2026-10-29T12:35:48.1797261Z  Test Files  303 passed (303)",
+        "2026-10-29T12:35:48.1823575Z       Tests  2973 passed | 2 skipped (2975)"
+      ]
+    }
+  ],
+  "local": {
+    "typecheck": "passed",
+    "lint_targeted": "passed",
+    "unit_cases": 360,
+    "db": "Docker unavailable; measured by native CI",
+    "release_check": "passed with node --import tsx; CLI IPC unavailable"
+  },
+  "plan_negative_control": {
+    "positive_has_initplan": true,
+    "without_subselect_has_initplan": false,
+    "permanent_changes": false,
+    "log": "/opt/backups/crm-inbox-controle-plano-20261029.log"
+  },
+  "temporary_rollback": {
+    "source": "20a6f013764231b20a475a28c84ba8b96eae6988",
+    "status": "restored_previous_images",
+    "schema_9008_retained": true,
+    "business_data_restored": false,
+    "receipt": "/opt/backups/crm-retorno-kanban-20261029-1210/recibo.json"
+  },
+  "operations": {
+    "helper": "/opt/backups/deploy-inbox-leitura-retry-20261029.py",
+    "helper_sha256": "fe94fde6c45e6d2a2856300a07db9138bb1c1da996e64d347f19c1d13f1284a0",
+    "wrapper": "/opt/backups/run-inbox-leitura-retry-20261029.py",
+    "wrapper_sha256": "a42a351d0351773539b0e4197acd592c5daae7e75daa228acafdb8bc0496849e",
+    "previous": "20a6f013764231b20a475a28c84ba8b96eae6988",
+    "tree": "34940ebe334086661ad579db72d309145b91b873",
+    "migration": "supabase/migrations/20261029123000_9009_inbox_leitura_por_consulta.sql",
+    "rollback_receipt": "/opt/backups/crm-retorno-kanban-20261029-1210/recibo.json",
+    "backup": "/opt/backups/crm-inbox-leitura-20261029-9f76bf3-retry",
+    "migration_sha256_expected": "553dd54351b5759042d817de309a5f366ca8347c7485c295ac0f2f9b272c2dfa",
+    "probe_sha256": "81b483a7405373f19cd16897e8b5db31826b0f851d3d754d93994a7b3114d677",
+    "migration_prefix": "set local lock_timeout='15s'; set local statement_timeout='30s'; lock table public.conversations in access exclusive mode;",
+    "caddy_preserved": true,
+    "backup_validated": true
+  },
+  "duplicate_push_runs": [
+    {
+      "id": 40878281156,
+      "name": "e2e",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "sha": "9f76bf33bdbe3e35dafcfbe1c7ef3ff5bfe81787"
+    },
+    {
+      "id": 40878281154,
+      "name": "ci",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "sha": "9f76bf33bdbe3e35dafcfbe1c7ef3ff5bfe81787"
+    },
+    {
+      "id": 40878280968,
+      "name": "perf",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "sha": "9f76bf33bdbe3e35dafcfbe1c7ef3ff5bfe81787"
+    }
+  ],
+  "limitations": [
+    "Production prototype timings are points under changing load; the full old-vs-new production comparison timed out.",
+    "Physical computers of other attendants were not accessed.",
+    "A four-session read probe is not a full traffic stress test."
+  ],
+  "runtime_receipt": {
+    "source": "9f76bf33bdbe3e35dafcfbe1c7ef3ff5bfe81787",
+    "tree": "34940ebe334086661ad579db72d309145b91b873",
+    "previous_source": "20a6f013764231b20a475a28c84ba8b96eae6988",
+    "publication_run": "40878281007",
+    "status": "installed",
+    "migration_9009": {
+      "status": "applied",
+      "sha256": "553dd54351b5759042d817de309a5f366ca8347c7485c295ac0f2f9b272c2dfa"
+    },
+    "other_services_preserved": true,
+    "public": {
+      "/": "200",
+      "/app": "307"
+    },
+    "images": {
+      "app": "ghcr.io/edsonl10/deskcommcrm@sha256:0c5d3afd35f52fa15ff05ec41fec09f4a2078fcbef2431afe94082b6e693c7a0",
+      "worker": "ghcr.io/edsonl10/deskcomm-worker@sha256:f25b65162872b783ec81ddef7b3ef235a619d990a1f46d371a048362eec9404e",
+      "scheduler": "ghcr.io/edsonl10/deskcomm-scheduler@sha256:7de386741c5bb6db51ef380428d6437f4fbec0b84a974d899e1d613c52e67266"
+    }
+  },
+  "read_probe": {
+    "read_only": true,
+    "parallel_sessions": 4,
+    "queries_per_session": 4,
+    "success": true,
+    "results": [
+      {
+        "probe": 1,
+        "ok": true,
+        "owned_scope_verified": true,
+        "query_ms": [
+          76.922,
+          29.234,
+          11.464,
+          32.533
+        ],
+        "wall_ms": 1605
+      },
+      {
+        "probe": 2,
+        "ok": true,
+        "owned_scope_verified": true,
+        "query_ms": [
+          46.998,
+          45.084,
+          11.139,
+          18.947
+        ],
+        "wall_ms": 1320
+      },
+      {
+        "probe": 3,
+        "ok": true,
+        "owned_scope_verified": true,
+        "query_ms": [
+          113.23,
+          112.615,
+          14.79,
+          15.212
+        ],
+        "wall_ms": 1652
+      },
+      {
+        "probe": 4,
+        "ok": true,
+        "owned_scope_verified": true,
+        "query_ms": [
+          83.304,
+          106.887,
+          18.103,
+          48.427
+        ],
+        "wall_ms": 1397
+      }
+    ],
+    "query_min_ms": 11.139,
+    "query_max_ms": 113.23,
+    "query_median_ms": 38.8085
+  },
+  "database_installed_state": [
+    {
+      "state": {
+        "policy": "fn_leitura_inbox_no_contexto(conversations.*, ( SELECT fn_contexto_de_leitura_inbox() AS fn_contexto_de_leitura_inbox))",
+        "functions": [
+          {
+            "anon": false,
+            "proname": "fn_contexto_de_leitura_inbox",
+            "prosecdef": true,
+            "provolatile": "s",
+            "authenticated": true
+          },
+          {
+            "anon": false,
+            "proname": "fn_leitura_inbox_no_contexto",
+            "prosecdef": false,
+            "provolatile": "s",
+            "authenticated": true
+          }
+        ]
+      }
+    }
+  ],
+  "first_installation_attempt": {
+    "backup": "/opt/backups/crm-inbox-leitura-20261029-9f76bf3",
+    "status": "rolled_back",
+    "cause": "lock_timeout_5s",
+    "migration_transaction_rolled_back": true,
+    "retry": "lock_timeout_15s_and_table_lock_before_function_changes"
+  },
+  "ui_smoke": {
+    "list_loaded": true,
+    "counters_loaded": true,
+    "errors_visible": false,
+    "existing_label_filter": true,
+    "label_filter_selected": true,
+    "screenshot": "evidence/inbox-leitura-por-consulta/publicado.jpg",
+    "screenshot_no_customer_data": true,
+    "screenshot_uses_no_result_search": true,
+    "search_restored": true,
+    "screenshot_sha256": "3bbb42d2c9676e9296dc6889c1d1acc8d5a719a5da47542192b08a36ce6da33d"
+  },
+  "runtime_health": {
+    "version": "9f76bf3",
+    "status": "healthy",
+    "app": "running/healthy",
+    "worker": "running/healthy",
+    "scheduler": "running/healthy",
+    "revision": "9f76bf33bdbe3e35dafcfbe1c7ef3ff5bfe81787",
+    "installed_at": "2026-10-29T13:22:17.825Z",
+    "checked_at": "2026-10-29T13:37:07.430Z"
+  },
+  "advisors": {
+    "security_checked": true,
+    "performance_checked": true,
+    "intentional_authenticated_rpc": {
+      "function": "fn_contexto_de_leitura_inbox",
+      "reason": "RLS helper with no identity argument; returns only the current caller's active memberships and permissions, already readable by that caller. Anon revoked; row decision helper is invoker.",
+      "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+    }
+  },
+  "post_install_timeout_window": {
+    "from": "2026-10-29T13:22:17.825Z",
+    "to": "2026-10-29T13:37:07.430Z",
+    "result": {
+      "result": [
+        {
+          "statement_timeouts": 0
+        }
+      ]
+    }
+  }
+}
