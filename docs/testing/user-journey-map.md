@@ -3432,3 +3432,10 @@ Cobertura adicionada em `tests/e2e/inbox-reabrir-e-contato-ocupado.spec.ts`: por
 Editor existente, modo Setores humanos: salva/recarrega e testa inativo, troca os setores de destino e reserva, ativa, confere persistência no banco e desativa. `tests/e2e/roteador-setores-humanos.spec.ts`: aprovado em 14,3 s no E2E 39937253682, fonte 16ea3dd. Captura sintética e sete classificações na instalação real, mantida inativa: `evidence/roteador-setores-humanos/README.md`. Nenhuma mensagem ou transferência real; handoff nativo provado pelos invariantes do banco fresco.
 
 Inbox → etiquetas Kanban: `tests/e2e/inbox-kanban.spec.ts` cobre seleção de etiquetas pelo ícone sob a hora, contagens de cards/conversas novas, filtro no banco, separação por atendente e configuração por departamento com persistência e celular. Aprovada no E2E 40857592527, fonte e462993; integração 98d6c51 instalada, com árvore idêntica à fonte. Na produção foram conferidos barra/contadores, seletor e configuração de Comercial, sem gravar etiquetas ou configuração. Evidências e recibo: `evidence/inbox-kanban/README.md`.
+
+
+## Achado — leitura do Inbox sob vários atendentes (29/10/2026)
+
+- `[P0]` Usuário reportou erros ao carregar conversas e barra em computadores distintos após instalar a barra. Saúde pública healthy não detectava as falhas autenticadas 57014. Retorno às imagens anteriores confirmado, sem restauração de dados; lista carregada pela tela e barra temporariamente indisponível.
+- Diagnóstico e limites: `docs/features/inbox-leitura-por-consulta.md`. A policy repetia consultas de identidade/vínculos/suporte por conversa; nova contagem aumentou esse custo. Migration 9009 coloca contexto em InitPlan por statement e conserva o critério de leitura.
+- Guarda no banco real: `tests/invariants/inbox-leitura-por-consulta.test.ts`, incluindo plano executado uma vez, troca de identidade na mesma conexão, revogação, papéis, permissões e tenant distinto. A regressão visual existente em `tests/e2e/inbox-kanban.spec.ts` continua no CI integral. Correção em validação; ainda não instalada.
