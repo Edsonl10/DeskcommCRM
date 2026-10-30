@@ -114,13 +114,19 @@ const fichaAbertaNoServidor = () => false;
 
 interface InboxLayoutProps {
   initialSelectedId?: string | null;
+  /** Setor único e ativo do login, consultado no servidor antes de montar o Inbox. */
+  initialDepartmentId?: string | null;
   /** Rascunho sugerido por integração (issue #1611) — `null` é o caso comum. */
   rascunho?: AvisoDeRascunho | null;
 }
 
 const LARGURA_DA_FICHA_RECOLHIDA = 40;
 
-export function InboxLayout({ initialSelectedId = null, rascunho = null }: InboxLayoutProps = {}) {
+export function InboxLayout({
+  initialSelectedId = null,
+  initialDepartmentId = null,
+  rascunho = null,
+}: InboxLayoutProps = {}) {
   const t = useT();
   const { activeOrg, user } = useAuth();
   const supportReadonly = user.support?.access_mode === "support_readonly";
@@ -150,12 +156,14 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
    */
   const tagNaUrl = searchParams.get("tag");
 
-  // tab vive na URL (?filter=); os demais filtros são estado local de sessão —
-  // exceto a etiqueta, que entra UMA vez, na abertura, pela URL.
+  // O setor inicial entra ANTES do primeiro render. Depois disso, seleção
+  // manual ("Todos", outro departamento etc.) é soberana nesta sessão:
+  // nenhum efeito/refetch reescreve a escolha do usuário.
   const [aux, setAux] = useState<Omit<InboxFiltersValue, "tab">>({
     search: "",
     onlyUnread: false,
     onlyGroups: false,
+    ...(initialDepartmentId ? { department_ids: [initialDepartmentId] } : {}),
     ...(tagNaUrl ? { tag: tagNaUrl } : {}),
   });
   const filterValue: InboxFiltersValue = { tab, ...aux };
