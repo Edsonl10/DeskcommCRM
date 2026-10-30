@@ -37,14 +37,15 @@ export async function GET(): Promise<Response> {
       requestId,
     });
   }
+  const setoresDoAtendente = permitidos;
   const visiveis = (departamentos.data ?? []).filter(
-    (d) => permitidos === null || permitidos.includes(d.id),
+    (d) => setoresDoAtendente === null || setoresDoAtendente.includes(d.id),
   );
   const todasAsBarras = barrasKanban(org.data?.settings);
-  const barras = permitidos === null
+  const barras = setoresDoAtendente === null
     ? todasAsBarras
     : Object.fromEntries(
-        Object.entries(todasAsBarras).filter(([id]) => permitidos.includes(id)),
+        Object.entries(todasAsBarras).filter(([id]) => setoresDoAtendente.includes(id)),
       );
   return ok({ barras, departamentos: visiveis }, { requestId });
 }
