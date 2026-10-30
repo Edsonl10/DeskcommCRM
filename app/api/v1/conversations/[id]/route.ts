@@ -1,4 +1,5 @@
 import { requireSupportWrite } from "@/lib/impersonate/support";
+import { departamentosPermitidosNoInbox } from "@/lib/inbox/escopo-do-setor";
 /**
  * GET   /api/v1/conversations/[id] — single conversation (handler em ../_handler.ts)
  * PATCH /api/v1/conversations/[id] — update status e/ou tags (handler em ../_handler.ts)
@@ -91,6 +92,11 @@ export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
     );
     // Mesma razão da listagem: o nome entra na borda HTTP, não no handler que o
     // MCP compartilha. Aqui é UM lookup, não N.
+    // O link direto deve obedecer ao mesmo setor permitido da lista.
+    const permitidos = await departamentosPermitidosNoInbox(activeOrg.orgId, user.id, activeOrg.role);
+    if (permitidos !== null && !permitidos.includes(conv.assigned_department_id ?? "")) {
+      return fail("not_found", "Conversa não encontrada.", 404, { requestId });
+    }
     const [comNome] = await comNomeDoAtendente([conv]);
     return ok(comNome ?? conv, { requestId });
   } catch (err) {
@@ -132,6 +138,18 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
   }
 
   try {
+    // Bloqueia alteração por URL de conversa fora do setor ANTES de qualquer efeito.
+    const permitidos = await departamentosPermitidosNoInbox(activeOrg.orgId, user.id, activeOrg.role);
+    if (permitidos !== null) {
+      const existente = await getConversationHandler(
+        supabase,
+        { organization_id: activeOrg.orgId, actor: { type: "user", id: user.id }, requestId, idioma: user.idioma },
+        id,
+      );
+      if (!permitidos.includes(existente.assigned_department_id ?? "")) {
+        return fail("not_found", "Conversa não encontrada.", 404, { requestId });
+      }
+    }
     const conv = await patchConversationHandler(
       supabase,
       {
