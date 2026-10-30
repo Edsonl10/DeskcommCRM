@@ -99,6 +99,13 @@ describe("transferência entre departamentos", () => {
     expect(fixtures.chamadas.find((c) => c.fn === "fn_conversation_assign_department")?.params)
       .toMatchObject({ p_department_id: fixtures.outroSetor, p_to_user_id: fixtures.destino });
     expect(fixtures.filtros).toHaveLength(0);
+    expect(fixtures.chamadas).toContainEqual({
+      fn: "emit_event",
+      params: expect.objectContaining({
+        p_event_type: "conversation.transferred",
+        p_payload: { assigned_to_user_id: fixtures.destino, transferred_by: fixtures.destino },
+      }),
+    });
   });
 
   it("dois setores para o mesmo atendente exigem escolha explícita", async () => {
