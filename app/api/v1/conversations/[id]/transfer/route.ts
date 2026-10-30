@@ -194,6 +194,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     requestId,
     metadata: {
       to_user_id: input.to_user_id!,
+      department_id: setores[0]!.id,
       ...(input.reason ? { note: input.reason } : {}),
     },
   });
@@ -229,7 +230,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     motivo: input.reason?.trim()
       ? `Transferiu a conversa: ${input.reason.trim()}`
       : "Transferiu a conversa para outro atendente",
-    payload: { to_user_id: input.to_user_id },
+    payload: { to_user_id: input.to_user_id, department_id: setores[0]!.id },
   });
 
   return ok(conv, { requestId });
