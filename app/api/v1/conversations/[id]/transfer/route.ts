@@ -79,7 +79,40 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
         p_metadata: { request_id: requestId },
       });
     }
-    await audit({ action: "conversation.transferred", actorUserId: user.id, organizationId: conv.organization_id, resourceType: "conversation", resourceId: conv.id, requestId, metadata: { department_id: input.department_id, ...(input.to_user_id ? { to_user_id: input.to_user_id } : {}) } });
+    await audit({
+      action: "conversation.transferred",
+      actorUserId: user.id,
+      organizationId: conv.organization_id,
+      resourceType: "conversation",
+      resourceId: conv.id,
+      requestId,
+      metadata: { department_id: input.department_id, ...(input.to_user_id ? { to_user_id: input.to_user_id } : {}), ...(input.reason ? { note: input.reason } : {}) },
+    });
+    if (input.to_user_id) {
+      // Mesmo aviso e histórico da transferência direta. A seleção automática
+      // do setor não pode fazer o destinatário perder sua notificação.
+      const { error: erroAviso } = await supabase.rpc("emit_event", {
+        p_event_type: "conversation.transferred",
+        p_entity_kind: "conversation",
+        p_entity_id: conv.id,
+        p_payload: { assigned_to_user_id: input.to_user_id, transferred_by: user.id },
+        p_metadata: { request_id: requestId },
+        p_organization_id: conv.organization_id,
+      });
+      if (erroAviso) console.error("[conversation.transfer] emit_event failed", erroAviso.message);
+      await registrarTrocaDeComando({
+        supabase,
+        organizationId: conv.organization_id,
+        conversationId: conv.id,
+        contactId: conv.contact_id,
+        tipo: "conversation_transferred",
+        actor: { type: "user", id: user.id, role: authz.org.role },
+        motivo: input.reason?.trim()
+          ? `Transferiu a conversa: ${input.reason.trim()}`
+          : "Transferiu a conversa para outro atendente",
+        payload: { to_user_id: input.to_user_id, department_id: input.department_id },
+      });
+    }
     return ok(conv, { requestId });
   }
 
