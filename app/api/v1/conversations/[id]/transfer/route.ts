@@ -105,13 +105,40 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     }
   }
 
-  const { data, error } = await supabase.rpc("fn_conversation_assign", {
+  // A transferência direta antiga alterava só o atendente e deixava
+  // assigned_department_id apontando para o setor anterior. Determine o setor
+  // ATIVO do destinatário e use a RPC que atualiza responsável + setor
+  // atomicamente, preservando o histórico de atribuição.
+  const { data: vinculos, error: erroVinculos } = await supabase
+    .from("department_members")
+    .select("department_id")
+    .eq("organization_id", orgId)
+    .eq("user_id", input.to_user_id!);
+  if (erroVinculos) return fail("internal_error", erroVinculos.message, 500, { requestId });
+  const idsVinculados = [...new Set((vinculos ?? []).map((m) => m.department_id))];
+  if (!idsVinculados.length) {
+    return fail("unprocessable_entity", "O atendente não está vinculado a nenhum departamento. Atualize o cadastro da equipe.", 422, { requestId });
+  }
+
+  const { data: setores, error: erroSetores } = await supabase
+    .from("departments")
+    .select("id")
+    .eq("organization_id", orgId)
+    .eq("is_active", true)
+    .in("id", idsVinculados);
+  if (erroSetores) return fail("internal_error", erroSetores.message, 500, { requestId });
+  if (!setores?.length) {
+    return fail("unprocessable_entity", "O atendente não pertence a um departamento ativo.", 422, { requestId });
+  }
+  if (setores.length > 1) {
+    return fail("unprocessable_entity", "Este atendente pertence a mais de um departamento. Selecione o setor de destino.", 422, { requestId });
+  }
+
+  const { data, error } = await supabase.rpc("fn_conversation_assign_department", {
     p_organization_id: orgId,
     p_conversation_id: id,
+    p_department_id: setores[0]!.id,
     p_to_user_id: input.to_user_id!,
-    p_reason: "transfer",
-    // Imediata (G1-06d): sem optimistic lock — reatribui qualquer que seja o dono atual.
-    p_enforce_expected: false,
   });
 
   if (error) {
