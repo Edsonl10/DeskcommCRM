@@ -117,7 +117,7 @@ function Editor({
               aria-label={tag}
               checked={draft.includes(tag)}
               disabled={
-                !podeEditar || mutation.isPending || (!draft.includes(tag) && draft.length >= 20)
+                !podeEditar || mutation.isPending || (!podeVerOutrosSetores && !etapas.includes(tag)) || (!draft.includes(tag) && draft.length >= 20)
               }
               onChange={(e) =>
                 setDraft(e.target.checked ? [...draft, tag] : draft.filter((v) => v !== tag))
