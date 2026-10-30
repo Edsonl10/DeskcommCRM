@@ -5,6 +5,7 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { audit } from "@/lib/audit";
+import { departamentosPermitidosNoInbox } from "@/lib/inbox/escopo-do-setor";
 import { fail } from "@/lib/api/wrappers";
 import { GET, PATCH } from "./route";
 vi.mock("@/lib/auth/require-role", () => ({ requireRole: vi.fn() }));
@@ -12,6 +13,7 @@ vi.mock("@/lib/impersonate/support", () => ({ requireSupportWrite: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/audit", () => ({ audit: vi.fn() }));
+vi.mock("@/lib/inbox/escopo-do-setor", () => ({ departamentosPermitidosNoInbox: vi.fn() }));
 const org = "11111111-1111-4111-8111-111111111111",
   dept = "22222222-2222-4222-8222-222222222222";
 const settings = { preservar: true, inbox_kanban_barras: { padrao: ["geral"], outro: ["outra"] } };
@@ -56,6 +58,7 @@ beforeEach(() => {
   deptExiste = true;
   filtros.length = 0;
   vi.mocked(requireSupportWrite).mockResolvedValue(null);
+  vi.mocked(departamentosPermitidosNoInbox).mockResolvedValue(null);
   vi.mocked(requireRole).mockResolvedValue({
     ok: true,
     user: { id: org, idioma: "pt-BR" },
@@ -71,6 +74,15 @@ describe("configuração Kanban", () => {
     expect((await r.json()).data.barras).toEqual(settings.inbox_kanban_barras);
     expect(filtros).toContainEqual(["organizations", "id", org]);
     expect(filtros).toContainEqual(["departments", "organization_id", org]);
+  });
+  it("um atendente recebe somente a configuração de seus setores", async () => {
+    vi.mocked(departamentosPermitidosNoInbox).mockResolvedValue([dept]);
+    const response = await GET();
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json.data.departamentos).toEqual([{ id: dept, name: "Comercial" }]);
+    expect(json.data.barras).toEqual({});
+    expect(departamentosPermitidosNoInbox).toHaveBeenCalledWith(org, org, undefined);
   });
   it("salva por departamento, preserva outros departamentos/settings e audita", async () => {
     const r = await PATCH(req({ departamento_id: dept, etiquetas: ["fechado", "em andamento"] }));
