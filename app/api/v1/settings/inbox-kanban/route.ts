@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { audit } from "@/lib/audit";
 import { barraKanbanSchema, barrasKanban } from "@/lib/inbox/kanban";
+import { departamentosPermitidosNoInbox } from "@/lib/inbox/escopo-do-setor";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +29,25 @@ export async function GET(): Promise<Response> {
     return fail("internal_error", "Não foi possível carregar a barra de etiquetas.", 500, {
       requestId,
     });
-  return ok(
-    { barras: barrasKanban(org.data?.settings), departamentos: departamentos.data ?? [] },
-    { requestId },
+  let permitidos: string[] | null;
+  try {
+    permitidos = await departamentosPermitidosNoInbox(auth.org.orgId, auth.user.id, auth.org.role);
+  } catch {
+    return fail("internal_error", "Não foi possível verificar o departamento do usuário.", 500, {
+      requestId,
+    });
+  }
+  const setoresDoAtendente = permitidos;
+  const visiveis = (departamentos.data ?? []).filter(
+    (d) => setoresDoAtendente === null || setoresDoAtendente.includes(d.id),
   );
+  const todasAsBarras = barrasKanban(org.data?.settings);
+  const barras = setoresDoAtendente === null
+    ? todasAsBarras
+    : Object.fromEntries(
+        Object.entries(todasAsBarras).filter(([id]) => setoresDoAtendente.includes(id)),
+      );
+  return ok({ barras, departamentos: visiveis }, { requestId });
 }
 
 export async function PATCH(req: NextRequest): Promise<Response> {

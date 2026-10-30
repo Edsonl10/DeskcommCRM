@@ -6,6 +6,7 @@ import { InboxLayout } from "@/components/inbox/InboxLayout";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { createClient } from "@/lib/supabase/server";
 import { lerRascunho, type AvisoDeRascunho } from "@/lib/inbox/rascunho-sugerido";
+import { departamentoInicialDoUsuario } from "@/lib/inbox/departamento-inicial";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Inbox" };
@@ -38,6 +39,18 @@ export default async function InboxPage({
       </div>
     );
   }
+  // O filtro do Kanban e da lista nasce do departamento do próprio login.
+  // Descobrir no servidor evita mostrar "Todos os departamentos" por um frame
+  // antes de carregar o vínculo. Não escolhemos arbitrariamente entre 2+ setores.
+  const db = await createClient();
+  const { data: vinculos, error: erroVinculos } = await db
+    .from("department_members")
+    .select("department_id, departments!inner(is_active)")
+    .eq("organization_id", activeOrg.orgId)
+    .eq("user_id", user.id)
+    .eq("departments.is_active", true);
+  const initialDepartmentId = erroVinculos ? null : departamentoInicialDoUsuario(vinculos);
+
   const { id, rascunho } = await searchParams;
   // ?rascunho= é a ponta da caixa de entrada da issue #1611: o texto mora no
   // servidor, e a URL só carrega o ID. Aqui a leitura acontece com a SESSÃO do
@@ -47,7 +60,6 @@ export default async function InboxPage({
   // aviso", e silenciar faria o atendente achar que o texto nunca existiu.
   let avisoDeRascunho: AvisoDeRascunho | null = null;
   if (rascunho && id) {
-    const db = await createClient();
     avisoDeRascunho = {
       conversationId: id,
       leitura: await lerRascunho(db, {
@@ -57,5 +69,11 @@ export default async function InboxPage({
       }),
     };
   }
-  return <InboxLayout initialSelectedId={id ?? null} rascunho={avisoDeRascunho} />;
+  return (
+    <InboxLayout
+      initialSelectedId={id ?? null}
+      initialDepartmentId={initialDepartmentId}
+      rascunho={avisoDeRascunho}
+    />
+  );
 }

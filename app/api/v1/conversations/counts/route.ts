@@ -14,6 +14,7 @@ import { aplicarFiltrosAvancados, filtrosAvancadosSchema } from "@/lib/inbox/fil
  * garantia do listing. Head count (count:'exact', head:true) não devolve linhas.
  */
 import { aplicarVisaoInbox, permissaoGlobalInbox, type InboxView } from "@/lib/inbox/visoes";
+import { departamentosFiltrados, departamentosPermitidosNoInbox } from "@/lib/inbox/escopo-do-setor";
 import { randomUUID } from "node:crypto";
 
 import type { NextRequest } from "next/server";
@@ -131,6 +132,24 @@ export async function GET(req: NextRequest): Promise<Response> {
     !permissaoGlobalInbox(activeOrg.role, activeOrg.inbox_permissions, "all")
   )
     return fail("forbidden", "Sem permissão para Todos.", 403, { requestId });
+  let departamentosPermitidos: string[] | null;
+  try {
+    departamentosPermitidos = await departamentosPermitidosNoInbox(org, user.id, activeOrg.role);
+  } catch {
+    return fail("internal_error", "Não foi possível verificar o departamento do usuário.", 500, { requestId });
+  }
+  const department_ids = departamentosFiltrados(avancados.data.department_ids, departamentosPermitidos);
+  if (department_ids?.length === 0) {
+    if (kanban.data.tags.length) {
+      return ok({ kanban: kanban.data.tags.map((tag) => ({ tag, total: 0, novas: 0 })) }, { requestId });
+    }
+    return ok({
+      active: 0, waiting: 0, ai: 0, all: 0, closed: 0,
+      needs_assignment: 0, mine: 0, fila: 0, unassigned: 0,
+      automatico: 0, archived: 0,
+    }, { requestId });
+  }
+  const filtrosAutorizados = { ...avancados.data, department_ids };
   const auxiliares = filtrosAuxiliaresDaContagem(sp);
   const soNaoLidas = contagemSoNaoLidas(sp);
   // ⚠️ O badge conta o MESMO que a lista mostra, então o marcador é lido com
@@ -159,7 +178,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .eq("organization_id", org);
     if (idsDesativados.length > 0)
       q = q.not("channel_session_id", "in", `(${idsDesativados.join(",")})`);
-    q = aplicarFiltrosAvancados(q, avancados.data);
+    q = aplicarFiltrosAvancados(q, filtrosAutorizados);
     q = aplicarEtiquetaKanban(q, etiqueta);
     for (const [coluna, valor] of auxiliares) q = q.eq(coluna, valor);
     // O marcador entra pela régua da LISTA — a mesma função, não uma segunda.

@@ -86,7 +86,12 @@ export function ReassignDialog({
   const [aba, setAba] = useState<AbaDeTransferencia>(abaInicial);
   const [paraSessao, setParaSessao] = useState<string>("");
 
-  const selectedDepartment = (departments.data?.data ?? []).find((d) => d.id === departmentId);
+  const setoresAtivos = (departments.data?.data ?? []).filter((d) => d.is_active);
+  const selectedDepartment = setoresAtivos.find((d) => d.id === departmentId);
+  const setoresDoDestino = toUserId && toUserId !== "department"
+    ? setoresAtivos.filter((d) => d.department_members.some((m) => m.user_id === toUserId))
+    : [];
+  const setorPendente = Boolean(toUserId && toUserId !== "department" && !selectedDepartment && setoresDoDestino.length !== 1);
   const options = (members.data ?? []).filter((m) =>
     m.user_id !== user.id && (!selectedDepartment || selectedDepartment.department_members.some((dm) => dm.user_id === m.user_id)),
   );
@@ -180,8 +185,8 @@ export function ReassignDialog({
             <Select value={departmentId} onValueChange={(value) => { setDepartmentId(value); setToUserId(""); }}>
               <SelectTrigger id="reassign-department" className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="direct">{t("Sem departamento (atribuição direta)")}</SelectItem>
-                {(departments.data?.data ?? []).filter((d) => d.is_active).map((d) => (
+                <SelectItem value="direct">{t("Pelo departamento do atendente (automático)")}</SelectItem>
+                {setoresAtivos.map((d) => (
                   <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -189,7 +194,15 @@ export function ReassignDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="reassign-target">{t("Transferir para")}</Label>
-            <Select value={toUserId} onValueChange={setToUserId}>
+            <Select value={toUserId} onValueChange={(destino) => {
+              setToUserId(destino);
+              if (departmentId === "direct" && destino !== "department") {
+                const validos = setoresAtivos.filter((d) =>
+                  d.department_members.some((m) => m.user_id === destino),
+                );
+                if (validos.length === 1) setDepartmentId(validos[0]!.id);
+              }
+            }}>
               <SelectTrigger id="reassign-target" className="w-full">
                 <SelectValue
                   placeholder={members.isLoading ? t("Carregando atendentes…") : t("Escolha o atendente")}
@@ -207,6 +220,13 @@ export function ReassignDialog({
                 ))}
               </SelectContent>
             </Select>
+            {setorPendente && (
+              <p role="status" className="text-xs text-destructive">
+                {setoresDoDestino.length > 1
+                  ? t("Este atendente participa de mais de um departamento. Escolha o setor de destino acima.")
+                  : t("Este atendente não está vinculado a um departamento ativo. Configure o vínculo antes da transferência.")}
+              </p>
+            )}
             {!members.isLoading && !selectedDepartment && options.length === 0 && (
               <p className="text-xs text-muted-foreground">
                 {t("Nenhum outro atendente disponível nesta organização.")}
@@ -242,7 +262,7 @@ export function ReassignDialog({
             </Button>
           ) : (
           <Button
-            disabled={(!toUserId && !selectedDepartment) || transfer.isPending}
+            disabled={(!toUserId && !selectedDepartment) || setorPendente || transfer.isPending}
             onClick={() =>
               transfer.mutate(
                 {
