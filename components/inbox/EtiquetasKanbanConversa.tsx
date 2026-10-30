@@ -73,7 +73,11 @@ function Editor({
   const mutation = useUpdateConversationTags();
   const [original] = useState(conversa.tags ?? []);
   const [draft, setDraft] = useState(original);
+  const podeVerOutrosSetores = roleAtLeast(activeOrg?.role, "manager");
+  const pertenceAoSetor = !!conversa.assigned_department_id &&
+    (configuracao.data?.departamentos ?? []).some((d) => d.id === conversa.assigned_department_id);
   const podeEditar =
+    (podeVerOutrosSetores || pertenceAoSetor) &&
     !!conversa.assigned_to_user_id &&
     !user.support?.access_mode?.includes("readonly") &&
     roleAtLeast(activeOrg?.role, "agent") &&
@@ -83,7 +87,13 @@ function Editor({
     configuracao.data?.barras ?? {},
     conversa.assigned_department_id ?? null,
   );
-  const opcoes = [...new Set([...etapas, ...(vocabulary.data ?? []), ...original])];
+  // A lista global de etiquetas não é sugestão para atendentes de outros setores.
+  // Etiquetas já presentes continuam visíveis para não apagar histórico ao editar.
+  const opcoes = [...new Set([
+    ...(podeVerOutrosSetores || pertenceAoSetor ? etapas : []),
+    ...(podeVerOutrosSetores ? (vocabulary.data ?? []) : []),
+    ...original,
+  ])];
   const nome = conversa.assigned_to_user_name ?? t("Atendente");
   return (
     <div className="space-y-3">
