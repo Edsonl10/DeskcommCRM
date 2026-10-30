@@ -37,8 +37,18 @@ export function BarraKanbanInbox({ value, filtros, onChange }: Props) {
   const { user, activeOrg } = useAuth();
   const config = useInboxKanban(activeOrg?.orgId ?? null);
   const [editar, setEditar] = useState(false);
-  const departamento = value.department_ids?.length === 1 ? value.department_ids[0]! : null;
-  const etiquetas = etiquetasDaBarra(config.data?.barras ?? {}, departamento);
+  const podeFiltrarDepartamentos = roleAtLeast(activeOrg?.role, "manager");
+  const departamentosVisiveis = config.data?.departamentos ?? [];
+  const departamento = podeFiltrarDepartamentos
+    ? (value.department_ids?.length === 1 ? value.department_ids[0]! : null)
+    : (departamentosVisiveis.length === 1 ? departamentosVisiveis[0]!.id : null);
+  // Atendente sem setor não herda a barra global. Com vários vínculos, vê a união
+  // das etiquetas de seus setores; a API já impede consultas a outros setores.
+  const etiquetas = podeFiltrarDepartamentos
+    ? etiquetasDaBarra(config.data?.barras ?? {}, departamento)
+    : [...new Set(departamentosVisiveis.flatMap((d) =>
+        etiquetasDaBarra(config.data?.barras ?? {}, d.id),
+      ))];
   const contagens = useContagensKanban(activeOrg?.orgId ?? null, filtros, etiquetas);
   const nome =
     config.data?.departamentos.find((d) => d.id === departamento)?.name ??
@@ -51,6 +61,7 @@ export function BarraKanbanInbox({ value, filtros, onChange }: Props) {
       <div className="flex min-w-0 flex-wrap items-center gap-2 md:flex-nowrap md:gap-4">
         <div className="flex shrink-0 items-center gap-2">
           <span className="text-xs font-medium">{t("Departamento")}</span>
+          {podeFiltrarDepartamentos ? (
           <Select
             value={
               (value.department_ids?.length ?? 0) > 1 ? "filtrados" : (departamento ?? "padrao")
@@ -83,6 +94,11 @@ export function BarraKanbanInbox({ value, filtros, onChange }: Props) {
               ))}
             </SelectContent>
           </Select>
+          ) : (
+            <span className="max-w-48 truncate text-xs text-text-muted">
+              {departamentosVisiveis.map((d) => d.name).join(", ") || t("Sem departamento")}
+            </span>
+          )}
         </div>
         <span className="shrink-0 text-xs font-semibold">{t("Funil de vendas")}</span>
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto p-1">
@@ -134,7 +150,7 @@ export function BarraKanbanInbox({ value, filtros, onChange }: Props) {
           </button>
         </p>
       )}
-      {editar && (
+      {editar && roleAtLeast(activeOrg?.role, "admin") && (
         <Personalizar
           departamento={departamento}
           nome={nome}
