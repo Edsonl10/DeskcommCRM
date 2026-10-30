@@ -62,7 +62,7 @@ beforeEach(() => {
   vi.mocked(requireRole).mockResolvedValue({
     ok: true,
     user: { id: org, idioma: "pt-BR" },
-    org: { orgId: org },
+    org: { orgId: org, role: "admin" },
   } as never);
   vi.mocked(createAdminClient).mockReturnValue(client() as never);
   vi.mocked(createClient).mockResolvedValue(client() as never);
@@ -82,7 +82,7 @@ describe("configuração Kanban", () => {
     const json = await response.json();
     expect(json.data.departamentos).toEqual([{ id: dept, name: "Comercial" }]);
     expect(json.data.barras).toEqual({});
-    expect(departamentosPermitidosNoInbox).toHaveBeenCalledWith(org, org, undefined);
+    expect(departamentosPermitidosNoInbox).toHaveBeenCalledWith(org, org, "admin");
   });
   it("salva por departamento, preserva outros departamentos/settings e audita", async () => {
     const r = await PATCH(req({ departamento_id: dept, etiquetas: ["fechado", "em andamento"] }));
