@@ -2,7 +2,7 @@ import { roleAtLeast, type Role } from "@/lib/auth/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * null = gestor/supervisor sem limite de departamento.
+ * null = gestor/supervisor ou perfil de consulta, sem limite adicional (a RLS permanece).
  * [] = usuário operacional sem setor ativo: negar acesso, jamais retornar a organização inteira.
  * O vínculo vem da sessão autenticada e é sempre recortado por organização.
  */
@@ -11,7 +11,7 @@ export async function departamentosPermitidosNoInbox(
   userId: string,
   role: Role,
 ): Promise<string[] | null> {
-  if (roleAtLeast(role, "manager")) return null;
+  if (role === "viewer" || roleAtLeast(role, "manager")) return null;
 
   const db = createAdminClient();
   const { data: membros, error: erroMembros } = await db
