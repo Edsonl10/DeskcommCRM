@@ -1,5 +1,10 @@
 # PROJECT_STATE
 
+## Em validação — assistente no campo (05/11/2026)
+- Pedido aprovado: retirar faixa fixa, botão antes de Nota interna e sugestão editável no campo comum, com envio humano. Implementação reutiliza DraftReplyButton/useDraftReply e envio comum; não chama aprovação de ai_reply_drafts nem registra feedback ao limpar. APIs/consumidor assistido preservados.
+- Proteções: não substitui rascunho; descarta geração depois de trocar de conversa ou entrar em nota; janela/permissões existentes. Sem schema, novas dependências ou alteração da autonomia. Contrato: docs/features/assistente-no-campo.md.
+- Validação local: 37 testes pertinentes e lint direcionado passaram; controle negativo confirmou a proteção do texto digitado. E2E local bloqueado por falta do ambiente de teste com banco local. Nenhuma implantação realizada. Desktop Commander offline e nenhuma aba de terminal da VPS disponível nesta sessão; não alegar conclusão em produção. Próximo passo: concluir testes, revisar/validar visualmente e publicar pelo procedimento do fork com acesso ao servidor.
+
 ## Inbox — etiquetas destacadas e filtros organizados (29/10/2026)
 - PR #42 integrado e instalado em `75ddd985fd9e7c31559d9561f71553101caa6ee4`, versão `75ddd98`. Fonte aprovada `100f3872f9827f763ab2794d65489d1e4fefaa50`; árvores integralmente idênticas `e0f7964847b214d5e889a096ef09abc0ffab1e46`.
 - Faixa de etiquetas abaixo da prévia, mesmas cores da barra, aviso vermelho somente para novas > 0. Personalizar oferece paleta e Aplicar cor, com cor compartilhada e prévia. Funil na linha de busca no lugar de Grupos; Todas as tags retirado; grupos e etiquetas gerais seguem no painel avançado. Mantidos dados, configurações por departamento, conjuntos por atendente e correção de leitura 9009. Nenhuma migration ou consulta de contagem adicional.

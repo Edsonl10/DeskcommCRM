@@ -1,26 +1,4 @@
-/**
- * A SUGESTÃO REJEITADA SAI DA TELA, E A FALHA DIZ O MOTIVO — pela tela (PR #740).
- *
- * ─── As duas metades, e por que nenhuma spec cobria ───────────────────────
- *
- * 1) `ReplyReviewPanel` mostrava `drafts[0]` — a mais recente, QUALQUER que
- *    fosse o estado. Rejeitar não fecha nada, então a rejeitada continuava
- *    sendo a mais recente e o texto morto ficava na tela, com a caixa
- *    desabilitada e sem botão de fechar. `autonomia-assistida.spec.ts` percorre
- *    APROVAR; ninguém clicava em "Rejeitar".
- *
- * 2) A rota fazia `} catch {` — sem nome. Três causas viravam a mesma frase,
- *    que mandava conferir a publicação do agente mesmo quando o problema era
- *    outro. Aqui se mede a frase que a tela mostra para a causa mais comum:
- *    nenhum agente publicado atende o canal.
- *
- * ─── Ambiente ────────────────────────────────────────────────────────────
- *
- * `INTERNAL_AGENT_RUN_STUB=true` (mesmo interruptor de
- * `autonomia-assistida.spec.ts`): a geração roda o caminho REAL da rota, com o
- * provedor de LLM trocado por fixture. Sem ele o arquivo pula — ambiente
- * ausente não é defeito.
- */
+/** Assistente compacto: geração real, rascunho editável e nenhum envio automático. */
 import { randomUUID } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
@@ -187,7 +165,7 @@ async function entrar(page: Page, f: Fixture) {
   await page.waitForURL(/\/app(?:\/|$)/, { timeout: 60_000 });
 }
 
-const painel = (page: Page) => page.locator('section[aria-label="Assistência do agente"]');
+const campo = (page: Page) => page.getByLabel("Mensagem", { exact: true });
 
 test.afterAll(async () => {
   for (const org of orgs) {
@@ -200,7 +178,7 @@ test.afterAll(async () => {
   }
 });
 
-test("rejeitar tira a sugestão da tela e diz que rejeitou; sem agente publicado, a falha nomeia o motivo", async ({
+test("assistente preenche o campo sem enviar; limpar descarta o texto; falha nomeia o motivo", async ({
   page,
 }) => {
   const pool = new pg.Pool({ connectionString: credenciais.dbUrl, max: 5 });
@@ -213,59 +191,38 @@ test("rejeitar tira a sugestão da tela e diz que rejeitou; sem agente publicado
     const gerada = page.waitForResponse(
       (r) => r.url().endsWith("/draft-reply") && r.request().method() === "POST",
     );
-    await painel(page).getByRole("button", { name: "Sugerir resposta", exact: true }).click();
+    await page.getByRole("button", { name: "Sugerir resposta", exact: true }).click();
     const resposta = await gerada;
     expect(resposta.status(), await resposta.text()).toBe(200);
-    // 20s, e não os 5s do padrão: entre o 200 do POST e o rótulo na tela há o
-    // `invalidateQueries` do cliente e o poll de 4s do painel. Sob carga a
-    // janela estoura, e o vermelho que sai é "o ambiente estava lento", não
-    // "a tela não mostrou" — medido numa rodada em que cada caso levou 60s.
-    await expect(painel(page).getByText("Sugestão para revisar", { exact: true })).toBeVisible({
-      timeout: 20_000,
-    });
-    await expect(painel(page).getByLabel("Resposta sugerida")).toBeVisible({ timeout: 20_000 });
+    const generated = (await resposta.json()).data.draft;
+    await expect(campo(page)).toHaveValue(generated);
+    await expect(page.locator('section[aria-label="Assistência do agente"]')).toHaveCount(0);
+    const assistant = page.getByRole("button", { name: "Sugerir resposta", exact: true });
+    const note = page.getByRole("button", { name: "Nota interna", exact: true });
+    const a = await assistant.boundingBox(),
+      n = await note.boundingBox();
+    expect(a).not.toBeNull();
+    expect(n).not.toBeNull();
+    expect(a!.x).toBeLessThan(n!.x);
+    expect(Math.abs(a!.y - n!.y)).toBeLessThan(5);
+    expect(
+      (
+        await pool.query(
+          "select count(*)::int as n from messages where organization_id=$1 and conversation_id=$2 and direction='outbound'",
+          [f.org, f.conversation],
+        )
+      ).rows[0].n,
+    ).toBe(0);
     await page.screenshot({
       path: "evidence/triagem-14set/740-a-sugestao-na-tela.png",
       fullPage: false,
     });
-
-    // ── 2) Rejeitar: a sugestão SAI, e a tela diz que saiu ─────────────────
-    //
-    // Antes do conserto a rejeitada continuava sendo `drafts[0]` e ficava na
-    // tela para sempre — caixa desabilitada, sem botão de fechar.
-    await painel(page)
-      .getByLabel("Feedback para a próxima sugestão")
-      .fill("Muito formal para esta cliente.");
-    await painel(page).getByRole("button", { name: "Rejeitar", exact: true }).click();
-
-    await expect(
-      painel(page).getByLabel("Resposta sugerida"),
-      "cliquei em Rejeitar e o texto recusado continua na tela",
-    ).toHaveCount(0, { timeout: 20_000 });
-    await expect(
-      painel(page).getByRole("button", { name: "Rejeitar", exact: true }),
-      "a sugestão rejeitada continua oferecendo os botões de decisão",
-    ).toHaveCount(0);
-    await expect(
-      painel(page).getByText("Assistência do agente", { exact: true }),
-      "o painel não voltou ao estado neutro",
-    ).toBeVisible();
-    // E a confirmação FICA — sem ela, Rejeitar apenas esvaziaria a tela em
-    // silêncio, que é o outro meio-conserto que este PR evitou.
-    await expect(
-      painel(page).getByText("Sugestão rejeitada. O feedback será usado na próxima sugestão.", {
-        exact: true,
-      }),
-      "a tela esvaziou sem dizer que a sugestão foi rejeitada",
-    ).toBeVisible();
-    expect(
-      (
-        await pool.query(
-          "select status from ai_reply_drafts where organization_id=$1 and conversation_id=$2 order by created_at desc limit 1",
-          [f.org, f.conversation],
-        )
-      ).rows[0].status,
-    ).toBe("dismissed");
+    // A revisão agora é no campo comum: o atendente pode editar ou limpar.
+    await campo(page).fill("Texto revisado pela atendente");
+    await expect(campo(page)).toHaveValue("Texto revisado pela atendente");
+    await expect(assistant).toBeDisabled();
+    await campo(page).fill("");
+    await expect(assistant).toBeEnabled();
     await page.screenshot({
       path: "evidence/triagem-14set/740-b-rejeitada-saiu-da-tela.png",
       fullPage: false,
@@ -276,14 +233,14 @@ test("rejeitar tira a sugestão da tela e diz que rejeitou; sem agente publicado
     // Despublicar o agente é a causa mais comum do erro relatado. A frase que
     // a tela mostra tem de nomear ESSA causa e dizer o que fazer — antes, toda
     // falha (inclusive provedor de IA fora do ar) virava a mesma frase.
-    await pool.query("update ai_agents set published_version_id=null where organization_id=$1 and id=$2", [
-      f.org,
-      f.agent,
-    ]);
+    await pool.query(
+      "update ai_agents set published_version_id=null where organization_id=$1 and id=$2",
+      [f.org, f.agent],
+    );
     const falhou = page.waitForResponse(
       (r) => r.url().endsWith("/draft-reply") && r.request().method() === "POST",
     );
-    await painel(page).getByRole("button", { name: "Sugerir resposta", exact: true }).click();
+    await page.getByRole("button", { name: "Sugerir resposta", exact: true }).click();
     const recusa = await falhou;
     expect(recusa.status()).toBe(422);
     expect((await recusa.json()).error.code).toBe("reply_no_agent");

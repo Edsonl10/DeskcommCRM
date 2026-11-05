@@ -54,16 +54,14 @@ async function fixture(pool: pg.Pool) {
     webhook_secret_encrypted: "\\x00",
     metadata: { ai_gate: "allowlist" },
   });
-  const knobs = await db
-    .from("channel_knobs")
-    .insert({
-      organization_id: org,
-      channel_session_id: channel,
-      throttle_ms: 0,
-      jitter_max_ms: 0,
-      window_start_hour: 0,
-      window_end_hour: 24,
-    });
+  const knobs = await db.from("channel_knobs").insert({
+    organization_id: org,
+    channel_session_id: channel,
+    throttle_ms: 0,
+    jitter_max_ms: 0,
+    window_start_hour: 0,
+    window_end_hour: 24,
+  });
   if (knobs.error) throw knobs.error;
   const contact = await insert("contacts", {
     organization_id: org,
@@ -206,15 +204,34 @@ async function receiver() {
     },
   };
 }
-const panel = (page: Page) => page.locator('section[aria-label="Assistência do agente"]');
+const panel = (page: Page) => page.getByLabel("Mensagem", { exact: true });
+// Esta spec prova o motor assistido e o consumidor de aprovação por API.
+// A interface compacta e a ausência de envio ao sugerir são medidas em
+// qa-sugestao-rejeitada-e-motivo.spec.ts e composer-assistente-no-campo.test.tsx.
+async function approve(page: Page, id: string, conversationId: string, feedback?: string) {
+  const drafts = await page.request.get(`/api/v1/conversations/${conversationId}/draft-reply`);
+  const current = (
+    (await drafts.json()).data.drafts as Array<{ id: string; revision: string }>
+  ).find((d) => d.id === id)!;
+  const response = await page.request.post(`/api/v1/ai/replies/${id}`, {
+    data: {
+      action: "approve",
+      revision: current.revision,
+      body: await panel(page).inputValue(),
+      feedback,
+    },
+  });
+  expect(response.status(), await response.text()).toBe(200);
+  await panel(page).fill("");
+}
 async function generate(page: Page) {
   const response = page.waitForResponse(
     (r) => r.url().endsWith("/draft-reply") && r.request().method() === "POST",
   );
-  await panel(page).getByRole("button", { name: "Sugerir resposta", exact: true }).click();
+  await page.getByRole("button", { name: "Sugerir resposta", exact: true }).click();
   const r = await response;
   expect(r.status(), await r.text()).toBe(200);
-  await expect(panel(page).getByText("Sugestão para revisar", { exact: true })).toBeVisible();
+  await expect(panel(page)).not.toHaveValue("");
   return (await r.json()).data.draft_id as string;
 }
 async function deliver(f: Fixture, draft: string, pool: pg.Pool) {
@@ -302,18 +319,9 @@ test("testa sem enviar, pausa preserva publicação e duas aprovações entregam
     await page.goto(`/app/inbox/${f.conversation}`);
     const first = await generate(page);
     expect(channel.bodies).toHaveLength(0);
-    await panel(page)
-      .getByLabel("Resposta sugerida")
-      .fill("Maria, confirmei as informações e posso ajudar por aqui.");
-    await panel(page)
-      .getByLabel("Feedback para a próxima sugestão")
-      .fill("Usar linguagem curta e clara.");
+    await panel(page).fill("Maria, confirmei as informações e posso ajudar por aqui.");
     await capture(page, panel(page), info, "revisao-desktop");
-    const approved = page.waitForResponse(
-      (r) => r.url().endsWith(`/ai/replies/${first}`) && r.request().method() === "POST",
-    );
-    await panel(page).getByRole("button", { name: "Aprovar e enviar" }).click();
-    expect((await approved).status()).toBe(200);
+    await approve(page, first, f.conversation, "Usar linguagem curta e clara.");
     const firstJob = await deliver(f, first, pool);
     expect(channel.bodies).toHaveLength(1);
     expect(channel.bodies[0]).toMatchObject({
@@ -321,32 +329,11 @@ test("testa sem enviar, pausa preserva publicação e duas aprovações entregam
       chatId: "15551234567@c.us",
       text: "Maria, confirmei as informações e posso ajudar por aqui.",
     });
-    // ⛔ NÃO espere "Resposta aprovada enviada": esse rótulo é INALCANÇÁVEL.
-    //
-    // `sugestaoParaMostrar` trata `sent` como SEM_NADA_A_OFERECER de propósito
-    // (`lib/agent-engine/agent/sugestao-de-resposta.ts`): o texto enviado já está
-    // na conversa logo acima, e repeti-lo numa caixa desabilitada diria duas
-    // vezes a mesma coisa. Foi decidido nesta branch, em 927f5aad — e o teste
-    // continuou cobrando o estado anterior, reprovando em SEIS rodadas de CI
-    // seguidas sempre nesta linha, com a mensagem já entregue ao receiver.
-    //
-    // Não é tempo: subir o teto para 15s não mudou nada, porque o elemento não
-    // existe em instante nenhum.
-    //
-    // O que a tela faz agora é o que se prova aqui: a sugestão SAI e o painel
-    // volta ao neutro — título genérico, e nada a aprovar.
-    await expect(panel(page).getByText("Assistência do agente", { exact: true })).toBeVisible();
-    await expect(panel(page).getByRole("button", { name: "Aprovar e enviar" })).toHaveCount(0);
+    await expect(panel(page)).toHaveValue("");
     await inbound(f, "Obrigada, pode continuar");
     const second = await generate(page);
-    await panel(page)
-      .getByLabel("Resposta sugerida")
-      .fill("Claro, Maria. Qual informação você precisa agora?");
-    const approvedAgain = page.waitForResponse(
-      (r) => r.url().endsWith(`/ai/replies/${second}`) && r.request().method() === "POST",
-    );
-    await panel(page).getByRole("button", { name: "Aprovar e enviar" }).click();
-    expect((await approvedAgain).status()).toBe(200);
+    await panel(page).fill("Claro, Maria. Qual informação você precisa agora?");
+    await approve(page, second, f.conversation);
     expect(await deliver(f, second, pool)).not.toBe(firstJob);
     expect(channel.bodies).toHaveLength(2);
     expect(
@@ -370,17 +357,16 @@ test("testa sem enviar, pausa preserva publicação e duas aprovações entregam
     const third = await generate(page);
     expect(third).not.toBe(second);
     await inbound(f, "O assunto mudou");
-    // ⛔ E "Sugestão obsoleta: a conversa mudou" é inalcançável pela MESMA razão
-    // do bloco acima: `stale` também está em SEM_NADA_A_OFERECER. Quando a
-    // conversa muda, a sugestão deixa de servir e SAI da tela — o painel volta
-    // ao neutro em vez de anunciar que ficou obsoleta.
-    //
-    // Os três rótulos de `statuses` cobertos por esse conjunto (`sent`, `stale`,
-    // `dismissed`) são hoje código inalcançável no componente. Está anotado; o
-    // teste não é o lugar de decidir se eles voltam a aparecer.
-    await expect(panel(page).getByText("Assistência do agente", { exact: true })).toBeVisible();
-    await expect(panel(page).getByRole("button", { name: "Aprovar e enviar" })).toHaveCount(0);
-    await expect(panel(page).getByText("Resposta aprovada. Acompanhe o envio aqui.", { exact: true })).toHaveCount(0);
+    // A API continua recusando aprovação de contexto obsoleto; o texto local
+    // pertence ao atendente e não desaparece enquanto ele está revisando.
+    const stale = await page.request.post(`/api/v1/ai/replies/${third}`, {
+      data: {
+        action: "approve",
+        revision: "1",
+        body: await panel(page).inputValue(),
+      },
+    });
+    expect(stale.status()).toBe(409);
     await page.setViewportSize({ width: 390, height: 844 });
     await capture(page, panel(page), info, "obsoleta-mobile");
     await page.setViewportSize({ width: 1440, height: 1000 });
