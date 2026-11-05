@@ -31,9 +31,7 @@ export function DraftReplyButton({ conversationId, onDraft, disabled }: Props) {
       className="h-auto shrink-0 gap-1 rounded-full px-2.5 py-1 text-xs font-medium lg:h-auto"
       aria-label={t("Sugerir resposta")}
       aria-busy={mutation.isPending}
-      title={t(
-        "Preenche uma resposta para você revisar. Envie ou limpe o texto atual antes de gerar outra.",
-      )}
+      title={t("Revise antes de enviar.")}
       disabled={disabled || mutation.isPending}
       onClick={() => {
         mutation.mutate(conversationId, {
