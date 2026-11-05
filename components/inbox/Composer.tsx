@@ -15,7 +15,7 @@ import { AttachMenu } from "@/components/inbox/composer/AttachMenu";
 import { AttachmentPreviewDialog } from "@/components/inbox/composer/AttachmentPreviewDialog";
 import { ContactPickerDialog } from "@/components/inbox/composer/ContactPickerDialog";
 import { AudioRecorder } from "@/components/inbox/composer/AudioRecorder";
-import { ReplyReviewPanel } from "@/components/inbox/composer/ReplyReviewPanel";
+import { DraftReplyButton } from "@/components/inbox/composer/DraftReplyButton";
 import { EmojiButton } from "@/components/inbox/composer/EmojiButton";
 import {
   MentionMenu,
@@ -422,9 +422,6 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           mode === "note" && "border-warning/40 bg-warning-bg",
         )}
       >
-        {mode === "reply" && (
-          <ReplyReviewPanel conversationId={conversationId} disabled={isDisabled} />
-        )}
         <TemplateMenu
           open={menuOpen}
           query={slash.query}
@@ -476,6 +473,21 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           >
             {t("Responder")}
           </button>
+          {mode === "reply" && (
+            <DraftReplyButton
+              key={conversationId}
+              conversationId={conversationId}
+              disabled={isDisabled || !!janelaFechada || !!text.trim()}
+              onDraft={(draft) => {
+                // Uma resposta lenta não substitui o que o atendente começou a digitar.
+                setText((current) => current || draft);
+                requestAnimationFrame(() => {
+                  autoresize();
+                  taRef.current?.focus();
+                });
+              }}
+            />
+          )}
           <button
             type="button"
             onClick={() => setMode("note")}

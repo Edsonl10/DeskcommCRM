@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Sparkle } from "@/lib/ui/icons";
@@ -14,23 +15,38 @@ interface Props {
 export function DraftReplyButton({ conversationId, onDraft, disabled }: Props) {
   const t = useT();
   const mutation = useDraftReply();
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   return (
     <Button
       type="button"
-      size="icon"
+      size="sm"
       variant="ghost"
-      className="h-9 w-9 shrink-0"
+      className="h-auto shrink-0 gap-1 rounded-full px-2.5 py-1 text-xs font-medium lg:h-auto"
       aria-label={t("Sugerir resposta")}
       aria-busy={mutation.isPending}
+      title={t(
+        "Preenche uma resposta para você revisar. Envie ou limpe o texto atual antes de gerar outra.",
+      )}
       disabled={disabled || mutation.isPending}
       onClick={() => {
         mutation.mutate(conversationId, {
-          onSuccess: (res) => onDraft(res.data.draft),
+          // O compositor desmonta o botão quando muda a conversa ou o modo.
+          // Assim, uma geração antiga não preenche outro contexto.
+          onSuccess: (res) => {
+            if (mounted.current) onDraft(res.data.draft);
+          },
         });
       }}
     >
-      <Sparkle size={18} weight={mutation.isPending ? "duotone" : "regular"} aria-hidden />
+      <Sparkle size={14} weight={mutation.isPending ? "duotone" : "regular"} aria-hidden />
+      {t(mutation.isPending ? "Preparando…" : "Assistente")}
     </Button>
   );
 }
