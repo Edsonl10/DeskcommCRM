@@ -31,6 +31,7 @@ const PEDE_PARA_SAIR = [
   "pode parar de mandar mensagem",
   "para de me mandar isso",
   "pare de me enviar essas mensagens",
+  "já pedi ao comprador para de enviar pra vc. por favor, pare de me enviar mensagens",
   "quero parar de receber",
   "não quero mais receber nada de vocês",
   "nao quero receber mais",
@@ -134,6 +135,9 @@ const NAO_PEDE_PARA_SAIR = [
   // Bloquearia um cliente pedindo para mudar a ENTREGA.
   "pare de mandar o pedido nesse endereco",
   "para de mandar a fatura por aqui",
+  "já pedi ao comprador para de enviar pra vc",
+  "já pedi ao comprador para parar de enviar as mensagens para vocês",
+  "pare de enviar a ordem de compra por aqui",
   // MESMA CLASSE, outra construção: "não me mande mais X" ancorava só no
   // verbo, como o padrão de cessação acima ancorava. O lookahead de
   // OBJETOS_NAO_COMUNICATIVOS estava num e faltava no outro — e este é o mais
@@ -142,6 +146,7 @@ const NAO_PEDE_PARA_SAIR = [
   "nao me mande mais faturas por email",
   "nao me mandem mais cobrancas duplicadas",
   "nao me envie mais os produtos errados",
+  "nao me mande mais ordens de compra por aqui",
   // clínica — o caso que motivou este arquivo
   "tem como parar a dor?",
   "dá pra parar o sangramento em casa?",
