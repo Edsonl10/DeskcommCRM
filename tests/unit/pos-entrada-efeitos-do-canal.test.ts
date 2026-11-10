@@ -297,6 +297,7 @@ describe("opt-out", () => {
     "preciso sair mais cedo da consulta",
     "quero parar o tratamento por enquanto",
     "dá pra parar o sangramento em casa?",
+    "já pedi ao comprador para de enviar pra vc",
   ])("NÃO bloqueia quem usa a palavra falando de outra coisa: %s", async (texto) => {
     // A palavra ISOLADA não é o sinal — a INTENÇÃO de parar de receber mensagem é.
     // Medido numa clínica: "tem como parar a dor?" bloqueava o paciente na ingestão,

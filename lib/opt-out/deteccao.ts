@@ -153,7 +153,7 @@ const FORMAS_DESCRITIVAS_DEPOIS_DE_ME = "recebe|escreve|perturba|enche|insiste|c
  */
 const OBJETOS_NAO_COMUNICATIVOS =
   "pedido|pedidos|encomenda|encomendas|pacote|pacotes|entrega|entregas|" +
-  "fatura|faturas|boleto|boletos|cobranca|cobrancas|produto|produtos|" +
+  "fatura|faturas|boleto|boletos|cobranca|cobrancas|produto|produtos|ord(?:em|ens)\\s+de\\s+compra|" +
   "paquete|paquetes|envio|envios|factura|facturas|boleta|boletas|" +
   "cobro|cobros|producto|productos|pauta|pautas|presupuesto|presupuestos";
 
@@ -170,6 +170,12 @@ const OBJETOS_NAO_COMUNICATIVOS =
 const DETERMINANTES_DE_OBJETO =
   "o|a|os|as|el|los|la|las|meu|minha|meus|minhas|seu|sua|seus|suas|" +
   "mi|mis|tu|tus|esse|essa|esses|essas|ese|esa|esos|esas|nesse|nessa";
+
+// Em "pedi ao comprador para de enviar pra vc", quem lê é o destinatário
+// do envio. Os dois padrões de cessação reconhecem "para".
+const FREIO_DE_CESSACAO_DE_ENVIO =
+  `(?!\\s+(?:(?:${DETERMINANTES_DE_OBJETO})?\\s*(?:${OBJETOS_NAO_COMUNICATIVOS})\\b|` +
+  `(?:(?:as?\\s+)?mensage(?:m|ns)\\s+)?(?:para|pra|a)\\s+(?:voces?|vcs?)\\b))`;
 
 /**
  * Listas que são a MENSAGEM em si: contatos, transmissão, mensagens, promoções.
@@ -306,7 +312,7 @@ const FRASES_DE_OPT_OUT: readonly RegExp[] = [
   // padrão de cessação espanhol, abaixo.
   new RegExp(
     `\\bpar(?:ar|a|e|em)\\s+de\\s+(?:me\\s+)?(?:${VERBOS_DE_COMUNICACAO})\\b` +
-      `(?!\\s+(?:${DETERMINANTES_DE_OBJETO})?\\s*(?:${OBJETOS_NAO_COMUNICATIVOS})\\b)`,
+      FREIO_DE_CESSACAO_DE_ENVIO,
     "u",
   ),
   // "não quero (mais) receber" — mas "não quero receber ligação, só whatsapp" é
@@ -439,7 +445,7 @@ const FRASES_DE_OPT_OUT: readonly RegExp[] = [
   new RegExp(
     `\\b(?:dej(?:ar|a|e|en)|par(?:ar|a|e|en))\\s+de\\s+` +
       `(?:${VERBOS_DE_COMUNICACAO})(?:me|nos|le|les)?\\b` +
-      `(?!\\s+(?:${DETERMINANTES_DE_OBJETO})?\\s*(?:${OBJETOS_NAO_COMUNICATIVOS})\\b)`,
+      FREIO_DE_CESSACAO_DE_ENVIO,
     "u",
   ),
   // "dar de baja" já É o pedido — a plantilla usa a palavra nesse sentido.

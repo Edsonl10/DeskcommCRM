@@ -1,5 +1,10 @@
 # PROJECT_STATE
 
+## Em validação — bloqueio indevido por descadastro (10/11/2026)
+- A auditoria da instalação registrou `contact.blocked` com `stop_keyword` na ingestão de uma mensagem comercial. A regra anterior confundia o trecho “para de enviar pra vc” com um pedido de descadastro.
+- O detector compartilhado considera o destinatário e ordens de compra ao interpretar pedidos de cessação. Os controles cobrem pedidos explícitos e a entrada normal de mensagens. Sem migration ou mudança no fluxo de desbloqueio.
+- 399 testes direcionados passaram. Quatro falsos positivos foram reproduzidos na regra anterior e corrigidos na nova. Próximo passo: validar o PR e publicar o fork pelo procedimento de instalação. O desbloqueio do cadastro afetado depende de confirmação no CRM.
+
 ## Em validação — assistente no campo (05/11/2026)
 - Pedido aprovado: retirar faixa fixa, botão antes de Nota interna e sugestão editável no campo comum, com envio humano. Implementação reutiliza DraftReplyButton/useDraftReply e envio comum; não chama aprovação de ai_reply_drafts nem registra feedback ao limpar. APIs/consumidor assistido preservados.
 - Proteções: não substitui rascunho; descarta geração depois de trocar de conversa ou entrar em nota; janela/permissões existentes. Sem schema, novas dependências ou alteração da autonomia. Contrato: docs/features/assistente-no-campo.md.
