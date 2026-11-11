@@ -170,7 +170,7 @@ export function InboxAdvancedFilters({
 }) {
   const t = useT();
   const { activeOrg } = useAuth();
-  const podeLerEquipe = !!activeOrg && roleAtLeast(activeOrg.role, "agent");
+  const podeLerEquipe = !!activeOrg && roleAtLeast(activeOrg.role, "manager");
   const departamentos = useDepartments({ enabled: podeLerEquipe });
   const atendentes = useAssignableMembers(podeLerEquipe);
   const [draft, setDraft] = useState(value);
@@ -347,7 +347,7 @@ export function InboxAdvancedFilters({
                 </Select>
               </label>
             )}
-            <div className="grid items-start gap-4 md:grid-cols-2">
+            {podeLerEquipe && <div className="grid items-start gap-4 md:grid-cols-2">
               <EscolhaMultipla
                 titulo={t("Departamento")}
                 opcoes={(departamentos.data?.data ?? []).map((d) => ({
@@ -377,7 +377,7 @@ export function InboxAdvancedFilters({
                   void atendentes.refetch();
                 }}
               />
-            </div>
+            </div>}
           </div>
           <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-background px-5 py-3">
             <p role="status" className="text-xs text-text-muted">

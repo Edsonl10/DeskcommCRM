@@ -3,19 +3,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BarraKanbanInbox } from "./BarraKanbanInbox";
 import { EtiquetasKanbanConversa } from "./EtiquetasKanbanConversa";
 import { conversaDeExemplo } from "./__fixtures__/conversa";
-const { salvar, atualizar, contagens } = vi.hoisted(() => ({
+const { salvar, atualizar, contagens, estado } = vi.hoisted(() => ({
   salvar: vi.fn(),
   atualizar: vi.fn(),
+  estado: {
+    role: "admin" as "admin" | "manager" | "agent",
+    config: { barras: {} as Record<string, string[]>, departamentos: [] as { id: string; name: string }[] },
+  },
   contagens: {
     data: [{ tag: "em andamento", total: 12, novas: 4 }] as
       { tag: string; total: number; novas: number }[] | undefined,
   },
 }));
 vi.mock("@/hooks/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: { id: "a", support: null }, activeOrg: { orgId: "org", role: "admin" } }),
+  useAuth: () => ({ user: { id: "a", support: null }, activeOrg: { orgId: "org", role: estado.role } }),
 }));
 vi.mock("@/hooks/inbox/useInboxKanban", () => ({
-  useInboxKanban: () => ({ data: { barras: {}, departamentos: [] } }),
+  useInboxKanban: () => ({ data: estado.config }),
   useSalvarBarraKanban: () => ({ mutate: salvar, isPending: false }),
   useContagensKanban: () => contagens,
 }));
@@ -25,9 +29,25 @@ vi.mock("@/hooks/inbox/useConversationTags", () => ({
 }));
 beforeEach(() => {
   vi.clearAllMocks();
+  estado.role = "admin";
+  estado.config = { barras: {}, departamentos: [] };
   contagens.data = [{ tag: "em andamento", total: 12, novas: 4 }];
 });
 describe("controles Kanban", () => {
+  it("atendente não troca de setor nem vê etapas de outro departamento", () => {
+    const setor = "22222222-2222-4222-8222-222222222222";
+    estado.role = "agent";
+    estado.config = {
+      barras: { [setor]: ["proposta enviada"] },
+      departamentos: [{ id: setor, name: "Arte/Designer" }],
+    };
+    const valor = { tab: "active" as const, search: "", onlyUnread: false };
+    render(<BarraKanbanInbox value={valor} filtros={{ view: "active" }} onChange={vi.fn()} />);
+    expect(screen.queryByRole("combobox", { name: "Departamento da barra Kanban" })).not.toBeInTheDocument();
+    expect(screen.getByText("Arte/Designer")).toBeVisible();
+    expect(screen.getByRole("button", { name: /proposta enviada: .* cards/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /em andamento: .* cards/ })).not.toBeInTheDocument();
+  });
   it("mostra dois contadores e aplica/desliga a etapa preservando os demais filtros", () => {
     const onChange = vi.fn();
     const value = { tab: "active" as const, search: "Ana", onlyUnread: false };

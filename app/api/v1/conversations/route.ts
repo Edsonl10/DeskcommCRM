@@ -2,6 +2,7 @@
  * GET /api/v1/conversations — list inbox (handler em ./_handler.ts).
  */
 import { permissaoGlobalInbox } from "@/lib/inbox/visoes";
+import { departamentosFiltrados, departamentosPermitidosNoInbox } from "@/lib/inbox/escopo-do-setor";
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 
@@ -97,6 +98,18 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (qsParsed.data.view === "all" && !permissaoGlobalInbox(activeOrg.role, activeOrg.inbox_permissions, "all")) {
     return fail("forbidden", "Sem permissão para Todos.", 403, { requestId });
   }
+  let departamentosPermitidos: string[] | null;
+  try {
+    departamentosPermitidos = await departamentosPermitidosNoInbox(activeOrg.orgId, user.id, activeOrg.role);
+  } catch {
+    return fail("internal_error", "Não foi possível verificar o departamento do usuário.", 500, { requestId });
+  }
+  const department_ids = departamentosFiltrados(qsParsed.data.department_ids, departamentosPermitidos);
+  // Uma lista vazia de setores NÃO pode virar um filtro ausente e devolver a organização inteira.
+  if (department_ids?.length === 0) {
+    return ok([], { requestId, meta: { cursor: null, has_more: false } });
+  }
+
   try {
     const { conversations, cursor, has_more } = await listConversationsHandler(
       supabase,
@@ -108,7 +121,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         inbox_role: activeOrg.role,
         inbox_permissions: activeOrg.inbox_permissions,
       },
-      qsParsed.data,
+      { ...qsParsed.data, department_ids },
     );
     // O nome de quem atende entra AQUI, na borda HTTP, e não no handler: o
     // handler é compartilhado com as tools MCP, que já resolvem o nome por conta

@@ -32,6 +32,7 @@ export function useTransferConversation() {
     onSuccess: (_data, args) => {
       qc.invalidateQueries({ queryKey: ["conversations"] });
       qc.invalidateQueries({ queryKey: ["conversation", args.conversation_id] });
+      qc.invalidateQueries({ queryKey: ["conversation-counts"] });
       toast.success(t("Conversa transferida."));
     },
   });
