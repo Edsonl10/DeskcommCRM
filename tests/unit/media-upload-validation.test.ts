@@ -1,8 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import { MAX_MEDIA_BYTES } from "@/lib/messaging/media/types";
 import { validateOutboundMedia } from "@/lib/messaging/media/upload-validation";
+import nextConfig from "../../next.config";
+
+vi.mock("@sentry/nextjs/config", () => ({ withSentryConfig: (config: unknown) => config }));
 
 describe("validateOutboundMedia", () => {
+  it("preserva no proxy o multipart de um documento no tamanho máximo aceito", () => {
+    const mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    expect(validateOutboundMedia(mime, MAX_MEDIA_BYTES)).toEqual({ ok: true, kind: "document" });
+    expect(nextConfig.experimental?.proxyClientMaxBodySize).toBe(
+      `${MAX_MEDIA_BYTES / 1_048_576 + 1}mb`,
+    );
+  });
+
   it("classifica mimes suportados no kind certo", () => {
     expect(validateOutboundMedia("image/jpeg", 1000)).toEqual({ ok: true, kind: "image" });
     expect(validateOutboundMedia("image/webp", 1000)).toEqual({ ok: true, kind: "image" });
