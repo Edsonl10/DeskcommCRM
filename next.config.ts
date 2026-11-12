@@ -77,6 +77,9 @@ const nextConfig: NextConfig = {
   // typedRoutes moved out of experimental in Next 15.5+
   typedRoutes: true,
   experimental: {
+    // O proxy trunca o multipart antes da validação do arquivo. Reserve 1 MB
+    // para os campos e delimitadores além dos 50 MB aceitos pelas rotas de mídia.
+    proxyClientMaxBodySize: "51mb",
     optimizePackageImports: ["@phosphor-icons/react", "lucide-react", "date-fns"],
   },
   images: {
