@@ -214,7 +214,8 @@ export function MessageBubble({
         // fez a spec achar que havia mensagem onde não havia (issue #1318).
         data-testid="message-bubble"
         className={cn(
-          "relative max-w-[75%] min-w-0 text-sm",
+          "relative min-w-0 text-sm",
+          editando ? "w-full max-w-2xl" : "max-w-[75%]",
           isBareSticker
             ? "px-0 py-0"
             : cn(
@@ -357,9 +358,10 @@ export function MessageBubble({
                 }
               }}
               maxLength={4096}
-              className="min-h-20 w-full rounded-md border border-border bg-background p-2 text-foreground"
+              rows={4}
+              className="block field-sizing-content min-h-24 max-h-[min(18rem,40dvh)] w-full resize-y overflow-y-auto rounded-md border border-border bg-background p-2 text-foreground"
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button size="sm" variant="ghost" disabled={ocupado} onClick={() => setEditando(false)}>{t("Cancelar")}</Button>
               <Button size="sm" disabled={ocupado || !texto.trim()} onClick={() => void salvarEdicao()}>{t("Salvar")}</Button>
             </div>

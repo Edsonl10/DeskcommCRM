@@ -1,5 +1,10 @@
 # PROJECT_STATE
 
+## Em validação — tamanho do editor de mensagens enviadas (19/11/2026)
+- Ao abrir Editar mensagem no Inbox, o balão encolhia junto com o campo. O editor agora usa a largura disponível até 42 rem, cresce com o texto e oferece rolagem interna para conteúdo mais extenso. Cancelar e Salvar continuam no mesmo fluxo de edição.
+- Na VPS, o defeito foi reproduzido com campo de 177 px e 78 px de altura para 108 px de conteúdo. O CSS do aplicativo contém as novas regras de layout. Lint direcionado e 50 testes unitários passaram. A spec de Inbox cobre largura, altura e cancelamento com dados sintéticos. E2E em banco fresco e conferência da nova versão na VPS pendentes.
+- Base: `b3c1359`, ponta do PR #48, que inclui a correção de nomes de anexos já instalada. Próximo passo: validar e publicar preservando essa base.
+
 ## Publicado — nomes originais dos anexos (19/11/2026)
 - Correção instalada na VPS a partir de `757a154ccb55a09b474ee69f03d8e3f1c3b67893`, árvore `c9f83d10ccf018d215299cc2123ed6c4f6626f80`, imagem local `deskcommcrm-local:757a154-nomes` / `sha256:f7160df598759065549b77fc583031a5e98e163b476e85bdfeda5fefd14f8bd5`. Saúde pública `healthy`, versão `757a154-nomes`, HTTP / 200 e /app 307. Recibo privado `/opt/backups/crm-nomes-arquivos-20261119/deployment.json`: installed. Retorno automático preparado e não utilizado; IDs de Caddy, worker, scheduler, WhatsApp e Redis conferidos pelo procedimento.
 - Ingestão individual/de grupos conserva `metadata.media_filename`; cartão mostra o nome inteiro; download e envio pelo composer usam o nome original. Preserva o ajuste já instalado de multipart de 50 MB, incorporando a fonte do PR #47. Sem schema novo. Contrato: `docs/features/nomes-originais-dos-anexos.md`.

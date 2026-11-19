@@ -93,6 +93,15 @@ let orgId = "";
 let autoraId = "";
 let originalAtendente = "";
 let originalCliente = "";
+let mensagemEditavel = "";
+const TEXTO_PARA_EDITAR = [
+  "O orçamento fica válido por 30 dias.",
+  "Podemos reservar o material até sexta-feira.",
+  "A produção começa depois da aprovação da arte.",
+  "O prazo passa a contar no próximo dia útil.",
+  "Avisaremos quando o pedido estiver pronto.",
+  "A retirada pode ser feita no balcão.",
+].join("\n");
 
 async function insere(tabela: string, valores: Record<string, unknown>): Promise<string> {
   const { data, error } = await db.from(tabela).insert(valores).select("id").single();
@@ -174,7 +183,21 @@ test.beforeAll(async () => {
     webhook_secret_encrypted: "\\x00",
   });
   await conversaComMensagem(`Cliente citação A ${SUFIXO}`, `Bom dia, queria saber do orçamento ${SUFIXO}`);
-  await conversaComMensagem(`Cliente citação B ${SUFIXO}`, `Olá, é sobre outro assunto ${SUFIXO}`);
+  const conversaEdicao = await conversaComMensagem(`Cliente citação B ${SUFIXO}`, `Olá, é sobre outro assunto ${SUFIXO}`);
+  mensagemEditavel = await insere("messages", {
+    organization_id: orgId,
+    contact_id: contatos.at(-1)!,
+    conversation_id: conversaEdicao,
+    channel_session_id: canal,
+    direction: "outbound",
+    type: "text",
+    status: "sent",
+    sent_via: "user",
+    sent_by_user_id: creds.users.agent!.id,
+    body: TEXTO_PARA_EDITAR,
+    sent_at: new Date().toISOString(),
+    external_id: `edicao-${SUFIXO}`,
+  });
 
   await insere("messages", {
     organization_id: orgId, contact_id: contatos[0], conversation_id: conversas[0],
@@ -346,4 +369,42 @@ test("anexo mostra nome completo inclusive quando o transporte identifica ZIP", 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(link).toBeVisible();
   expect(await texto.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+});
+
+test("edição de mensagem alarga o balão e mostra todo o texto de várias linhas", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await login(page, creds.users.agent!.email);
+  await abrirConversa(page, conversas[1]!);
+
+  const bolha = page.locator(`[data-message-id="${mensagemEditavel}"]`).getByTestId("message-bubble");
+  const larguraDeLeitura = await bolha.evaluate((el) => el.getBoundingClientRect().width);
+  await bolha.hover();
+  await bolha.getByRole("button", { name: "Opções da mensagem" }).click();
+  await page.getByRole("menuitem", { name: "Editar mensagem", exact: true }).click();
+
+  const campo = bolha.getByRole("textbox", { name: "Editar mensagem" });
+  await expect(campo).toBeFocused();
+  await expect(campo).toHaveValue(TEXTO_PARA_EDITAR);
+  const medirCampo = () => campo.evaluate((el) => ({
+    largura: el.clientWidth,
+    altura: el.clientHeight,
+    rolagem: el.scrollHeight - el.clientHeight,
+  }));
+  const inicial = await medirCampo();
+  expect(inicial.largura).toBeGreaterThan(larguraDeLeitura);
+  expect(inicial.rolagem).toBeLessThanOrEqual(1);
+
+  await campo.fill(`${TEXTO_PARA_EDITAR}\nObrigada pela preferência!\nAté logo.`);
+  const expandido = await medirCampo();
+  expect(expandido.altura).toBeGreaterThan(inicial.altura);
+  expect(expandido.rolagem).toBeLessThanOrEqual(1);
+  await expect(bolha.getByRole("button", { name: "Salvar", exact: true })).toBeInViewport();
+  await test.info().attach("editor de mensagem expandido", {
+    body: await bolha.screenshot(), contentType: "image/png",
+  });
+
+  await bolha.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await expect(campo).toHaveCount(0);
+  await expect(bolha).toContainText("A retirada pode ser feita no balcão.");
+  await expect(bolha).not.toContainText("Obrigada pela preferência!");
 });
