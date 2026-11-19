@@ -2,6 +2,7 @@
 import { useT } from "@/hooks/i18n/useT";
 import { DownloadSimple, FileText } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
+import { nomeDeArquivo } from "@/lib/messaging/media/filename";
 
 import { formatBytes, mediaFileLabel, mediaSrc } from "./media-utils";
 
@@ -11,22 +12,32 @@ interface Props {
   sizeBytes: number | null;
   storagePath: string | null;
   isOutbound: boolean;
+  filename?: string | null;
   /** Fonte alternativa para mídia de NOTA interna (#1863, F3) — ver ImageMedia. */
   src?: string;
 }
 
 /** Card de documento: rótulo (PDF/MP4/…), tamanho e download. */
-export function DocumentCard({ messageId, mime, sizeBytes, storagePath, isOutbound, src }: Props) {
+export function DocumentCard({
+  messageId,
+  mime,
+  sizeBytes,
+  storagePath,
+  isOutbound,
+  filename,
+  src,
+}: Props) {
   const t = useT();
-  const label = mediaFileLabel(mime, storagePath);
+  const label = nomeDeArquivo(filename) ?? mediaFileLabel(mime, storagePath);
   return (
     <a
       href={src ?? mediaSrc(messageId)}
       target="_blank"
       rel="noreferrer"
       aria-label={`${t("Baixar")} ${label} (${formatBytes(sizeBytes)})`}
+      title={label}
       className={cn(
-        "flex w-60 items-center gap-3 rounded-lg p-2 transition-colors",
+        "flex w-60 max-w-full items-center gap-3 rounded-lg p-2 transition-colors",
         isOutbound
           ? "bg-primary-foreground/10 hover:bg-primary-foreground/20"
           : "bg-background/60 hover:bg-background",
@@ -41,7 +52,7 @@ export function DocumentCard({ messageId, mime, sizeBytes, storagePath, isOutbou
         <FileText size={20} weight="duotone" aria-hidden />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{label}</span>
+        <span className="block text-sm font-medium break-all whitespace-normal">{label}</span>
         <span className="block text-xs opacity-70">{formatBytes(sizeBytes)}</span>
       </span>
       <DownloadSimple size={18} className="shrink-0 opacity-70" aria-hidden />

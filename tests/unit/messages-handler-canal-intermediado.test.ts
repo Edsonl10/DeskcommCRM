@@ -345,6 +345,23 @@ describe("a thread do provider atravessa os três elos até o transporte", () =>
     expect(corpo.attachmentType).toBe("image");
   });
 
+  it("envia o documento com o nome original, sem o identificador do Storage", async () => {
+    vi.stubEnv("ZERNIO_ACCOUNT_ID", CONTA);
+    vi.stubEnv("ZERNIO_API_KEY", "sk_env");
+    const fetchMock = respostaOk("wamid.DOCUMENTO");
+    vi.stubGlobal("fetch", fetchMock);
+    const { supabase } = dubleDe(conversaCompleta({ providerConversationId: THREAD }));
+    const msg = await sendMessageHandler(supabase, ctx, texto({
+      type: "document", body: undefined,
+      media_storage_path: `${ORG}/${CONV}/out-id.zip`, media_mime: "application/zip",
+      metadata: { media_filename: "arte final.cdr" },
+    }));
+    expect(msg.status).toBe("sent");
+    expect(msg.metadata).toMatchObject({ media_filename: "arte final.cdr" });
+    const corpo = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.body ?? "{}"));
+    expect(corpo.attachmentName).toBe("arte final.cdr");
+  });
+
   it("sem thread: failed com o motivo nomeado — nunca `sending` nem `queued`", async () => {
     // `sending` só é varrido pelo cron `recover-stuck-messages` depois de 5min, e
     // `queued` não é varrido por ninguém (tem dono no agent-engine). Um envio que

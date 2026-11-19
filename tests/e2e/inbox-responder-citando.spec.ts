@@ -176,6 +176,15 @@ test.beforeAll(async () => {
   await conversaComMensagem(`Cliente citação A ${SUFIXO}`, `Bom dia, queria saber do orçamento ${SUFIXO}`);
   await conversaComMensagem(`Cliente citação B ${SUFIXO}`, `Olá, é sobre outro assunto ${SUFIXO}`);
 
+  await insere("messages", {
+    organization_id: orgId, contact_id: contatos[0], conversation_id: conversas[0],
+    channel_session_id: canal, direction: "inbound", type: "document", status: "received",
+    sent_via: "external_device", media_mime: "application/zip", media_size_bytes: 1500382,
+    media_storage_path: `${orgId}/${conversas[0]}/teste-anexo.zip`,
+    metadata: { media_filename: "adesivo - 500 unidades recorte - produção.cdr" },
+    sent_at: new Date().toISOString(),
+  });
+
   const { data: autora, error: erroAutora } = await db.auth.admin.createUser({
     email: `citacao-${SUFIXO}@example.test`, password: creds.password, email_confirm: true,
     user_metadata: { full_name: "Maria Teste" },
@@ -319,4 +328,22 @@ test.describe("responder citando", () => {
       "a citação sobreviveu à troca de conversa",
     ).toHaveCount(0);
   });
+});
+
+
+test("anexo mostra nome completo inclusive quando o transporte identifica ZIP", async ({ page }) => {
+  await login(page, creds.users.agent!.email);
+  await abrirConversa(page, conversas[0]!);
+  const nome = "adesivo - 500 unidades recorte - produção.cdr";
+  const link = page.getByRole("link", { name: `Baixar ${nome} (1,4 MB)`, exact: true });
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute("title", nome);
+  const texto = link.getByText(nome, { exact: true });
+  expect(await texto.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  const pasta = path.join(EVIDENCE, "nomes-arquivos");
+  fs.mkdirSync(pasta, { recursive: true });
+  await page.screenshot({ path: path.join(pasta, "anexo-sintetico.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(link).toBeVisible();
+  expect(await texto.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 });

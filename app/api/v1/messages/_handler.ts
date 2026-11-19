@@ -17,6 +17,7 @@ import {
   guardServiceEffect,
 } from "@/lib/atendimento/fronteira-server";
 import { logger } from "@/lib/logger";
+import { nomeDoAnexo } from "@/lib/messaging/media/filename";
 /**
  * Core handlers para messages (list + send).
  *
@@ -1102,7 +1103,7 @@ export async function sendMessageHandler(
         if (signErr || !signed?.signedUrl) {
           throw new Error(`storage_sign_failed: ${signErr?.message ?? "no_url"}`);
         }
-        const filename = input.media_storage_path.split("/").pop() ?? undefined;
+        const filename = nomeDoAnexo(input.metadata) ?? input.media_storage_path.split("/").pop() ?? undefined;
         await checkBoundary();
         ({ externalId } = await adapter.send({
           beforeSend: checkBoundary,

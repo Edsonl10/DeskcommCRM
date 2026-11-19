@@ -25,6 +25,7 @@ export interface EntradaDeGrupo {
   body: string | null;
   mediaUrl: string | null;
   mediaMime: string | null;
+  mediaFilename?: string | null;
   sentAt: string;
   remetente: RemetenteDeGrupo | null;
   rawType: string | null;
@@ -104,6 +105,7 @@ export async function gravarMensagemDeGrupo(
     delivered_at: e.direction === "inbound" ? agora : null,
     metadata: {
       raw_type: e.rawType,
+      ...(e.mediaFilename ? { media_filename: e.mediaFilename } : {}),
       ...(remetente?.success ? { group_sender: remetente.data } : {}),
     },
   });

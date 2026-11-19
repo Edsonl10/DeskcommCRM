@@ -142,6 +142,14 @@ describe("persistMessageMedia", () => {
     );
   });
 
+  it("a persistência conserva o nome original junto do estado da mídia", async () => {
+    messageRow.metadata = { media_filename: "arte final.cdr" };
+    await persistMessageMedia(eventRow());
+    expect(updateEqMock).toHaveBeenCalledWith(expect.objectContaining({
+      metadata: expect.objectContaining({ media_filename: "arte final.cdr", media_status: "stored" }),
+    }));
+  });
+
   it("1:1 (controle): persiste E pede derivação", async () => {
     conversationRow.is_group = false;
     const result = await persistMessageMedia(eventRow());

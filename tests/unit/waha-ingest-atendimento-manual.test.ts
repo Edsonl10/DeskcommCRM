@@ -42,6 +42,7 @@ const SESSION = { id: "sess-1", organization_id: ORG, is_warmup_complete: true, 
 interface Captura {
   conversationUpdates: Array<Record<string, unknown>>;
   rpcs: string[];
+  messageInserts?: Array<Record<string, unknown>>;
 }
 
 function makeAdmin(cap: Captura, jaRegistrada: boolean) {
@@ -54,7 +55,8 @@ function makeAdmin(cap: Captura, jaRegistrada: boolean) {
         selectCols = c ?? "";
         return chain;
       },
-      insert: () => {
+      insert: (p: Record<string, unknown>) => {
+        if (name === "messages") cap.messageInserts?.push(p);
         mode = "insert";
         return chain;
       },
@@ -161,5 +163,23 @@ describe("R8 · resposta manual pelo celular pausa a IA", () => {
     );
     expect(fonte).toContain("pausarIaPorAtendimentoManual");
     expect(fonte).toMatch(/direction === "outbound"[\s\S]{0,200}pausarIaPorAtendimentoManual/);
+  });
+});
+
+
+describe("nome do arquivo recebido na ingestão real", () => {
+  it.each([false, true])("preserva o nome no insert (fromMe=%s)", async (fromMe) => {
+    const cap: Captura = { conversationUpdates: [], rpcs: [], messageInserts: [] };
+    await dispatchWahaEvent(makeAdmin(cap, false), SESSION, {
+      event: "message.any", payload: {
+        id: `${fromMe}_5511999999999@c.us_DOC`, fromMe,
+        from: "5511999999999@c.us", to: "5511888888888@c.us",
+        type: "document", hasMedia: true,
+        media: { url: "http://localhost/arquivo.zip", mimetype: "application/zip", filename: "arte final.cdr" },
+      },
+    }, "req-nome");
+    expect(cap.messageInserts).toEqual([expect.objectContaining({
+      type: "document", metadata: expect.objectContaining({ media_filename: "arte final.cdr" }),
+    })]);
   });
 });
