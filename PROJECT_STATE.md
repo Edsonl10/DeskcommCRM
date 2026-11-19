@@ -1,5 +1,12 @@
 # PROJECT_STATE
 
+## Em validação — nomes originais dos anexos (19/11/2026)
+- Corrige perda do nome na ingestão individual/de grupos, cartão que só mostrava a extensão, download e envio pelo composer. Campo `metadata.media_filename`; sem schema novo. Contrato: `docs/features/nomes-originais-dos-anexos.md`.
+- 86 casos direcionados passaram. Typecheck, lint e suíte integral em execução. Caso visual acrescentado à spec de citações já incluída no CI. Nenhuma implantação desta correção ainda.
+- Backup validado na VPS em `/opt/backups/crm-nomes-arquivos-20261119` (banco e sessões), configuração e imagem anterior preservadas. Reparo idempotente recuperou 193 nomes a partir dos webhooks da própria organização/sessão/mensagem e registrou uma auditoria. Primeira tentativa com junção ampla expirou sem alteração; a execução por chave exata usou o índice e concluiu. O nome do anexo reportado foi confirmado na origem.
+- Preservar o ajuste de multipart de 50 MB já instalado, correspondente ao PR #47 ainda aberto. Não substituir pelo update upstream. Publicação e confirmação pela tela ainda pendentes.
+
+
 ## Em validação — bloqueio indevido por descadastro (10/11/2026)
 - A auditoria da instalação registrou `contact.blocked` com `stop_keyword` na ingestão de uma mensagem comercial. A regra anterior confundia o trecho “para de enviar pra vc” com um pedido de descadastro.
 - O detector compartilhado considera o destinatário e ordens de compra ao interpretar pedidos de cessação. Os controles cobrem pedidos explícitos e a entrada normal de mensagens. Sem migration ou mudança no fluxo de desbloqueio.

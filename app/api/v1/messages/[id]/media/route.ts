@@ -23,6 +23,7 @@ import {
 } from "@/lib/channels";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { disposicaoDoAnexo, nomeDoAnexo } from "@/lib/messaging/media/filename";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
   // Filtro explícito de organization_id por doutrina (defense-in-depth).
   const { data: msg, error } = await supabase
     .from("messages")
-    .select("id, media_url, media_mime, media_storage_path, metadata, channel_session_id")
+    .select("id, type, media_url, media_mime, media_storage_path, metadata, channel_session_id")
     .eq("id", messageId)
     .eq("organization_id", activeOrg.orgId)
     .maybeSingle();
@@ -89,11 +90,12 @@ export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
     );
   }
 
+  const filename = msg.type === "document" ? nomeDoAnexo(msg.metadata) : null;
   if (msg.media_storage_path) {
     const admin = createAdminClient();
     const { data: signed, error: signErr } = await admin.storage
       .from("whatsapp-media")
-      .createSignedUrl(msg.media_storage_path, SIGNED_URL_TTL_S);
+      .createSignedUrl(msg.media_storage_path, SIGNED_URL_TTL_S, filename ? { download: filename } : undefined);
     if (!signErr && signed?.signedUrl) {
       const response = NextResponse.redirect(signed.signedUrl, 302);
       response.headers.set("X-Request-Id", requestId);
@@ -146,6 +148,7 @@ export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
           "Content-Type": media.mime,
           "Cache-Control": "private, max-age=60",
           "X-Request-Id": requestId,
+          ...(filename ? { "Content-Disposition": disposicaoDoAnexo(filename) } : {}),
         },
       });
     } catch {

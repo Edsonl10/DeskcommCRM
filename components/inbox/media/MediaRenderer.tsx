@@ -2,6 +2,7 @@
 import { useT } from "@/hooks/i18n/useT";
 import { DERIVACAO_TERMINADA, MARCADOR_NAO_LIDA } from "@/lib/messaging/media/derivable";
 import type { Message } from "@/lib/types/messaging";
+import { nomeDoAnexo } from "@/lib/messaging/media/filename";
 
 import { AudioPlayer } from "./AudioPlayer";
 import { DocumentCard } from "./DocumentCard";
@@ -100,6 +101,7 @@ export function MediaRenderer({
           mime={message.media_mime}
           sizeBytes={message.media_size_bytes}
           storagePath={message.media_storage_path}
+          filename={nomeDoAnexo(message.metadata)}
           isOutbound={isOutbound}
         />
       );

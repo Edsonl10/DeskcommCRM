@@ -13,6 +13,7 @@ import { IDIOMA_PADRAO } from "@/lib/i18n/idiomas";
 import { extFromMime, MAX_MEDIA_BYTES } from "@/lib/messaging/media/types";
 import { validateOutboundMedia } from "@/lib/messaging/media/upload-validation";
 import { transcodificarNotaDeVoz } from "@/lib/messaging/media/voice-transcode";
+import { nomeDeArquivo } from "@/lib/messaging/media/filename";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { traduzir } from "@/lib/i18n/dicionario";
 
@@ -128,6 +129,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
       // existe — o mesmo defeito, um passo adiante.
       media_mime: mimeFinal,
       media_size_bytes: buffer.length,
+      media_filename: verdict.kind === "document" ? nomeDeArquivo(file.name) : null,
       kind: verdict.kind,
     },
     { requestId },

@@ -8,6 +8,7 @@ export interface UploadedMedia {
   storage_path: string;
   media_mime: string;
   media_size_bytes: number;
+  media_filename?: string | null;
   kind: "image" | "video" | "audio" | "document";
 }
 

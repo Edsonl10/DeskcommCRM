@@ -55,6 +55,11 @@ describe("MediaRenderer", () => {
     const { container } = render(<MediaRenderer agora={UM_DIA_DEPOIS} message={msg({ type: "video" })} />);
     expect(container.querySelector("video")).not.toBeNull();
   });
+  it("leva o nome persistido até o cartão do documento", () => {
+    render(<MediaRenderer agora={UM_DIA_DEPOIS} message={msg({ type: "document",
+      media_mime: "application/zip", metadata: { media_filename: "produção.cdr" } })} />);
+    expect(screen.getByText("produção.cdr")).toBeInTheDocument();
+  });
   it("document (e tipos desconhecidos) → DocumentCard", () => {
     render(<MediaRenderer agora={UM_DIA_DEPOIS} message={msg({ type: "document", media_mime: "application/pdf" })} />);
     expect(screen.getByRole("link", { name: /baixar pdf/i })).toBeInTheDocument();

@@ -39,6 +39,7 @@ import { semAssinatura } from "@/lib/messaging/assinatura";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { ackToStatus } from "@/lib/types/messaging";
 import type { WahaEnvelope, WahaPayload } from "@/lib/waha/envelope";
+import { mediaFilenameOf } from "@/lib/waha/media-filename";
 import { bareWaMessageId, chatIdFromWaMessageId, wahaEchoExternalIds } from "@/lib/waha/message-id";
 import { logger } from "@/lib/logger";
 import {
@@ -594,6 +595,7 @@ async function ingerirMensagemDeGrupo(
       body: bodyOf(p),
       mediaUrl: mediaUrlOf(p),
       mediaMime: mediaMimeOf(p),
+      mediaFilename: mediaFilenameOf(p),
       temMidia: p.hasMedia === true,
       sentAt: dataDoTimestamp(p.timestamp, now),
       // `fromMe`: quem escreveu é o dono do número — o `pushName` é o da loja.
@@ -960,6 +962,7 @@ async function handleInbound(
       metadata: {
         raw_type: p.type,
         ack_name: p.ackName,
+        ...(mediaFilenameOf(p) ? { media_filename: mediaFilenameOf(p) } : {}),
         // O texto citado só entra quando NÃO há ponteiro: com a linha
         // resolvida, a citada no banco é a fonte da verdade — uma edição
         // posterior mudaria o que a tela mostra, e a cópia ficaria velha.
@@ -1392,6 +1395,7 @@ async function handleOutboundFromUserPhone(
       metadata: {
         raw_type: p.type,
         fromMe: true,
+        ...(mediaFilenameOf(p) ? { media_filename: mediaFilenameOf(p) } : {}),
         // Mesmo critério do inbound: cópia do texto só quando não há ponteiro.
         ...(citacao?.texto && !citadaId ? { reply_to_body: citacao.texto } : {}),
       },

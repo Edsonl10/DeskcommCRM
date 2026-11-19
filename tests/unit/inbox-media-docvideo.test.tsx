@@ -68,3 +68,16 @@ describe("DocumentCard", () => {
     expect(link).toHaveAttribute("target", "_blank");
   });
 });
+
+describe("DocumentCard — nome original", () => {
+  it("mostra o nome completo de Corel mesmo quando o MIME diz ZIP", () => {
+    const filename = "adesivo - 500 unidades recorte - produção.cdr";
+    render(<DocumentCard messageId="m6" mime="application/zip" sizeBytes={1500382}
+      storagePath="org/conv/m6.zip" isOutbound={false} filename={filename} />);
+    const name = screen.getByText(filename);
+    expect(name).not.toHaveClass("truncate");
+    expect(name).toHaveClass("break-all", "whitespace-normal");
+    expect(screen.getByRole("link", { name: `Baixar ${filename} (1,4 MB)` })).toHaveAttribute("title", filename);
+    expect(screen.queryByText("ZIP")).not.toBeInTheDocument();
+  });
+});
