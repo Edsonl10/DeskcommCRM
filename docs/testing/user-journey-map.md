@@ -226,6 +226,8 @@ Cadastro → conversa: `inbox-reabrir-e-contato-ocupado.spec.ts` inclui criar um
 
 Inbox → histórico e ficha: `tests/e2e/inbox-responder-citando.spec.ts` verifica abertura de histórico extenso no fim, leitura de mensagens antigas e retorno ao fim ao abrir novamente. `tests/e2e/cliente-edicao-e-painel.spec.ts` verifica recolher a ficha, o espaço liberado, a memória após recarga e a reabertura. As duas provas passaram no ambiente fresco, no run 40681501625 (fonte `b5a017d`). A captura com dados sintéticos `evidence/inbox-rolagem-ficha/ficha-sintetica.png` mostra o controle da ficha no rodapé, como na barra esquerda.
 
+Inbox → editar mensagem enviada: `tests/e2e/inbox-responder-citando.spec.ts` mede a largura do editor, a altura do campo antes e depois de acrescentar linhas e a visibilidade do botão Salvar. O teste cancela a edição e confere o texto original no balão.
+
 | # | Caso | Expectativa |
 |---|------|-------------|
 | J4.1 | Pipeline default existe pra org nova | Kanban abre com 8 colunas |
